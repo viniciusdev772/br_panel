@@ -17,4 +17,4 @@ O painel roda como root e executa código vindo de repositórios Git: trate cada
 7. Permissões de arquivo: banco 0600, env files 0600, diretório de dados 0750.
 8. Qualquer nova rota que altera estado: método POST, `protected()`, teste cobrindo sem-sessão e sem-CSRF.
 
-Em dúvida, rode `/security-review` ou peça ao agente `security-reviewer`.
+Em dúvida, revise o diff contra esta lista antes de commitar.

@@ -18,7 +18,7 @@ Needs Go 1.26+ (pure Go, no CGO, `modernc.org/sqlite`). `make cover` only works 
 
 ## Layout
 
-`cmd/brpanel` (flags, wiring) → `internal/*` (all logic) → `web/` (embedded templates/static) · `deployments/systemd/` · `docs/` (architecture, security, ADRs) · `scripts/screenshots/` · `.claude/` (rules, commands, skill, agents, hooks).
+`cmd/brpanel` (flags, wiring) → `internal/*` (all logic) → `web/` (embedded templates/static) · `deployments/systemd/` · `docs/` (architecture, security, ADRs) · `scripts/screenshots/` · `.claude/` (rules and hooks).
 
 Package dependencies flow one way and are listed in `.claude/rules/architecture.md` (also `docs/architecture.md` with flows and the route table). Key idea: `internal/server` is the only HTTP layer; domain logic lives in `deploy`, `detect`, `nginx`, `systemd`, `monitor`, `githubapp`, `settings`, `store`.
 
@@ -35,10 +35,6 @@ Package dependencies flow one way and are listed in `.claude/rules/architecture.
 
 Architecture & dependency direction, Go style, security, testing, database, frontend and git workflow each have a rule file; path-scoped ones load when you touch matching files. Highlights: validate everything that reaches a shell/unit/Nginx file (`internal/validate`); every state-changing route is POST + `protected()` (CSRF) with a test; new settings are never env vars; never commit binaries, databases or keys.
 
-## Claude Code tooling in this repo
+## Claude Code setup in this repo
 
-- Commands: `/check`, `/new-migration <desc>`, `/screenshots [dir]`, `/sync-docs`.
-- Skill: `add-language-detector` (extend `internal/detect`).
-- Agents (opt-in, invoked on request): `security-reviewer`, `go-test-writer`.
-- Hooks (`.claude/settings.json`): gofmt after edits, block edits to `go.sum`/data/keys, `go build`+`vet` check before finishing, Go module warm-up at session start.
-- Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).
+Only rules (`.claude/rules/`) plus a small `.claude/settings.json` with permissions and hooks (gofmt after edits, block edits to `go.sum`/data/keys, `go build`+`vet` check before finishing, Go module warm-up at session start). No custom agents, skills or slash commands — do not add any. Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).

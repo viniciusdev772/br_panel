@@ -30,8 +30,8 @@ Não exigem root, systemd, nginx, certbot nem rede (veja `.claude/rules/testing.
 ## Convenções
 - Layout, dependências entre pacotes e estilo: `.claude/rules/`.
 - Interface em português (pt-BR); código e comentários em inglês.
-- Mudança de esquema: nova migração append-only (`/new-migration` no Claude Code).
-- Nova linguagem na detecção: skill `add-language-detector`.
+- Mudança de esquema: nova migração append-only (`.claude/rules/database.md`).
+- Nova linguagem na detecção: novo `detectXxx` em `internal/detect`, com testes, entrada em `requireHints` e linha na tabela do README.
 
 ## Claude Code
-`.claude/` contém regras por caminho, comandos (`/check`, `/new-migration`, `/screenshots`, `/sync-docs`), a skill `add-language-detector`, os agentes `security-reviewer` e `go-test-writer` (só rodam se você os chamar) e hooks (gofmt automático, bloqueio de edição de `go.sum`/dados, verificação de build ao concluir). Preferências pessoais: `.claude/settings.local.json` e `CLAUDE.local.md` (ignorados pelo Git).
+`.claude/rules/` guarda as regras do projeto (algumas carregam só ao tocar em arquivos de certos caminhos) e `.claude/settings.json` define permissões e hooks (gofmt automático, bloqueio de edição de `go.sum`/dados, verificação de build ao concluir). Preferências pessoais: `.claude/settings.local.json` e `CLAUDE.local.md` (ignorados pelo Git).

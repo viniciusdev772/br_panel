@@ -7,4 +7,4 @@
 | [security.md](security.md) | Modelo de ameaças e controles implementados |
 | [adr/](adr/) | Decisões de arquitetura (por que systemd, SQLite sem env vars, layout padrão, detecção, GitHub App) |
 
-Para quem trabalha com o Claude Code: veja também `CLAUDE.md` e `.claude/` (regras, comandos, agentes e hooks do projeto).
+Para quem trabalha com o Claude Code: veja também `CLAUDE.md` e `.claude/` (regras e hooks do projeto).
