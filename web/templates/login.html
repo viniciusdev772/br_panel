@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="mdc-card login-card">
+  <form method="post" action="/login" class="card-body">
+    <h1 class="mdc-typography--headline6">Entrar no painel</h1>
+    <label class="mdc-text-field mdc-text-field--outlined full">
+      <span class="mdc-notched-outline">
+        <span class="mdc-notched-outline__leading"></span>
+        <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-pw">Senha</span></span>
+        <span class="mdc-notched-outline__trailing"></span>
+      </span>
+      <input class="mdc-text-field__input" type="password" name="password" aria-labelledby="lbl-pw" autocomplete="current-password" autofocus required>
+    </label>
+    <div class="actions">
+      <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Entrar</span></button>
+    </div>
+  </form>
+</div>
+{{end}}

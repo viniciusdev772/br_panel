@@ -1,0 +1,36 @@
+{{define "action"}}
+<form method="post" action="/apps/{{.name}}/{{.action}}" {{if .confirm}}data-confirm="{{.confirm}}"{{end}}>
+  <input type="hidden" name="csrf" value="{{.csrf}}">
+  <button class="mdc-button {{if .raised}}mdc-button--raised{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
+</form>
+{{end}}
+{{define "content"}}
+<div class="page-head">
+  <h1 class="mdc-typography--headline5">{{.App.Name}}
+    <span class="chip chip--{{.State}}">{{.State}}</span>
+    <span class="chip chip--{{.App.Status}}" id="deploy-status" data-deploying="{{.App.Deploying}}">{{.App.Status}}</span>
+  </h1>
+  <a class="mdc-button" href="/apps/{{.App.Name}}/edit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">edit</i><span class="mdc-button__label">Editar</span></a>
+</div>
+<div class="mdc-card"><div class="card-body">
+  <dl class="meta">
+    <dt>Repositório</dt><dd>{{.App.Repo}} <span class="muted">({{.App.Branch}})</span></dd>
+    <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
+    <dt>Início</dt><dd><code>{{.App.StartCmd}}</code></dd>
+    {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}</dd>{{end}}
+    {{if not .App.LastDeploy.IsZero}}<dt>Último deploy</dt><dd>{{.App.LastDeploy.Format "02/01/2006 15:04:05"}}</dd>{{end}}
+  </dl>
+  <div class="actions actions--start">
+    {{template "action" dict "name" .App.Name "action" "deploy" "csrf" .CSRF "icon" "rocket_launch" "label" "Deploy" "raised" true "disabled" .App.Deploying}}
+    {{template "action" dict "name" .App.Name "action" "restart" "csrf" .CSRF "icon" "restart_alt" "label" "Reiniciar"}}
+    {{template "action" dict "name" .App.Name "action" "start" "csrf" .CSRF "icon" "play_arrow" "label" "Iniciar"}}
+    {{template "action" dict "name" .App.Name "action" "stop" "csrf" .CSRF "icon" "stop" "label" "Parar"}}
+    {{template "action" dict "name" .App.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "confirm" "Excluir esta aplicação, o serviço e os arquivos?"}}
+  </div>
+</div></div>
+
+<h2 class="mdc-typography--subtitle1 section-title">Log do deploy</h2>
+<pre class="log" id="log-deploy" data-url="/apps/{{.App.Name}}/log">Carregando…</pre>
+<h2 class="mdc-typography--subtitle1 section-title">Log do serviço (journal)</h2>
+<pre class="log" id="log-service" data-url="/apps/{{.App.Name}}/log?kind=service">Carregando…</pre>
+{{end}}

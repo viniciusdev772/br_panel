@@ -1,0 +1,37 @@
+{{define "layout"}}<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · BR Panel</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="mdc-typography">
+  <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
+    <div class="mdc-top-app-bar__row">
+      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+        <a class="mdc-top-app-bar__navigation-icon material-icons brand-link" href="/" aria-label="Início">dns</a>
+        <span class="mdc-top-app-bar__title">BR Panel</span>
+      </section>
+      {{if .Authed}}
+      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button class="mdc-button topbar-btn" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">logout</i><span class="mdc-button__label">Sair</span></button>
+        </form>
+      </section>
+      {{end}}
+    </div>
+  </header>
+  <main class="content mdc-top-app-bar--fixed-adjust">
+    {{if .Flash}}<div class="notice" role="status">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="notice notice--error" role="alert">{{.Error}}</div>{{end}}
+    {{template "content" .}}
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>{{end}}

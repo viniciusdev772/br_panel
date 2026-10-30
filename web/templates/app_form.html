@@ -1,0 +1,34 @@
+{{define "field"}}
+<label class="mdc-text-field mdc-text-field--outlined full">
+  <span class="mdc-notched-outline">
+    <span class="mdc-notched-outline__leading"></span>
+    <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-{{.name}}">{{.label}}</span></span>
+    <span class="mdc-notched-outline__trailing"></span>
+  </span>
+  <input class="mdc-text-field__input" type="{{or .type "text"}}" name="{{.name}}" value="{{.value}}" aria-labelledby="lbl-{{.name}}" {{if .required}}required{{end}} {{if .readonly}}readonly{{end}} {{if .placeholder}}placeholder="{{.placeholder}}"{{end}}>
+</label>
+{{end}}
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">{{.Title}}</h1></div>
+<div class="mdc-card"><form method="post" class="card-body" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  {{template "field" dict "name" "name" "label" "Nome (a-z, 0-9, -)" "value" .App.Name "required" true "readonly" .Editing}}
+  {{template "field" dict "name" "repo" "label" "Repositório Git (https:// ou git@host:org/repo)" "value" .App.Repo "required" true}}
+  {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch}}
+  {{template "field" dict "name" "build_cmd" "label" "Comando de build (opcional) ex.: npm ci && npm run build" "value" .App.BuildCmd}}
+  {{template "field" dict "name" "start_cmd" "label" "Comando de início ex.: node server.js" "value" .App.StartCmd "required" true}}
+  {{template "field" dict "name" "port" "label" "Porta (exportada como $PORT, 0 = nenhuma)" "value" .App.Port "type" "number"}}
+  <label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
+    <span class="mdc-notched-outline">
+      <span class="mdc-notched-outline__leading"></span>
+      <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-env">Variáveis de ambiente (CHAVE=valor, uma por linha)</span></span>
+      <span class="mdc-notched-outline__trailing"></span>
+    </span>
+    <span class="mdc-text-field__resizer"><textarea class="mdc-text-field__input" rows="6" name="env" aria-labelledby="lbl-env">{{.App.Env}}</textarea></span>
+  </label>
+  <div class="actions">
+    <a class="mdc-button" href="{{if .Editing}}/apps/{{.App.Name}}{{else}}/{{end}}"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Cancelar</span></a>
+    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Editing}}Salvar{{else}}Criar e fazer deploy{{end}}</span></button>
+  </div>
+</form></div>
+{{end}}

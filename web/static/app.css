@@ -1,0 +1,34 @@
+:root {
+  --mdc-theme-primary: #1565c0;
+  --mdc-theme-secondary: #00897b;
+  --mdc-theme-on-primary: #fff;
+}
+body { margin: 0; background: #f5f5f5; font-family: Roboto, sans-serif; }
+.mdc-top-app-bar { --mdc-theme-primary: #1565c0; }
+.brand-link, .brand-link:visited { color: #fff; text-decoration: none; }
+.topbar-btn { color: #fff; --mdc-theme-primary: #fff; }
+.content { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.page-head h1 { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.mdc-card { background: #fff; }
+.login-card { max-width: 360px; margin: 48px auto; }
+.full { width: 100%; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.actions--start { justify-content: flex-start; }
+.table-wrap { width: 100%; }
+.notice { background: #e3f2fd; color: #0d47a1; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; }
+.notice--error { background: #ffebee; color: #b71c1c; }
+.muted { color: rgba(0,0,0,.54); }
+.empty .card-body { align-items: center; text-align: center; }
+.big { font-size: 48px; color: #1565c0; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.meta dt { color: rgba(0,0,0,.54); }
+.meta dd { margin: 0; word-break: break-all; }
+.section-title { margin: 24px 0 8px; }
+.log { background: #1e272e; color: #dfe6e9; padding: 12px; border-radius: 4px; max-height: 360px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 12px; margin: 0; }
+.chip { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; background: #e0e0e0; color: #424242; }
+.chip--active, .chip--deployed { background: #c8e6c9; color: #1b5e20; }
+.chip--failed { background: #ffcdd2; color: #b71c1c; }
+.chip--deploying, .chip--activating { background: #fff3e0; color: #e65100; }
+form[data-confirm] { margin: 0; }
