@@ -7,7 +7,9 @@ body { margin: 0; background: #f5f5f5; font-family: Roboto, sans-serif; }
 .mdc-top-app-bar { --mdc-theme-primary: #1565c0; }
 .brand-link, .brand-link:visited { color: #fff; text-decoration: none; }
 .topbar-btn { color: #fff; --mdc-theme-primary: #fff; }
-.content { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+/* Fixed top bar is 64px (56px on phones); keep the content clear of it. */
+.content { max-width: 960px; margin: 0 auto; padding: 88px 16px 48px; }
+@media (max-width: 599px) { .content { padding-top: 80px; } }
 .page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .page-head h1 { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .card-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
@@ -40,3 +42,13 @@ form[data-confirm] { margin: 0; }
 .check { display: flex; align-items: center; gap: 8px; }
 .check .ok { color: #2e7d32; } .check .warn { color: #ef6c00; } .check .bad { color: #c62828; }
 .form-end { margin-top: 24px; }
+@media (max-width: 599px) {
+  .topbar-btn .mdc-button__label { display: none; }
+  .topbar-btn { min-width: 40px; padding: 0 8px; }
+  .topbar-btn .mdc-button__icon { margin: 0; }
+  .mdc-data-table__cell, .mdc-data-table__header-cell { white-space: normal; word-break: break-word; padding: 8px; }
+  .chip { white-space: nowrap; }
+  .mdc-data-table__cell:nth-child(2), .mdc-data-table__header-cell:nth-child(2) { display: none; }
+  .meta { grid-template-columns: 1fr; gap: 0; }
+  .meta dd { margin-bottom: 8px; }
+}
