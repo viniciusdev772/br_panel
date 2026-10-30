@@ -20,6 +20,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/execx"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/nginx"
+	"github.com/viniciusdev772/br_panel/internal/nodeenv"
 	"github.com/viniciusdev772/br_panel/internal/settings"
 	"github.com/viniciusdev772/br_panel/internal/store"
 	"github.com/viniciusdev772/br_panel/internal/systemd"
@@ -43,6 +44,7 @@ type Deployer struct {
 	DataDir  string
 	Settings func() settings.Settings
 	GitHub   func() *githubapp.Client
+	Node     *nodeenv.Installer // installs Node.js (nvm) when a project needs it; may be nil
 
 	pendMu  sync.Mutex
 	pending map[string]bool

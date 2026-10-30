@@ -25,10 +25,10 @@ type Detection struct {
 }
 
 var requireHints = map[string]string{
-	"node":     "apt install nodejs",
-	"npm":      "apt install npm",
-	"pnpm":     "npm install -g pnpm",
-	"yarn":     "npm install -g yarn",
+	"node":     "instale com o nvm pelo botão abaixo",
+	"npm":      "instale com o nvm pelo botão abaixo",
+	"pnpm":     "vem junto com o Node.js do nvm; use o botão abaixo",
+	"yarn":     "vem junto com o Node.js do nvm; use o botão abaixo",
 	"bun":      "https://bun.sh",
 	"python3":  "apt install python3 python3-venv python3-pip",
 	"go":       "apt install golang-go",

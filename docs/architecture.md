@@ -16,6 +16,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
 | `internal/sysinfo` | Leitura de cgroup v2 e `/proc` (RAM, carga, disco, uptime) |
 | `internal/cloudflare` | Registro DNS A do domínio da app via API Token da Cloudflare (só biblioteca padrão) |
+| `internal/nodeenv` | Instala o Node.js com o nvm (versão fixa) em `<data>/nvm` e liga node/npm/npx em `/usr/local/bin` |
 | `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório, criação do App pelo fluxo de manifest |
 | `internal/settings` | Configuração guardada no banco, validação, Argon2id |
 | `internal/store` | SQLite: apps, configurações, métricas; migrações |
@@ -30,8 +31,8 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 graph LR
   cmd[cmd/brpanel] --> server
   cmd --> store
-  server --> cloudflare & dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
-  deploy --> cloudflare & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
+  server --> cloudflare & nodeenv & dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
+  deploy --> cloudflare & nodeenv & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
   dbengine --> settings & store & systemd & validate & execx
   monitor --> store & sysinfo & systemd
   nginx --> settings & execx
@@ -83,6 +84,8 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
+| `POST /tools/node/install` | sessão + CSRF | Instala o Node.js com o nvm em segundo plano |
+| `GET /tools/node/status` | sessão | Andamento da instalação (log, erro, node/npm disponíveis) |
 | `GET /api/github/repos` | sessão | Repositórios que o GitHub App enxerga (token de instalação só com `metadata:read`), para o seletor da nova aplicação |
 | `GET /databases/new`, `POST /databases`, `POST /databases/install` | sessão (+CSRF) | Criar/instalar banco |
 | `GET /databases/{name}` | sessão | Página do banco (Conectar, Dados, Backups, Métricas, Logs, Configurações) |

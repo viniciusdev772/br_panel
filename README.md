@@ -43,6 +43,15 @@ Quem já usava a versão anterior: o `apps.json` é importado automaticamente (e
 
 Com o GitHub App configurado, a tela **Nova aplicação** mostra um campo para buscar entre os repositórios em que o App está instalado (públicos e privados, de todas as instalações). Ao escolher um, o painel preenche a URL e a branch padrão e detecta o projeto. Se o App ainda não está instalado em nenhum repositório, a tela avisa; você também pode digitar a URL na mão. A lista usa um token de instalação com a permissão mínima (*Metadata: read*), usado só para listar.
 
+## Node.js pelo nvm
+
+Projetos Node.js precisam de `node` e `npm` no servidor. O painel instala os dois com o [nvm](https://github.com/nvm-sh/nvm), sem usar os pacotes da distribuição:
+
+- Em **Nova aplicação**, quando a detecção avisa que faltam `node`/`npm`, aparece o botão **Instalar Node.js com nvm**, com o andamento ao vivo; ao terminar, a detecção roda de novo.
+- No **deploy**, se um projeto Node.js precisa de `node`/`npm`/`pnpm`/`yarn` e eles não existem, o painel instala sozinho antes de seguir.
+
+O nvm (versão fixa, clonada do GitHub, sem `curl | bash`) fica em `<data>/nvm`; o Node.js LTS é instalado como padrão e o corepack habilitado (`pnpm` e `yarn`). `node`, `npm`, `npx`, `corepack`, `pnpm` e `yarn` são ligados em `/usr/local/bin`, então builds e serviços systemd os encontram. Um `node` que já exista ali (pacote da distribuição) nunca é sobrescrito. Ao terminar, o painel confere que o usuário das aplicações consegue executá-los. Requer `git`, `bash` e `curl` ou `wget`.
+
 ## Configuração automática do projeto
 
 Informe só o repositório: o painel dá nome à aplicação, escolhe uma porta livre e descobre como

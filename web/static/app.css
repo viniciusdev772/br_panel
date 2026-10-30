@@ -308,6 +308,7 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .repo-search { width: 100%; height: 56px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }
 .repo-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .repo-search:disabled { opacity: .6; }
+.detect-log { max-height: 220px; overflow: auto; margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--code-bg); color: #e6e4f2; font-size: .8rem; line-height: 1.45; white-space: pre-wrap; word-break: break-all; }
 .detect-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .detect-result { background: rgba(52, 211, 153, .1); border: 1px solid rgba(52, 211, 153, .35); color: var(--ok); padding: 10px 14px; border-radius: 10px; line-height: 1.6; }
 .detect-result.warn { background: rgba(245, 185, 66, .1); border-color: rgba(245, 185, 66, .35); color: var(--warn); }

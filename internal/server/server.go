@@ -22,6 +22,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/deploy"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/monitor"
+	"github.com/viniciusdev772/br_panel/internal/nodeenv"
 	"github.com/viniciusdev772/br_panel/internal/settings"
 	"github.com/viniciusdev772/br_panel/internal/store"
 	"github.com/viniciusdev772/br_panel/internal/sysinfo"
@@ -41,6 +42,7 @@ type Server struct {
 	cfg   Config
 	dep   *deploy.Deployer
 	dbm   *dbengine.Manager
+	node  *nodeenv.Installer
 	store *store.Store
 	auth  *auth.Auth
 	tmpl  map[string]*template.Template
@@ -71,6 +73,8 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, store: st, auth: auth.New()}
 	s.dep = deploy.New(st, cfg.DataDir, s.settings, s.githubApp)
+	s.node = nodeenv.New(filepath.Join(cfg.DataDir, "nvm"), func() string { return s.settings().AppUser })
+	s.dep.Node = s.node
 	s.dbm = dbengine.New(st, cfg.DataDir, s.settings)
 	s.dummyHash, _ = settings.HashPassword(auth.RandomToken(16))
 	if err := s.applySettings(set); err != nil {
@@ -208,6 +212,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/metrics", s.protected(s.handleMetrics))
 	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
 	mux.HandleFunc("GET /api/github/repos", s.protected(s.handleGitHubRepos))
+	mux.HandleFunc("POST /tools/node/install", s.protected(s.handleNodeInstall))
+	mux.HandleFunc("GET /tools/node/status", s.protected(s.handleNodeStatus))
 	mux.HandleFunc("POST /apps/detect", s.protected(s.handleDetect))
 	mux.HandleFunc("POST /apps/{name}/env", s.protected(s.handleEnvSave))
 	mux.HandleFunc("GET /databases/new", s.protected(s.handleDBNew))

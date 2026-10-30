@@ -449,6 +449,25 @@
       if (onlyIfEmpty && tf.value) { return; }
       tf.value = v;
     };
+    // "Instalar Node.js com nvm": starts the install, follows its log, then detects again.
+    var wireNodeInstall = function () {
+      var btn = $('#node-install'), logEl = $('#node-log');
+      btn.addEventListener('click', function () {
+        btn.disabled = true; logEl.hidden = false; logEl.textContent = 'Iniciando…';
+        var poll = function () {
+          fetch('/tools/node/status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (s) {
+            logEl.textContent = s.log || 'Aguardando…';
+            logEl.scrollTop = logEl.scrollHeight;
+            if (s.running) { setTimeout(poll, 2000); return; }
+            if (s.error) { btn.disabled = false; logEl.textContent += '\n\nFalhou: ' + s.error; return; }
+            detect(); // node and npm are there now: refresh the result
+          }).catch(function () { setTimeout(poll, 3000); });
+        };
+        fetch('/tools/node/install', { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ csrf: csrf }) })
+          .then(function () { setTimeout(poll, 1000); })
+          .catch(function () { btn.disabled = false; logEl.textContent = 'Falha ao iniciar a instalação.'; });
+      });
+    };
     var detect = function () {
       var repo = fields.repo.value.trim();
       if (!repo) { fields.repo.valid = false; return; }
@@ -465,9 +484,18 @@
         if (d.build) { html += '<br>Build: <code>' + esc(d.build) + '</code>'; }
         (d.notes || []).forEach(function (n) { html += '<br>• ' + esc(n); });
         var warn = false;
-        if (d.missing && d.missing.length) { warn = true; html += '<br><b>Faltam no servidor:</b> ' + d.missing.map(esc).join(', '); }
+        var needsNode = false;
+        if (d.missing && d.missing.length) {
+          warn = true;
+          html += '<br><b>Faltam no servidor:</b> ' + d.missing.map(esc).join(', ');
+          needsNode = d.missing.some(function (m) { return /^(node|npm|npx|pnpm|yarn) /.test(m); });
+          if (needsNode) {
+            html += '<br><button type="button" class="mdc-button mdc-button--raised" id="node-install">Instalar Node.js com nvm</button><pre class="detect-log" id="node-log" hidden></pre>';
+          }
+        }
         box.className = 'detect-result' + (warn || !d.start ? ' warn' : '');
         box.innerHTML = html;
+        if (needsNode) { wireNodeInstall(); }
       }).catch(function () { detectBtn.disabled = false; box.className = 'detect-result bad'; box.textContent = 'Falha ao detectar.'; });
     };
     detectBtn.addEventListener('click', detect);

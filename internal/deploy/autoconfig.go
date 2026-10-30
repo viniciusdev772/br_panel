@@ -69,7 +69,15 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 	if det.Start == "" {
 		return a, fmt.Errorf("projeto %s detectado, mas sem comando de início conhecido; informe-o ou adicione um Procfile", det.Kind)
 	}
-	if missing := detect.MissingRequirements(det, exec.LookPath); len(missing) > 0 {
+	missing := detect.MissingRequirements(det, exec.LookPath)
+	if len(missing) > 0 && d.Node != nil && needsNode(det.Requires) {
+		fmt.Fprintln(log, "Node.js ausente no servidor: instalando com o nvm…")
+		if err := d.Node.Ensure(ctx, log); err != nil {
+			fmt.Fprintf(log, "AVISO: %v\n", err)
+		}
+		missing = detect.MissingRequirements(det, exec.LookPath)
+	}
+	if len(missing) > 0 {
 		return a, fmt.Errorf("faltam programas no servidor: %s", strings.Join(missing, ", "))
 	}
 	a.StartCmd = det.Start
@@ -96,6 +104,17 @@ func orDash(s string) string {
 }
 
 var nameSlugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+// needsNode reports whether any required program comes with Node.js (nvm).
+func needsNode(requires []string) bool {
+	for _, r := range requires {
+		switch r {
+		case "node", "npm", "npx", "pnpm", "yarn":
+			return true
+		}
+	}
+	return false
+}
 
 // SuggestName derives an app name from the repository URL.
 func SuggestName(repo string) string {

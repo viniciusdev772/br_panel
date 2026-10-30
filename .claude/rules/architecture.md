@@ -6,13 +6,13 @@ Direção das dependências (só para a direita/baixo; nunca o contrário):
 
 ```
 cmd/brpanel → server, store
-server      → auth, cloudflare, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
-deploy      → cloudflare, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate
+server      → auth, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
+deploy      → cloudflare, nodeenv, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate
 dbengine    → execx, settings, store, systemd, validate
 monitor     → store, sysinfo, systemd
 nginx       → execx, settings          store → settings → cloudflare, githubapp, validate
 systemd     → sysinfo                  detect → validate
-folhas      : auth, cloudflare, execx, githubapp, sysinfo, validate
+folhas      : auth, cloudflare, nodeenv, execx, githubapp, sysinfo, validate
 ```
 
 - `server` é a única camada HTTP; não coloque regra de negócio nela. Se um handler precisa de mais que validar → chamar → renderizar, mova a lógica para o pacote de domínio.
