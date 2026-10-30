@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
+	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/validate"
 )
@@ -180,8 +181,11 @@ func Validate(s Settings) error {
 			return errors.New("e-mail da Cloudflare inválido")
 		}
 		if s.CloudflareToken == "" {
-			return errors.New("Cloudflare: informe a Global API Key junto com o e-mail")
+			return errors.New("Cloudflare: informe a credencial junto com o e-mail")
 		}
+	}
+	if cloudflare.GlobalKeyRe.MatchString(s.CloudflareToken) && s.CloudflareEmail == "" {
+		return errors.New("Cloudflare: a Global API Key exige o e-mail da conta (um API Token não precisa)")
 	}
 	return nil
 }

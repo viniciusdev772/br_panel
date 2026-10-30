@@ -10,7 +10,7 @@ server      → auth, cloudflare, dbengine, deploy, detect, githubapp, monitor, 
 deploy      → cloudflare, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate
 dbengine    → execx, settings, store, systemd, validate
 monitor     → store, sysinfo, systemd
-nginx       → execx, settings          store → settings → githubapp, validate
+nginx       → execx, settings          store → settings → cloudflare, githubapp, validate
 systemd     → sysinfo                  detect → validate
 folhas      : auth, cloudflare, execx, githubapp, sysinfo, validate
 ```

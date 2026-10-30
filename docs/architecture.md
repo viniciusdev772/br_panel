@@ -36,7 +36,7 @@ graph LR
   monitor --> store & sysinfo & systemd
   nginx --> settings & execx
   store --> settings
-  settings --> githubapp & validate
+  settings --> cloudflare & githubapp & validate
   systemd --> sysinfo
   detect --> validate
 ```

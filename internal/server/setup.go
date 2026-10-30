@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/viniciusdev772/br_panel/internal/auth"
+	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/nginx"
 	"github.com/viniciusdev772/br_panel/internal/settings"
 )
@@ -221,6 +222,16 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if err := settings.Validate(set); err != nil {
 		fail(http.StatusUnprocessableEntity, err.Error())
 		return
+	}
+	if set.CloudflareToken != "" && (set.CloudflareToken != cur.CloudflareToken || set.CloudflareEmail != cur.CloudflareEmail) {
+		// Reject a wrong credential now instead of failing silently at the next deploy.
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		err := cloudflare.New(set.CloudflareEmail, set.CloudflareToken).Check(ctx)
+		cancel()
+		if err != nil {
+			fail(http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 	}
 	if set.AppUser != cur.AppUser {
 		if err := settings.EnsureAppUser(set.AppUser); err != nil {

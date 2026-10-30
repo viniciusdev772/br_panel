@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -21,27 +22,49 @@ const (
 	timeout = 20 * time.Second
 )
 
-// Client talks to the Cloudflare v4 API with a scoped API token (Bearer auth) or,
-// when Email is set, with the account's Global API Key.
+// GlobalKeyRe matches a Global API Key: 37 lowercase hex characters. Cloudflare rejects
+// anything else sent as X-Auth-Key, and rejects a Global API Key sent as a Bearer token
+// ("Invalid request headers"), so the header style must follow the credential's format.
+var GlobalKeyRe = regexp.MustCompile(`^[0-9a-f]{37}$`)
+
+// Client talks to the Cloudflare v4 API with either a scoped API token (Bearer) or the
+// account's Global API Key (X-Auth-Email + X-Auth-Key), chosen by the credential's format.
 type Client struct {
-	Token string       // scoped API token, or the Global API Key when Email is set
-	Email string       // account e-mail; selects X-Auth-Email/X-Auth-Key instead of Bearer
+	Token string       // API token or Global API Key
+	Email string       // account e-mail; used only with a Global API Key
 	Base  string       // overridden in tests
 	HTTP  *http.Client // optional
 }
 
 // New returns a Client, or nil when no credential is configured.
 func New(email, token string) *Client {
+	token = strings.TrimSpace(token)
 	if token == "" {
 		return nil
 	}
-	return &Client{Token: token, Email: email, Base: apiBase}
+	return &Client{Token: token, Email: strings.TrimSpace(email), Base: apiBase}
+}
+
+func (c *Client) isGlobalKey() bool { return GlobalKeyRe.MatchString(c.Token) }
+
+// Check makes one cheap authenticated read, so a wrong credential is reported when it is
+// saved instead of during a deploy. Listing zones needs Zone:Read, which EnsureA needs anyway.
+func (c *Client) Check(ctx context.Context) error {
+	if c.isGlobalKey() && c.Email == "" {
+		return errors.New("a Global API Key exige o e-mail da conta Cloudflare")
+	}
+	var zones []struct{}
+	return c.do(ctx, http.MethodGet, "/zones?per_page=1", nil, &zones)
 }
 
 type envelope struct {
 	Success bool `json:"success"`
 	Errors  []struct {
-		Message string `json:"message"`
+		Code       int    `json:"code"`
+		Message    string `json:"message"`
+		ErrorChain []struct {
+			Message string `json:"message"`
+		} `json:"error_chain"`
 	} `json:"errors"`
 	Result json.RawMessage `json:"result"`
 }
@@ -63,7 +86,10 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 	if err != nil {
 		return err
 	}
-	if c.Email != "" {
+	if c.isGlobalKey() {
+		if c.Email == "" {
+			return errors.New("cloudflare: a Global API Key exige o e-mail da conta")
+		}
 		req.Header.Set("X-Auth-Email", c.Email)
 		req.Header.Set("X-Auth-Key", c.Token)
 	} else {
@@ -86,16 +112,33 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		return fmt.Errorf("cloudflare: resposta inválida (HTTP %d)", resp.StatusCode)
 	}
 	if !env.Success {
-		msg := fmt.Sprintf("HTTP %d", resp.StatusCode)
-		if len(env.Errors) > 0 {
-			msg = env.Errors[0].Message
-		}
-		return fmt.Errorf("cloudflare: %s", msg)
+		return errors.New("cloudflare: " + apiError(resp.StatusCode, env))
 	}
 	if out != nil {
 		return json.Unmarshal(env.Result, out)
 	}
 	return nil
+}
+
+// apiError turns Cloudflare's error list into a message that says what to fix.
+func apiError(status int, env envelope) string {
+	if len(env.Errors) == 0 {
+		return fmt.Sprintf("HTTP %d", status)
+	}
+	e := env.Errors[0]
+	msg := e.Message
+	for _, c := range e.ErrorChain {
+		msg += " (" + c.Message + ")"
+	}
+	switch e.Code {
+	case 9103, 9106:
+		msg += ": confira o e-mail da conta e a Global API Key"
+	case 9109:
+		msg += ": o API Token está incorreto, expirou ou foi revogado"
+	case 10000:
+		msg += ": a credencial não tem permissão para isso (precisa de Zone:Read e DNS:Edit)"
+	}
+	return msg
 }
 
 // zoneID finds the zone that contains domain by trying the domain and then its

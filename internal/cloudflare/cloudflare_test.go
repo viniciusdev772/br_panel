@@ -91,16 +91,58 @@ func TestNewWithoutToken(t *testing.T) {
 	}
 }
 
-func TestGlobalKeyHeaders(t *testing.T) {
-	var got http.Header
+func TestAuthHeaderFollowsCredentialFormat(t *testing.T) {
+	global := strings.Repeat("a1", 18) + "f" // 37 hex
+	cases := []struct {
+		name, email, token             string
+		wantEmail, wantKey, wantBearer string
+	}{
+		{"global key com e-mail", "a@b.com", global, "a@b.com", global, ""},
+		{"api token ignora o e-mail", "a@b.com", strings.Repeat("T", 40), "", "", "Bearer " + strings.Repeat("T", 40)},
+		{"api token sem e-mail", "", strings.Repeat("T", 40), "", "", "Bearer " + strings.Repeat("T", 40)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got http.Header
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got = r.Header.Clone()
+				_, _ = w.Write([]byte(`{"success":true,"result":[]}`))
+			}))
+			defer srv.Close()
+			c := &Client{Email: tc.email, Token: tc.token, Base: srv.URL}
+			if err := c.Check(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if got.Get("X-Auth-Email") != tc.wantEmail || got.Get("X-Auth-Key") != tc.wantKey || got.Get("Authorization") != tc.wantBearer {
+				t.Errorf("headers = %v", got)
+			}
+		})
+	}
+}
+
+func TestGlobalKeyWithoutEmailIsRefusedBeforeTheNetwork(t *testing.T) {
+	c := &Client{Token: strings.Repeat("a", 37), Base: "http://unused.invalid"}
+	if err := c.Check(context.Background()); err == nil || !strings.Contains(err.Error(), "e-mail") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestCheckExplainsCloudflareErrors(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = r.Header.Clone()
-		_, _ = w.Write([]byte(`{"success":true,"result":[]}`))
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"success":false,"errors":[{"code":9109,"message":"Invalid access token"}]}`))
 	}))
 	defer srv.Close()
-	c := &Client{Email: "a@b.com", Token: "chave", Base: srv.URL}
-	_ = c.do(context.Background(), http.MethodGet, "/zones", nil, nil)
-	if got.Get("X-Auth-Email") != "a@b.com" || got.Get("X-Auth-Key") != "chave" || got.Get("Authorization") != "" {
-		t.Errorf("headers = %v", got)
+	err := (&Client{Token: "tok", Base: srv.URL}).Check(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "Invalid access token") || !strings.Contains(err.Error(), "revogado") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestApiErrorChain(t *testing.T) {
+	var env envelope
+	_ = json.Unmarshal([]byte(`{"errors":[{"code":6003,"message":"Invalid request headers","error_chain":[{"code":6103,"message":"Invalid format for X-Auth-Key header"}]}]}`), &env)
+	if got := apiError(400, env); got != "Invalid request headers (Invalid format for X-Auth-Key header)" {
+		t.Errorf("got %q", got)
 	}
 }

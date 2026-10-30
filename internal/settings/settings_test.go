@@ -34,17 +34,18 @@ func TestValidateSettings(t *testing.T) {
 	}
 	mut := func(f func(*Settings)) Settings { s := Default(); f(&s); return s }
 	bad := map[string]Settings{
-		"domínio":          mut(func(s *Settings) { s.PanelDomain = "localhost" }),
-		"email":            mut(func(s *Settings) { s.AcmeEmail = "x" }),
-		"email com nome":   mut(func(s *Settings) { s.AcmeEmail = "A <a@b.com>" }),
-		"usuário":          mut(func(s *Settings) { s.AppUser = "Root;" }),
-		"dir relativo":     mut(func(s *Settings) { s.NginxDir = "etc/nginx" }),
-		"dir injeção":      mut(func(s *Settings) { s.AcmeRoot = "/var/www;x" }),
-		"app sem chave":    mut(func(s *Settings) { s.GitHubAppID = "123" }),
-		"chave inválida":   mut(func(s *Settings) { s.GitHubAppID, s.GitHubKey = "123", "não é pem" }),
-		"segredo curto":    mut(func(s *Settings) { s.GitHubWebhookSecret = "curto" }),
-		"token cf curto":   mut(func(s *Settings) { s.CloudflareToken = "abc" }),
-		"token cf injeção": mut(func(s *Settings) { s.CloudflareToken = strings.Repeat("a", 30) + "\nX: y" }),
+		"domínio":              mut(func(s *Settings) { s.PanelDomain = "localhost" }),
+		"email":                mut(func(s *Settings) { s.AcmeEmail = "x" }),
+		"email com nome":       mut(func(s *Settings) { s.AcmeEmail = "A <a@b.com>" }),
+		"usuário":              mut(func(s *Settings) { s.AppUser = "Root;" }),
+		"dir relativo":         mut(func(s *Settings) { s.NginxDir = "etc/nginx" }),
+		"dir injeção":          mut(func(s *Settings) { s.AcmeRoot = "/var/www;x" }),
+		"app sem chave":        mut(func(s *Settings) { s.GitHubAppID = "123" }),
+		"chave inválida":       mut(func(s *Settings) { s.GitHubAppID, s.GitHubKey = "123", "não é pem" }),
+		"segredo curto":        mut(func(s *Settings) { s.GitHubWebhookSecret = "curto" }),
+		"global key sem email": mut(func(s *Settings) { s.CloudflareToken = strings.Repeat("a", 37) }),
+		"token cf curto":       mut(func(s *Settings) { s.CloudflareToken = "abc" }),
+		"token cf injeção":     mut(func(s *Settings) { s.CloudflareToken = strings.Repeat("a", 30) + "\nX: y" }),
 	}
 	for name, s := range bad {
 		if Validate(s) == nil {
@@ -55,6 +56,7 @@ func TestValidateSettings(t *testing.T) {
 		s.PanelDomain, s.AcmeEmail, s.AppUser = "painel.exemplo.com", "admin@exemplo.com", "brapps"
 		s.GitHubWebhookSecret = strings.Repeat("s", 20)
 		s.CloudflareToken = strings.Repeat("T", 40)
+		s.CloudflareEmail = "dono@exemplo.com"
 	})
 	if err := Validate(good); err != nil {
 		t.Error(err)
