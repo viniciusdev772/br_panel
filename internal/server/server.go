@@ -49,10 +49,9 @@ type Server struct {
 	set   settings.Settings
 	gh    *githubapp.Client // nil unless a GitHub App is configured
 
-	configured  atomic.Bool
-	setupToken  string // one-time token required by /setup, empty once configured
-	suggestedWH string // webhook secret suggested on the setup form
-	dummyHash   string // verified against when the user does not exist (timing parity)
+	configured atomic.Bool
+	setupToken string // one-time token required by /setup, empty once configured
+	dummyHash  string // verified against when the user does not exist (timing parity)
 }
 
 // New builds a Server on top of an open store, loading the saved settings.
@@ -269,12 +268,13 @@ type page struct {
 	UsedBy         []string
 	VarGroups      []varGroup
 
-	Setup     bool
-	Set       settings.Settings
-	HasKey    bool
-	HasSecret bool
-	Checks    []settings.Check
-	Form      map[string]string // submitted values to refill on errors
+	AppUserDefault string // setup only: system user submitted silently with the form
+	Setup          bool
+	Set            settings.Settings
+	HasKey         bool
+	HasSecret      bool
+	Checks         []settings.Check
+	Form           map[string]string // submitted values to refill on errors
 }
 
 type ghStatus struct {

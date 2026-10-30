@@ -111,7 +111,7 @@ func TestFirstRunGate(t *testing.T) {
 	if w := do(h, "GET", "/static/app.css", nil); w.Code != http.StatusOK {
 		t.Errorf("estáticos devem servir no setup: %d", w.Code)
 	}
-	if w := do(h, "GET", "/setup", nil); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Token de instalação") {
+	if w := do(h, "GET", "/setup", nil); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Código de instalação") {
 		t.Errorf("/setup: %d", w.Code)
 	}
 }

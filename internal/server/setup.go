@@ -21,7 +21,6 @@ var setupMu sync.Mutex
 // announceSetup creates the one-time setup token and tells the operator where to find it.
 func (s *Server) announceSetup() {
 	s.setupToken = auth.RandomToken(12)
-	s.suggestedWH = auth.RandomToken(20)
 	file := filepath.Join(s.cfg.DataDir, "setup_token")
 	if err := os.WriteFile(file, []byte(s.setupToken+"\n"), 0o600); err != nil {
 		log.Fatal(err)
@@ -32,14 +31,12 @@ func (s *Server) announceSetup() {
 }
 
 func (s *Server) handleSetupForm(w http.ResponseWriter, r *http.Request) {
-	set := settings.Default()
-	set.GitHubWebhookSecret = s.suggestedWH
-	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: set, Checks: settings.CheckSystem(), Form: map[string]string{}})
+	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: settings.Default(), AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Form: map[string]string{}})
 }
 
 func (s *Server) setupError(w http.ResponseWriter, r *http.Request, code int, set settings.Settings, msg string) {
 	w.WriteHeader(code)
-	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: set, Checks: settings.CheckSystem(), Error: msg,
+	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: set, AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Error: msg,
 		Form: map[string]string{"username": strings.TrimSpace(r.PostFormValue("username"))}})
 }
 
@@ -59,7 +56,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	if !auth.ConstEqual(strings.TrimSpace(r.PostFormValue("token")), s.setupToken) {
 		s.auth.Fail(ip)
-		s.setupError(w, r, http.StatusForbidden, set, "Token de instalação inválido. Veja o log do serviço ou o arquivo setup_token.")
+		s.setupError(w, r, http.StatusForbidden, set, "Código de instalação inválido. Ele aparece na tela do terminal onde o painel foi instalado.")
 		return
 	}
 
@@ -98,6 +95,15 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	s.auth.Start(w, r)
 	http.Redirect(w, r, "/?msg=Configura%C3%A7%C3%A3o+conclu%C3%ADda.+Bem-vindo%21", http.StatusSeeOther)
+}
+
+// defaultAppUser is the unprivileged account apps run as; the setup form submits it without asking,
+// and it can only be created when the panel runs as root.
+func defaultAppUser() string {
+	if os.Geteuid() == 0 {
+		return "brapps"
+	}
+	return ""
 }
 
 type errMsg string

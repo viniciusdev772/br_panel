@@ -1,7 +1,10 @@
 {{define "content"}}
 <div class="page-head"><h1 class="mdc-typography--headline5">{{if .Setup}}Bem-vindo ao BR Panel{{else}}Configurações{{end}}</h1></div>
-{{if .Setup}}<p class="intro">Este é o primeiro início. Crie a conta de administrador e ajuste o básico — tudo fica salvo no banco SQLite interno do painel e pode ser alterado depois em <b>Configurações</b>.</p>{{end}}
-
+{{if .Setup}}<p class="intro">Falta só criar o seu acesso. Leva menos de um minuto.</p>
+{{range .Checks}}{{if and (not .OK) (not .Optional)}}
+<div class="mdc-card"><div class="card-body checks"><div class="check"><i class="material-icons bad">cancel</i><span>{{.Name}}</span><span class="muted">— {{.Hint}}</span></div></div></div>
+{{end}}{{end}}
+{{else}}
 <h2 class="mdc-typography--subtitle1 section-title">Verificação do servidor</h2>
 <div class="mdc-card"><div class="card-body checks">
   {{range .Checks}}
@@ -9,36 +12,33 @@
     <span>{{.Name}}</span>{{if not .OK}}<span class="muted">— {{.Hint}}</span>{{end}}</div>
   {{end}}
 </div></div>
+{{end}}
 
 <form method="post" action="{{if .Setup}}/setup{{else}}/settings{{end}}">
   {{if not .Setup}}<input type="hidden" name="csrf" value="{{.CSRF}}">{{end}}
 
   {{if .Setup}}
-  <h2 class="mdc-typography--subtitle1 section-title">1. Token de instalação</h2>
+  {{if .AppUserDefault}}<input type="hidden" name="app_user" value="{{.AppUserDefault}}">{{end}}
   <div class="mdc-card"><div class="card-body">
-    {{template "field" dict "name" "token" "label" "Token de instalação" "required" true "autocomplete" "off" "hint" "Impresso no log do serviço na primeira execução (journalctl -u brpanel) e salvo em <diretório de dados>/setup_token. Impede que outra pessoa configure o painel antes de você."}}
-  </div></div>
-
-  <h2 class="mdc-typography--subtitle1 section-title">2. Conta de administrador</h2>
-  <div class="mdc-card"><div class="card-body">
-    {{template "field" dict "name" "username" "label" "Usuário" "value" .Form.username "required" true "autocomplete" "username" "hint" "3 a 32 caracteres: a-z, 0-9, _ e -"}}
-    {{template "field" dict "name" "password" "label" "Senha (mínimo 12 caracteres)" "type" "password" "required" true "autocomplete" "new-password"}}
+    {{template "field" dict "name" "token" "label" "Código de instalação" "required" true "autocomplete" "off" "hint" "Aparece na tela do terminal onde você instalou o painel. É só para garantir que foi você mesmo."}}
+    {{template "field" dict "name" "username" "label" "Seu nome de usuário" "value" .Form.username "required" true "autocomplete" "username"}}
+    {{template "field" dict "name" "password" "label" "Crie uma senha" "type" "password" "required" true "autocomplete" "new-password" "hint" "Pelo menos 12 caracteres."}}
     {{template "field" dict "name" "password2" "label" "Repita a senha" "type" "password" "required" true "autocomplete" "new-password"}}
   </div></div>
-  {{end}}
-
-  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}3. {{end}}Domínio e SSL do painel</h2>
+  <p class="muted">Domínio, SSL e GitHub você configura depois, só quando precisar.</p>
+  {{else}}
+  <h2 class="mdc-typography--subtitle1 section-title">Domínio e SSL do painel</h2>
   <div class="mdc-card"><div class="card-body">
     {{template "field" dict "name" "panel_domain" "label" "Domínio do painel (opcional)" "value" .Set.PanelDomain "hint" "Ex.: painel.exemplo.com.br. O DNS precisa apontar para este servidor; o painel é publicado via Nginx."}}
     {{template "field" dict "name" "acme_email" "label" "E-mail do Let's Encrypt (opcional)" "value" .Set.AcmeEmail "autocomplete" "email" "hint" "Com e-mail, o SSL é emitido e renovado automaticamente para o painel e para os domínios das aplicações."}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}4. {{end}}Execução das aplicações</h2>
+  <h2 class="mdc-typography--subtitle1 section-title">Execução das aplicações</h2>
   <div class="mdc-card"><div class="card-body">
     {{template "field" dict "name" "app_user" "label" "Usuário do sistema (recomendado)" "value" .Set.AppUser "hint" "Ex.: brapps. Criado automaticamente se não existir. As aplicações são clonadas, compiladas e executadas com ele, sem privilégios de root."}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}5. {{end}}GitHub App (opcional)</h2>
+  <h2 class="mdc-typography--subtitle1 section-title">GitHub App (opcional)</h2>
   <div class="mdc-card"><div class="card-body">
     <p class="muted">Deploy automático a cada push e clone de repositórios privados. Veja o passo a passo na página <a href="/github">GitHub</a>.</p>
     {{template "field" dict "name" "github_app_id" "label" "App ID" "value" .Set.GitHubAppID}}
@@ -56,7 +56,7 @@
     {{end}}
   </div></div>
 
-  {{if not .Setup}}
+
   <h2 class="mdc-typography--subtitle1 section-title">Alterar senha</h2>
   <div class="mdc-card"><div class="card-body">
     <p class="muted">Usuário: <b>{{.Form.username}}</b>. Deixe em branco para manter a senha atual. Ao trocar, todas as sessões são encerradas.</p>
@@ -76,7 +76,7 @@
   {{end}}
 
   <div class="actions form-end">
-    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Setup}}Concluir configuração{{else}}Salvar{{end}}</span></button>
+    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Setup}}Começar a usar{{else}}Salvar{{end}}</span></button>
   </div>
 </form>
 {{end}}

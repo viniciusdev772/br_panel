@@ -20,16 +20,15 @@ sudo systemctl enable --now brpanel
 sudo journalctl -u brpanel | grep "PRIMEIRO INÍCIO"   # mostra o token de instalação
 ```
 
-Abra `http://<IP-do-servidor>:8080/setup` e siga a página de configuração inicial:
+Abra `http://<IP-do-servidor>:8080/setup`. A tela pede só três coisas:
 
-1. **Token de instalação** — impresso no log na primeira execução (e em `/var/lib/brpanel/setup_token`).
+1. **Código de instalação** — impresso no log na primeira execução (e em `/var/lib/brpanel/setup_token`).
    Impede que outra pessoa configure o painel antes de você; é apagado ao concluir.
-2. **Conta de administrador** — usuário e senha (mín. 12 caracteres).
-3. **Domínio e SSL do painel** (opcional) — domínio + e-mail do Let's Encrypt.
-4. **Usuário das aplicações** (recomendado) — criado se não existir; as apps rodam sem root.
-5. **GitHub App** (opcional) — App ID, chave privada e segredo do webhook.
+2. **Usuário** e **senha** (mín. 12 caracteres).
 
-A página também mostra uma verificação do servidor (root, git, systemd, nginx, certbot…).
+O usuário do sistema das aplicações (`brapps`) é criado automaticamente. Domínio, SSL e GitHub App ficam
+em **Configurações** e só precisam ser preenchidos quando você quiser usá-los. A tela só avisa se faltar
+algo indispensável no servidor (root, git, systemd).
 Tudo é salvo no banco SQLite `/var/lib/brpanel/brpanel.db` (modo 0600) e pode ser alterado depois em
 **Configurações**. Não há variáveis de ambiente: as únicas opções de inicialização são flags.
 
