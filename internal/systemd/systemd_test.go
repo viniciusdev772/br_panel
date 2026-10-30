@@ -1,6 +1,8 @@
 package systemd
 
 import (
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -49,5 +51,44 @@ func TestRenderDatabaseUnit(t *testing.T) {
 	}
 	if DBUnitName("pg") != "brpaneldb-pg.service" || DBUnitName("x") == UnitName("db-x") {
 		t.Error("nome de unit de banco")
+	}
+}
+
+func TestShellLine(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"npm start", "exec npm start"},
+		{"node server.js --port $PORT", "exec node server.js --port $PORT"},
+		{"NODE_ENV=production node index.js", "exec env NODE_ENV=production node index.js"},
+		{"A=1 B=2 npm start", "exec env A=1 B=2 npm start"},
+		{"npm run build && node dist/main.js", "npm run build && node dist/main.js"},
+		{"FOO=1 a | b", "FOO=1 a | b"},
+		{"a; b", "a; b"},
+	} {
+		if got := shellLine(tc.in); got != tc.want {
+			t.Errorf("shellLine(%q) = %q, quer %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// Regression: "exec NODE_ENV=production node index.js" died with
+// "exec: NODE_ENV=production: not found" (status 127) in a restart loop.
+func TestShellLineRunsInARealShell(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil || runtime.GOOS == "windows" {
+		t.Skip("sem sh")
+	}
+	for cmd, want := range map[string]string{
+		"FOO=bar printenv FOO":              "bar",
+		"echo antes && echo depois":         "antes\ndepois",
+		"FOO=a BAR=b sh -c 'echo $FOO$BAR'": "ab",
+	} {
+		out, err := exec.Command("sh", "-c", shellLine(cmd)).CombinedOutput()
+		if err != nil || strings.TrimSpace(string(out)) != want {
+			t.Errorf("%q -> %q %v, quer %q", cmd, out, err, want)
+		}
+	}
+	// And the unit line carries the same text, escaped for systemd.
+	u := Unit{App: "x", StartCmd: "NODE_ENV=production node index.js"}.Render()
+	if !strings.Contains(u, `ExecStart=/bin/sh -c "exec env NODE_ENV=production node index.js"`) {
+		t.Errorf("unit:\n%s", u)
 	}
 }

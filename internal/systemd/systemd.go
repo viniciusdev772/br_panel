@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,22 @@ func DBUnitName(db string) string { return "brpaneldb-" + db + ".service" }
 func Escape(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `%`, `%%`, `$`, `$$`)
 	return r.Replace(s)
+}
+
+var leadingAssignRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
+
+// shellLine is the argument of `sh -c`. A plain command gets `exec`, so the program becomes the
+// service's main process. `exec` is wrong in two cases: a leading VAR=value (exec takes no
+// assignments; `exec env` does the same job) and compound commands such as `a && b`, where
+// `exec a` would replace the shell and `b` would never run.
+func shellLine(cmd string) string {
+	switch {
+	case strings.ContainsAny(cmd, "&|;<>()`\n"):
+		return cmd
+	case leadingAssignRe.MatchString(cmd):
+		return "exec env " + cmd
+	}
+	return "exec " + cmd
 }
 
 // EnvFileLine renders KEY="value" for a systemd EnvironmentFile.
@@ -55,7 +72,7 @@ func (u Unit) Render() string {
 	if u.EnvFile != "" {
 		fmt.Fprintf(&b, "EnvironmentFile=%s\n", u.EnvFile)
 	}
-	fmt.Fprintf(&b, "ExecStart=/bin/sh -c \"exec %s\"\n", Escape(u.StartCmd))
+	fmt.Fprintf(&b, "ExecStart=/bin/sh -c \"%s\"\n", Escape(shellLine(u.StartCmd)))
 	b.WriteString("Restart=on-failure\nRestartSec=3\n")
 	if u.User != "" {
 		fmt.Fprintf(&b, "User=%s\n", u.User)
