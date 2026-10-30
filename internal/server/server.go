@@ -281,6 +281,7 @@ type page struct {
 	DB             store.Database
 	DBSpec         dbengine.Spec
 	DBVersion      string
+	Fwd            dbengine.ForwardInfo
 	Conns          []dbengine.Connection
 	Console        string
 	Backups        []dbengine.BackupInfo

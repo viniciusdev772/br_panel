@@ -144,7 +144,7 @@ func (s *Server) handleDBPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "database", page{
 		Title: d.Name, DB: d, DBSpec: spec, DBVersion: s.dbm.Version(dbengine.Kind(d.Kind)),
 		Info: systemd.InfoUnit(systemd.DBUnitName(d.Name)), State: systemd.StateUnit(systemd.DBUnitName(d.Name)),
-		Conns: s.dbm.Connections(d), Console: s.dbm.ConsoleCommand(d), Backups: s.dbm.Backups(d.Name), Busy: s.dbm.Busy(d.Name),
+		Fwd: s.dbm.ForwardState(d), Conns: s.dbm.Connections(d), Console: s.dbm.ConsoleCommand(d), Backups: s.dbm.Backups(d.Name), Busy: s.dbm.Busy(d.Name),
 		UsedBy: s.appsUsing(d.Name), VarGroups: []varGroup{{DB: d.Name, Kind: d.Kind, Vars: func() []varRef {
 			var v []varRef
 			for _, n := range dbengine.VarNames(d) {
@@ -303,6 +303,18 @@ func (s *Server) handleDBAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		flash("Acesso externo atualizado.", "configuracoes")
+	case "forward-on":
+		if err := s.dbm.EnableForward(d.Name); err != nil {
+			fail(err, "configuracoes")
+			return
+		}
+		flash("Repasse ativado.", "configuracoes")
+	case "forward-off":
+		if err := s.dbm.DisableForward(d.Name); err != nil {
+			fail(err, "configuracoes")
+			return
+		}
+		flash("Repasse desativado.", "configuracoes")
 	case "delete":
 		if err := s.dbm.Delete(d.Name); err != nil {
 			fail(err, "configuracoes")

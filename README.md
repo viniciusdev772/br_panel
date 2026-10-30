@@ -103,27 +103,9 @@ foi possível instalá-lo no ambiente de desenvolvimento.
 Alguns projetos escrevem `host: "localhost"` (porta 3306) e a própria porta HTTP no código, sem ler variáveis de ambiente. Sem mexer no código:
 
 - **Porta HTTP fixa** (ex.: `const port = 3090`): em **Editar** a aplicação, informe essa porta em **Porta**; o painel a usa no Nginx e no `PORT`.
-- **Banco em `localhost:3306`**: como cada banco do painel usa a própria porta (3307, 3308…), crie um repasse do systemd, que persiste no boot e vale para qualquer linguagem. Exemplo para o MariaDB do painel na 3307 (unit `brpaneldb-mysql`):
+- **Banco em `localhost:3306`** (ou 5432, 27017, 6379): cada banco do painel usa a própria porta (3307, 5433…), então em **Banco de dados > Configurações** use **Ativar repasse**. O painel cria uma unit de socket do systemd que ouve só em `127.0.0.1:<porta padrão>` e repassa (`systemd-socket-proxyd`) para a porta do banco: não muda o código, vale para qualquer linguagem, persiste no boot e liga o banco sob demanda. Se a porta padrão já estiver em uso (outro serviço, outro repasse), o painel recusa e diz por quê. Excluir o banco remove o repasse.
 
-```ini
-# /etc/systemd/system/brpanelfwd-3306.socket
-[Socket]
-ListenStream=127.0.0.1:3306
-ListenStream=[::1]:3306
-[Install]
-WantedBy=sockets.target
-
-# /etc/systemd/system/brpanelfwd-3306.service
-[Unit]
-Requires=brpaneldb-mysql.service
-After=brpaneldb-mysql.service
-[Service]
-ExecStart=/usr/lib/systemd/systemd-socket-proxyd 127.0.0.1:3307
-PrivateTmp=yes
-DynamicUser=yes
-```
-
-Depois `systemctl daemon-reload && systemctl enable --now brpanelfwd-3306.socket`. Crie no banco do painel o mesmo banco, usuário e senha que o código usa, restritos a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`). O repasse é manual: se o banco mudar de porta, atualize o `ExecStart`.
+Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limitados a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`): o painel gera credenciais próprias, e o código usa as dele.
 
 ## Monitoramento e logs
 

@@ -156,6 +156,19 @@
         <button class="mdc-button mdc-button--outlined" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Aplicar</span></button>
       </div>
     </form></div>
+    {{if .Fwd.Possible}}
+    <div class="mdc-card"><div class="card-body row-between">
+      <div><strong>Repasse na porta padrão ({{.Fwd.Port}})</strong>
+        <p>Para projetos que fixam <code>localhost:{{.Fwd.Port}}</code> no código: o painel passa a ouvir em <code>127.0.0.1:{{.Fwd.Port}}</code> (só local) e repassa para a porta {{.DB.Port}} deste banco, sem mudar o código. Persiste no boot e liga o banco sob demanda.
+        Crie neste banco o mesmo banco, usuário e senha que o código usa, limitados a <code>127.0.0.1</code>.</p>
+        {{if .Fwd.Active}}<span class="chip chip--active">ativo: 127.0.0.1:{{.Fwd.Port}} → {{.DB.Port}}</span>{{end}}</div>
+      {{if .Fwd.Active}}
+        {{template "dbaction" dict "name" .DB.Name "action" "forward-off" "csrf" .CSRF "icon" "link_off" "label" "Desativar repasse"}}
+      {{else}}
+        {{template "dbaction" dict "name" .DB.Name "action" "forward-on" "csrf" .CSRF "icon" "alt_route" "label" "Ativar repasse"}}
+      {{end}}
+    </div></div>
+    {{end}}
     <div class="mdc-card danger-zone"><div class="card-body row-between">
       <div><strong>Excluir banco</strong><p>Remove o serviço, os dados e os backups. Não pode ser desfeito.</p></div>
       {{template "dbaction" dict "name" .DB.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "danger" true "confirm" "Excluir o banco, todos os dados e backups?"}}

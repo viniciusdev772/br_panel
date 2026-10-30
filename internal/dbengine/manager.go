@@ -398,6 +398,7 @@ func (m *Manager) Delete(name string) error {
 	if _, ok := m.Store.GetDatabase(name); !ok {
 		return errors.New("banco não encontrado")
 	}
+	_ = m.DisableForward(name) // its units require the database unit
 	_, _ = systemd.Ctl("disable", "--now", systemd.DBUnitName(name))
 	if err := os.Remove(m.unitFile(name)); err != nil && !os.IsNotExist(err) {
 		return err

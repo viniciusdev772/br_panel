@@ -17,6 +17,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 - Primeiro início simplificado (o log imprime o link pronto, com o IP do servidor e o código: `/setup?code=…`): pede apenas código de instalação, usuário e senha; domínio, SSL e GitHub passaram para Configurações e o usuário das aplicações é criado automaticamente.
 
 ### Adicionado
+- Repasse da porta padrão por banco (**Banco de dados > Configurações > Ativar repasse**): para projetos que fixam `localhost:3306` (ou 5432, 27017, 6379) no código, o painel ouve em `127.0.0.1:<porta padrão>` e repassa para a porta do banco, com um socket do systemd e `systemd-socket-proxyd`. Persiste no boot, liga o banco sob demanda e é removido junto com o banco.
 - Node.js pelo nvm: botão **Instalar Node.js com nvm** na detecção da nova aplicação (com andamento ao vivo) e instalação automática no deploy quando um projeto Node.js precisa de `node`/`npm`/`pnpm`/`yarn` e eles faltam. O nvm (versão fixa) vive em `<data>/nvm` e os executáveis são ligados em `/usr/local/bin`.
 - Nova aplicação: campo de busca com a lista de repositórios do GitHub App (todas as instalações, públicos e privados). Escolher um preenche repositório e branch padrão e dispara a detecção do projeto.
 - Criação do GitHub App em um clique (fluxo de manifest do GitHub): a página **GitHub** pede um domínio para o painel (com a Cloudflare configurada, cria o registro DNS A, publica o painel e emite o SSL), envia o App já preenchido ao GitHub e, na volta, guarda App ID, chave privada e segredo do webhook sozinha.

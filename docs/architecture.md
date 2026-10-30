@@ -85,6 +85,7 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
 | `POST /tools/node/install` | sessão + CSRF | Instala o Node.js com o nvm em segundo plano |
+| `POST /databases/{name}/forward-on` · `forward-off` | sessão + CSRF | Liga/desliga o repasse da porta padrão (3306, 5432…) em `127.0.0.1` para a porta do banco (socket + `systemd-socket-proxyd`) |
 | `GET /tools/node/status` | sessão | Andamento da instalação (log, erro, node/npm disponíveis) |
 | `GET /api/github/repos` | sessão | Repositórios que o GitHub App enxerga (token de instalação só com `metadata:read`), para o seletor da nova aplicação |
 | `GET /databases/new`, `POST /databases`, `POST /databases/install` | sessão (+CSRF) | Criar/instalar banco |
