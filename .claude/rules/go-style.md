@@ -5,7 +5,7 @@ paths:
 
 # Estilo Go
 
-- `gofmt` sempre (um hook já formata); `go vet ./...` limpo.
+- `gofmt` sempre (`make fmt`); `go vet ./...` limpo.
 - Todo identificador exportado tem comentário de documentação começando pelo nome; todo pacote tem `// Package x ...`.
 - Erros: embrulhe com `%w`, compare com `errors.Is/As`; nunca ignore erro silenciosamente, exceto em limpeza best-effort com `_ =` e um motivo óbvio.
 - Mensagens ao usuário e logs do painel em **português (pt-BR)**; identificadores e comentários de código em inglês.

@@ -18,7 +18,7 @@ Needs Go 1.26+ (pure Go, no CGO, `modernc.org/sqlite`). `make cover` only works 
 
 ## Layout
 
-`cmd/brpanel` (flags, wiring) → `internal/*` (all logic) → `web/` (embedded templates/static) · `deployments/systemd/` · `docs/` (architecture, security, ADRs) · `scripts/screenshots/` · `.claude/` (rules and hooks).
+`cmd/brpanel` (flags, wiring) → `internal/*` (all logic) → `web/` (embedded templates/static) · `deployments/systemd/` · `docs/` (architecture, security, ADRs) · `scripts/screenshots/` · `.claude/` (rules).
 
 Package dependencies flow one way and are listed in `.claude/rules/architecture.md` (also `docs/architecture.md` with flows and the route table). Key idea: `internal/server` is the only HTTP layer; domain logic lives in `deploy`, `detect`, `nginx`, `systemd`, `monitor`, `githubapp`, `settings`, `store`.
 
