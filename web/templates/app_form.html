@@ -2,12 +2,17 @@
 <div class="page-head"><h1 class="mdc-typography--headline5">{{.Title}}</h1></div>
 <div class="mdc-card"><form method="post" class="card-body" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  {{template "field" dict "name" "name" "label" "Nome (a-z, 0-9, -)" "value" .App.Name "required" true "readonly" .Editing}}
+  {{template "field" dict "name" "name" "label" "Nome (vazio = nome do repositório)" "value" .App.Name "required" .Editing "readonly" .Editing}}
   {{template "field" dict "name" "repo" "label" "Repositório Git (https:// ou git@host:org/repo)" "value" .App.Repo "required" true}}
   {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch}}
-  {{template "field" dict "name" "build_cmd" "label" "Comando de build (opcional) ex.: npm ci && npm run build" "value" .App.BuildCmd}}
-  {{template "field" dict "name" "start_cmd" "label" "Comando de início ex.: node server.js" "value" .App.StartCmd "required" true}}
-  {{template "field" dict "name" "port" "label" "Porta (exportada como $PORT, 0 = nenhuma)" "value" .App.Port "type" "number"}}
+  <div class="detect-row">
+    <button class="mdc-button mdc-button--outlined" type="button" id="detect-btn"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">auto_fix_high</i><span class="mdc-button__label">Detectar automaticamente</span></button>
+    <span class="muted">Lê package.json, go.mod, requirements.txt, Procfile… e preenche os comandos abaixo.</span>
+  </div>
+  <div class="detect-result" id="detect-result" hidden></div>
+  {{template "field" dict "name" "build_cmd" "label" "Comando de build (vazio = automático)" "value" .App.BuildCmd "hint" "Ex.: npm ci && npm run build"}}
+  {{template "field" dict "name" "start_cmd" "label" "Comando de início (vazio = detectar no deploy)" "value" .App.StartCmd "hint" "Use $PORT e $HOST no comando. Ex.: node server.js"}}
+  {{template "field" dict "name" "port" "label" "Porta (vazio = escolher automaticamente)" "value" .App.PortField "type" "number" "hint" "Exportada para a aplicação como $PORT."}}
   {{template "field" dict "name" "domain" "label" "Domínio (opcional) ex.: app.exemplo.com.br — Nginx + SSL automático" "value" .App.Domain}}
   <label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
     <span class="mdc-notched-outline">

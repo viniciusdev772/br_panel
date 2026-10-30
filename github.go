@@ -154,6 +154,19 @@ func (g *GitHubApp) InstallationToken(ctx context.Context, owner, repo string) (
 	return tok.Token, err
 }
 
+// gitAuthEnv returns env plus, for private GitHub repos reachable through the
+// GitHub App, a scoped credential header. It is given to git only, never to the build or the app.
+func (s *Server) gitAuthEnv(ctx context.Context, repo string, env []string, logw io.Writer) []string {
+	out := append([]string(nil), env...)
+	if tok := s.githubToken(ctx, App{Repo: repo}, logw); tok != "" {
+		basic := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + tok))
+		out = append(out, "GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.https://github.com/.extraHeader",
+			"GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
+	}
+	return out
+}
+
 // githubToken returns an installation token for private HTTPS GitHub repos, or "" to clone anonymously.
 func (s *Server) githubToken(ctx context.Context, a App, logw io.Writer) string {
 	gh := s.githubApp()

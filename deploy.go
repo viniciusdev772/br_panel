@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -57,7 +57,7 @@ func (s *Server) buildEnv(a App) ([]string, error) {
 		return nil, err
 	}
 	env := []string{
-		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PATH=" + execPath(),
 		"HOME=" + s.paths.AppDir(a.Name),
 		"LANG=C.UTF-8",
 		"GIT_TERMINAL_PROMPT=0",
@@ -67,6 +67,7 @@ func (s *Server) buildEnv(a App) ([]string, error) {
 	if a.Port > 0 {
 		env = append(env, fmt.Sprintf("PORT=%d", a.Port))
 	}
+	env = append(env, "HOST="+listenHost(a))
 	for _, p := range kv {
 		env = append(env, p[0]+"="+p[1])
 	}
@@ -112,14 +113,7 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 		return err
 	}
 	appDir, src := s.paths.AppDir(a.Name), s.paths.SrcDir(a.Name)
-	// The GitHub token is only visible to git, never to the build or the app.
-	gitEnv := append([]string(nil), env...)
-	if tok := s.githubToken(ctx, a, log); tok != "" {
-		basic := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + tok))
-		gitEnv = append(gitEnv, "GIT_CONFIG_COUNT=1",
-			"GIT_CONFIG_KEY_0=http.https://github.com/.extraHeader",
-			"GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
-	}
+	gitEnv := s.gitAuthEnv(ctx, a.Repo, env, log)
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		return err
 	}
@@ -152,6 +146,14 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 		if err := s.run(ctx, log, src, gitEnv, "git", "reset", "--hard", "FETCH_HEAD"); err != nil {
 			return err
 		}
+	}
+
+	var err2 error
+	if a, err2 = s.autoConfigure(ctx, a, src, log); err2 != nil {
+		return err2
+	}
+	if env, err = s.buildEnv(a); err != nil {
+		return err
 	}
 
 	if a.BuildCmd != "" {
@@ -193,6 +195,7 @@ func (s *Server) envFileContent(a App) string {
 	if a.Port > 0 {
 		b.WriteString(envFileLine("PORT", fmt.Sprint(a.Port)))
 	}
+	b.WriteString(envFileLine("HOST", listenHost(a)))
 	kv, _ := parseEnv(a.Env) // validated on save
 	for _, p := range kv {
 		b.WriteString(envFileLine(p[0], p[1]))
@@ -252,12 +255,26 @@ func tailFile(path string, max int64) string {
 	return string(b)
 }
 
-func journal(app string) string {
+func journal(app string, lines int) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "journalctl", "-u", unitName(app), "-n", "200", "--no-pager", "-o", "short-iso").CombinedOutput()
+	out, err := exec.CommandContext(ctx, "journalctl", "-u", unitName(app), "-n", strconv.Itoa(lines), "--no-pager", "-o", "short-iso").CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "journalctl indisponível: " + err.Error()
 	}
 	return string(out)
+}
+
+// execPath is the PATH given to builds and git: the standard directories plus whatever the panel
+// itself was started with, so that "program found by the readiness check" means "program runnable".
+func execPath() string {
+	seen := map[string]bool{}
+	var parts []string
+	for _, p := range append(strings.Split("/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", ":"), filepath.SplitList(os.Getenv("PATH"))...) {
+		if p != "" && filepath.IsAbs(p) && !seen[p] {
+			seen[p] = true
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, ":")
 }

@@ -55,7 +55,7 @@ func main() {
 	flag.StringVar(&cfg.DataDir, "data", "/var/lib/brpanel", "diretório de dados (banco SQLite, logs e apps)")
 	flag.Parse()
 
-	for _, d := range []string{"", "logs", "env", "apps"} {
+	for _, d := range []string{"", "logs", "env", "apps", "tmp"} {
 		if err := os.MkdirAll(filepath.Join(cfg.DataDir, d), 0o750); err != nil {
 			log.Fatal(err)
 		}
@@ -81,6 +81,11 @@ func main() {
 	if err := srv.loadTemplates(); err != nil {
 		log.Fatal(err)
 	}
+	_ = os.RemoveAll(filepath.Join(cfg.DataDir, "tmp")) // leftovers of interrupted detections
+	_ = os.MkdirAll(filepath.Join(cfg.DataDir, "tmp"), 0o750)
+	sctx, stopSampler := context.WithCancel(context.Background())
+	defer stopSampler()
+	go srv.runSampler(sctx)
 	if srv.configured.Load() {
 		if set.PanelDomain != "" {
 			go srv.publishPanel()
@@ -157,7 +162,7 @@ func (s *Server) loadTemplates() error {
 		}
 		return m
 	}}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings", "logs"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/"+page+".html")
 		if err != nil {
 			return err
@@ -187,6 +192,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/edit", s.protected(s.handleEditForm))
 	mux.HandleFunc("POST /apps/{name}/edit", s.protected(s.handleEdit))
 	mux.HandleFunc("GET /apps/{name}/log", s.protected(s.handleLog))
+	mux.HandleFunc("GET /apps/{name}/logs", s.protected(s.handleLogs))
+	mux.HandleFunc("GET /apps/{name}/metrics", s.protected(s.handleMetrics))
+	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
+	mux.HandleFunc("POST /apps/detect", s.protected(s.handleDetect))
 	mux.HandleFunc("POST /apps/{name}/{action}", s.protected(s.handleAction))
 	return securityHeaders(s.gate(mux))
 }
@@ -220,6 +229,9 @@ type page struct {
 	App     App
 	States  map[string]string
 	State   string
+	Info    ServiceInfo
+	Host    HostStats
+	Latest  map[string]Point
 	Editing bool
 	SSL     bool
 	GH      ghStatus

@@ -30,6 +30,7 @@ func renderUnit(a App, p Paths, appUser string) string {
 	if appUser != "" {
 		fmt.Fprintf(&b, "User=%s\n", appUser)
 	}
+	b.WriteString("CPUAccounting=yes\nMemoryAccounting=yes\n")
 	b.WriteString("NoNewPrivileges=true\nPrivateTmp=true\nProtectSystem=full\n\n")
 	b.WriteString("[Install]\nWantedBy=multi-user.target\n")
 	return b.String()

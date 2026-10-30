@@ -32,8 +32,31 @@
   </div>
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title">Log do deploy</h2>
-<pre class="log" id="log-deploy" data-url="/apps/{{.App.Name}}/log">Carregando…</pre>
-<h2 class="mdc-typography--subtitle1 section-title">Log do serviço (journal)</h2>
-<pre class="log" id="log-service" data-url="/apps/{{.App.Name}}/log?kind=service">Carregando…</pre>
+<div class="section-head">
+  <h2 class="mdc-typography--subtitle1 section-title">Monitoramento</h2>
+  <div class="range-picker" id="range-picker" role="group" aria-label="Período">
+    <button type="button" class="mdc-button range-btn is-active" data-range="1h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">1h</span></button>
+    <button type="button" class="mdc-button range-btn" data-range="6h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">6h</span></button>
+    <button type="button" class="mdc-button range-btn" data-range="24h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">24h</span></button>
+  </div>
+</div>
+<div class="stats" id="app-stats" data-app="{{.App.Name}}">
+  <div class="stat"><span class="stat-label">CPU agora</span><span class="stat-value" id="s-cpu">—</span></div>
+  <div class="stat"><span class="stat-label">RAM agora</span><span class="stat-value" id="s-mem">—</span></div>
+  <div class="stat"><span class="stat-label">No ar há</span><span class="stat-value" id="s-up">{{if .Info.Uptime}}…{{else}}—{{end}}</span></div>
+  <div class="stat"><span class="stat-label">Reinícios</span><span class="stat-value" id="s-restarts">{{.Info.Restarts}}</span></div>
+</div>
+<div class="mdc-card"><div class="card-body charts">
+  <div><div class="chart-title">CPU <span class="muted">(% de um núcleo)</span></div><canvas class="chart" id="chart-cpu" aria-label="Gráfico de CPU"></canvas></div>
+  <div><div class="chart-title">Memória RAM</div><canvas class="chart" id="chart-mem" aria-label="Gráfico de memória"></canvas></div>
+  <p class="muted chart-empty" id="chart-empty" hidden>Sem amostras neste período — a aplicação precisa estar rodando. As amostras são coletadas a cada 15 s e guardadas por 24 h.</p>
+</div></div>
+
+<div class="section-head">
+  <h2 class="mdc-typography--subtitle1 section-title">Log do deploy</h2>
+  <a class="mdc-button" href="/apps/{{.App.Name}}/logs"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">article</i><span class="mdc-button__label">Abrir logs completos</span></a>
+</div>
+<pre class="log" id="log-deploy" data-url="/apps/{{.App.Name}}/log?kind=deploy&lines=200">Carregando…</pre>
+<h2 class="mdc-typography--subtitle1 section-title">Log do serviço (últimas 50 linhas)</h2>
+<pre class="log" id="log-service" data-url="/apps/{{.App.Name}}/log?kind=service&lines=50">Carregando…</pre>
 {{end}}

@@ -37,6 +37,14 @@ type App struct {
 	LastDeploy time.Time
 }
 
+// PortField is the port as shown in the form: empty when automatic.
+func (a App) PortField() string {
+	if a.Port == 0 {
+		return ""
+	}
+	return strconv.Itoa(a.Port)
+}
+
 func (a App) Deploying() bool { return a.Status == StatusDeploying }
 
 // migrations are applied in order; PRAGMA user_version records how many ran.
@@ -60,6 +68,14 @@ CREATE TABLE apps (
 	created_at  INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX apps_domain ON apps(domain) WHERE domain != '';
+`, `
+CREATE TABLE metrics (
+	app TEXT NOT NULL,
+	ts  INTEGER NOT NULL,
+	cpu REAL NOT NULL,
+	mem INTEGER NOT NULL,
+	PRIMARY KEY (app, ts)
+) WITHOUT ROWID;
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -189,8 +205,18 @@ func (s *Store) UpdateConfig(a App) error {
 }
 
 func (s *Store) Delete(name string) error {
-	_, err := s.db.Exec(`DELETE FROM apps WHERE name = ?`, name)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM metrics WHERE app = ?`, name); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM apps WHERE name = ?`, name); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // BeginDeploy atomically marks the app as deploying; false if missing or already deploying.

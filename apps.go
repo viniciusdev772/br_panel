@@ -40,15 +40,12 @@ func appFromForm(r *http.Request, name string) (App, error) {
 	for _, err := range []error{
 		validateName(a.Name), validateRepo(a.Repo), validateBranch(a.Branch),
 		validateCommand("Comando de build", a.BuildCmd, false),
-		validateCommand("Comando de início", a.StartCmd, true),
+		validateCommand("Comando de início", a.StartCmd, false),
 		validatePort(a.Port), validateDomain(a.Domain),
 	} {
 		if err != nil {
 			return a, err
 		}
-	}
-	if a.Domain != "" && a.Port == 0 {
-		return a, errors.New("informe a porta da aplicação para publicar um domínio")
 	}
 	if _, ok := githubSlug(a.Repo); a.AutoDeploy && !ok {
 		return a, errors.New("deploy automático exige um repositório do GitHub")
@@ -70,7 +67,11 @@ func (s *Server) domainTaken(domain, except string) bool {
 }
 
 func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
-	a, err := appFromForm(r, strings.TrimSpace(r.PostFormValue("name")))
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	if name == "" {
+		name = suggestName(strings.TrimSpace(r.PostFormValue("repo")))
+	}
+	a, err := appFromForm(r, name)
 	if err == nil {
 		if _, exists := s.store.Get(a.Name); exists {
 			err = errors.New("já existe uma aplicação com esse nome")
@@ -82,6 +83,9 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.render(w, r, "app_form", page{Title: "Nova aplicação", App: a, Error: err.Error()})
 		return
+	}
+	if a.Port == 0 {
+		a.Port = s.pickPort("")
 	}
 	if err := s.store.Create(a); err != nil {
 		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
@@ -105,7 +109,7 @@ func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (App, bool) {
 
 func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "app", page{Title: a.Name, App: a, State: serviceState(a.Name), SSL: a.Domain != "" && s.hasCert(a.Domain)})
+		s.render(w, r, "app", page{Title: a.Name, App: a, State: serviceState(a.Name), Info: serviceInfo(a.Name), SSL: a.Domain != "" && s.hasCert(a.Domain)})
 	}
 }
 
@@ -129,6 +133,9 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "app_form", page{Title: "Editar " + old.Name, App: a, Editing: true, Error: err.Error()})
 		return
 	}
+	if a.Port == 0 {
+		a.Port = s.pickPort(a.Name)
+	}
 	if err := s.store.UpdateConfig(a); err != nil {
 		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
 		return
@@ -136,18 +143,44 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/apps/"+a.Name+"?msg=Configura%C3%A7%C3%A3o+salva.+Fa%C3%A7a+um+novo+deploy+para+aplicar.", http.StatusSeeOther)
 }
 
+func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
+	if a, ok := s.appFor(w, r); ok {
+		s.render(w, r, "logs", page{Title: "Logs de " + a.Name, App: a})
+	}
+}
+
+// handleLog serves plain-text logs: kind=service (journal) or deploy, lines=N, download=1.
 func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.appFor(w, r)
 	if !ok {
 		return
 	}
+	lines, _ := strconv.Atoi(r.URL.Query().Get("lines"))
+	if lines < 10 || lines > 5000 {
+		lines = 200
+	}
+	kind := r.URL.Query().Get("kind")
+	if kind != "deploy" {
+		kind = "service"
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Deploying", strconv.FormatBool(a.Deploying()))
-	if r.URL.Query().Get("kind") == "service" {
-		_, _ = w.Write([]byte(journal(a.Name)))
+	if r.URL.Query().Get("download") == "1" {
+		w.Header().Set("Content-Disposition", `attachment; filename="`+a.Name+"-"+kind+`.log"`)
+	}
+	if kind == "service" {
+		_, _ = w.Write([]byte(journal(a.Name, lines)))
 		return
 	}
-	_, _ = w.Write([]byte(tailFile(s.paths.LogFile(a.Name), 64<<10)))
+	_, _ = w.Write([]byte(lastLines(tailFile(s.paths.LogFile(a.Name), 512<<10), lines)))
+}
+
+func lastLines(s string, n int) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {

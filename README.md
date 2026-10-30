@@ -40,6 +40,38 @@ Tudo é salvo no banco SQLite `/var/lib/brpanel/brpanel.db` (modo 0600) e pode s
 
 Quem já usava a versão anterior: o `apps.json` é importado automaticamente (e renomeado para `.migrated`).
 
+## Configuração automática do projeto
+
+Informe só o repositório: o painel dá nome à aplicação, escolhe uma porta livre e descobre como
+compilar e iniciar. O botão **Detectar automaticamente** (ou sair do campo do repositório) faz um clone
+temporário e mostra o que foi encontrado; se o comando de início ficar vazio, a detecção roda no deploy
+e o resultado é salvo na aplicação (editável). Os comandos usam `$PORT` e `$HOST` (127.0.0.1 com domínio,
+0.0.0.0 sem domínio).
+
+| Arquivo encontrado | Tipo | Build / início (resumo) |
+|---|---|---|
+| `package.json` | Node.js | `npm ci`/`pnpm`/`yarn`/`bun` conforme o lockfile + `run build`; início por `start`, Next, Nuxt, Vite ou arquivo principal |
+| `go.mod` | Go | `go build -o app .` (ou `./cmd/<x>`) / `./app` |
+| `Cargo.toml` | Rust | `cargo build --release` / `./target/release/<nome>` |
+| `requirements.txt`, `pyproject.toml` | Python | venv + pip; Django/Flask via gunicorn, FastAPI via uvicorn |
+| `Gemfile` | Ruby | `bundle install`; Rails ou Rack |
+| `composer.json` | PHP | `composer install`; servidor embutido do PHP |
+| `index.html` | Site estático | `python3 -m http.server` |
+
+Um `Procfile` (linha `web:`) define o comando de início, e um `brpanel.json` na raiz do repositório
+(`{"build": "...", "start": "...", "port": 8080}`) sobrescreve tudo. Se faltar algum programa no servidor
+(node, go, python3…), o painel avisa com a sugestão de instalação antes de tentar compilar.
+
+## Monitoramento e logs
+
+- **CPU e RAM por aplicação:** a cada 15 s o painel lê o cgroup v2 do serviço
+  (`/sys/fs/cgroup/system.slice/brpanel-<app>.service`: `cpu.stat` e `memory.current` sem o cache inativo) e guarda
+  24 h no SQLite. A página da aplicação mostra gráficos de 1 h/6 h/24 h, uso atual, tempo no ar e reinícios;
+  o dashboard mostra CPU/RAM de cada app e RAM, carga, disco e uptime do servidor, atualizados a cada 5 s.
+  CPU é em % de um núcleo (200% = dois núcleos). Requer cgroup v2 (padrão nas distros atuais).
+- **Logs:** página dedicada por aplicação com o journal do serviço e o log de deploy: 100–5000 linhas,
+  filtro por texto, destaque de erros e avisos, acompanhamento ao vivo e download.
+
 ## Domínio com Nginx + SSL automático
 
 Requer `nginx` e `certbot` e o DNS apontando para o servidor. Ao informar um **domínio** na aplicação

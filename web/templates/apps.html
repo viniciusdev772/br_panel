@@ -3,6 +3,12 @@
   <h1 class="mdc-typography--headline5">Aplicações</h1>
   <a class="mdc-button mdc-button--raised" href="/apps/new"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Nova aplicação</span></a>
 </div>
+<div class="stats" id="host-stats">
+  <div class="stat"><span class="stat-label">RAM do servidor</span><span class="stat-value" id="h-mem">—</span><div class="bar"><div class="bar-fill" id="h-mem-bar"></div></div></div>
+  <div class="stat"><span class="stat-label">Carga (1 / 5 / 15 min)</span><span class="stat-value" id="h-load">—</span><div class="bar"><div class="bar-fill" id="h-load-bar"></div></div></div>
+  <div class="stat"><span class="stat-label">Disco</span><span class="stat-value" id="h-disk">—</span><div class="bar"><div class="bar-fill" id="h-disk-bar"></div></div></div>
+  <div class="stat"><span class="stat-label">Servidor ligado há</span><span class="stat-value" id="h-up">—</span></div>
+</div>
 {{if .Apps}}
 <div class="mdc-data-table table-wrap">
   <div class="mdc-data-table__table-container">
@@ -11,6 +17,8 @@
         <th class="mdc-data-table__header-cell" scope="col">Nome</th>
         <th class="mdc-data-table__header-cell" scope="col">Repositório</th>
         <th class="mdc-data-table__header-cell" scope="col">Domínio</th>
+        <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" scope="col">CPU</th>
+        <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" scope="col">RAM</th>
         <th class="mdc-data-table__header-cell" scope="col">Serviço</th>
         <th class="mdc-data-table__header-cell" scope="col">Deploy</th>
       </tr></thead>
@@ -18,9 +26,11 @@
         {{range .Apps}}
         <tr class="mdc-data-table__row">
           <td class="mdc-data-table__cell"><a href="/apps/{{.Name}}">{{.Name}}</a></td>
-          <td class="mdc-data-table__cell">{{.Repo}} <span class="muted">({{.Branch}})</span></td>
+          <td class="mdc-data-table__cell repo-cell" title="{{.Repo}} ({{.Branch}})">{{.Repo}} <span class="muted">({{.Branch}})</span></td>
           <td class="mdc-data-table__cell">{{or .Domain "—"}}</td>
-          <td class="mdc-data-table__cell"><span class="chip chip--{{index $.States .Name}}">{{index $.States .Name}}</span></td>
+          <td class="mdc-data-table__cell mdc-data-table__cell--numeric" data-cpu="{{.Name}}">—</td>
+          <td class="mdc-data-table__cell mdc-data-table__cell--numeric" data-mem="{{.Name}}">—</td>
+          <td class="mdc-data-table__cell"><span class="chip chip--{{index $.States .Name}}" data-state="{{.Name}}">{{index $.States .Name}}</span></td>
           <td class="mdc-data-table__cell"><span class="chip chip--{{.Status}}">{{.Status}}</span></td>
         </tr>
         {{end}}

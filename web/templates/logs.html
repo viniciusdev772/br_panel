@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="page-head">
+  <h1 class="mdc-typography--headline5">Logs de {{.App.Name}}</h1>
+  <a class="mdc-button" href="/apps/{{.App.Name}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">arrow_back</i><span class="mdc-button__label">Voltar</span></a>
+</div>
+<div class="mdc-card"><div class="card-body" id="logtools" data-app="{{.App.Name}}">
+  <div class="logbar">
+    <div class="tabs" role="tablist">
+      <button type="button" class="mdc-button tab is-active" data-kind="service"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Serviço (journal)</span></button>
+      <button type="button" class="mdc-button tab" data-kind="deploy"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Deploy</span></button>
+    </div>
+    <label class="select-label">Linhas
+      <select id="log-lines"><option>100</option><option selected>300</option><option>1000</option><option>5000</option></select>
+    </label>
+    <label class="select-label">Filtro
+      <input id="log-filter" type="search" placeholder="texto ou erro, warn…" autocomplete="off">
+    </label>
+    <label class="select-label check"><input id="log-follow" type="checkbox" checked> Acompanhar</label>
+    <a class="mdc-button" id="log-download" href="#"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar</span></a>
+  </div>
+  <div class="logview" id="logview" role="log" aria-live="off"></div>
+  <div class="muted" id="log-status">Carregando…</div>
+</div></div>
+{{end}}
