@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/viniciusdev772/br_panel/internal/auth"
+	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/deploy"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/monitor"
@@ -38,6 +40,7 @@ type Config struct {
 type Server struct {
 	cfg   Config
 	dep   *deploy.Deployer
+	dbm   *dbengine.Manager
 	store *store.Store
 	auth  *auth.Auth
 	tmpl  map[string]*template.Template
@@ -60,6 +63,7 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, store: st, auth: auth.New()}
 	s.dep = deploy.New(st, cfg.DataDir, s.settings, s.githubApp)
+	s.dbm = dbengine.New(st, cfg.DataDir, s.settings)
 	s.dummyHash, _ = settings.HashPassword(auth.RandomToken(16))
 	if err := s.applySettings(set); err != nil {
 		return nil, err
@@ -75,6 +79,7 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 // Run starts the background workers and serves HTTP until ctx is cancelled.
 func (s *Server) Run(ctx context.Context) error {
 	go monitor.Run(ctx, s.store)
+	go s.dbm.RunScheduler(ctx)
 	if s.configured.Load() {
 		if s.settings().PanelDomain != "" {
 			go s.publishPanel()
@@ -144,14 +149,20 @@ func (s *Server) applySettings(set settings.Settings) error {
 
 func (s *Server) loadTemplates() error {
 	s.tmpl = map[string]*template.Template{}
-	funcs := template.FuncMap{"dict": func(kv ...any) map[string]any {
-		m := map[string]any{}
-		for i := 0; i+1 < len(kv); i += 2 {
-			m[kv[i].(string)] = kv[i+1]
-		}
-		return m
-	}}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings", "logs"} {
+	funcs := template.FuncMap{
+		"dict": func(kv ...any) map[string]any {
+			m := map[string]any{}
+			for i := 0; i+1 < len(kv); i += 2 {
+				m[kv[i].(string)] = kv[i+1]
+			}
+			return m
+		},
+		"bytes": humanBytes,
+		"iso":   func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
+		"join":  strings.Join,
+		"split": strings.Split,
+	}
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings", "database", "database_new"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {
 			return err
@@ -185,6 +196,17 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/metrics", s.protected(s.handleMetrics))
 	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
 	mux.HandleFunc("POST /apps/detect", s.protected(s.handleDetect))
+	mux.HandleFunc("POST /apps/{name}/env", s.protected(s.handleEnvSave))
+	mux.HandleFunc("GET /databases/new", s.protected(s.handleDBNew))
+	mux.HandleFunc("POST /databases", s.protected(s.handleDBCreate))
+	mux.HandleFunc("POST /databases/install", s.protected(s.handleDBInstall))
+	mux.HandleFunc("GET /databases/install/status", s.protected(s.handleInstallStatus))
+	mux.HandleFunc("GET /databases/{name}", s.protected(s.handleDBPage))
+	mux.HandleFunc("GET /databases/{name}/log", s.protected(s.handleDBLog))
+	mux.HandleFunc("GET /databases/{name}/metrics", s.protected(s.handleDBMetrics))
+	mux.HandleFunc("GET /databases/{name}/data", s.protected(s.handleDBData))
+	mux.HandleFunc("GET /databases/{name}/backups/{file}", s.protected(s.handleDBBackupDownload))
+	mux.HandleFunc("POST /databases/{name}/{action}", s.protected(s.handleDBAction))
 	mux.HandleFunc("POST /apps/{name}/{action}", s.protected(s.handleAction))
 	return securityHeaders(s.gate(mux))
 }
@@ -210,6 +232,7 @@ func securityHeaders(next http.Handler) http.Handler {
 
 type page struct {
 	Title   string
+	Nav     string // active top-bar tab: arch | settings | github
 	Authed  bool
 	CSRF    string
 	Flash   string
@@ -224,6 +247,27 @@ type page struct {
 	Editing bool
 	SSL     bool
 	GH      ghStatus
+
+	Bdg badge
+
+	Cards  []card
+	Edges  []edge
+	Events []store.Event
+
+	Kinds          []dbengine.KindStatus
+	KindSel        dbengine.KindStatus
+	DefaultName    string
+	InstallRunning bool
+	InstallErr     string
+	DB             store.Database
+	DBSpec         dbengine.Spec
+	DBVersion      string
+	Conns          []dbengine.Connection
+	Console        string
+	Backups        []dbengine.BackupInfo
+	Busy           string
+	UsedBy         []string
+	VarGroups      []varGroup
 
 	Setup     bool
 	Set       settings.Settings
@@ -241,6 +285,17 @@ type ghStatus struct {
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, p page) {
 	p.CSRF, p.Authed = s.auth.Session(r)
+	if p.Nav == "" {
+		switch name {
+		case "settings":
+			p.Nav = "settings"
+		case "github":
+			p.Nav = "github"
+		case "login":
+		default:
+			p.Nav = "arch"
+		}
+	}
 	if p.Flash == "" {
 		p.Flash = r.URL.Query().Get("msg")
 	}
@@ -323,4 +378,17 @@ func (s *Server) gate(next http.Handler) http.Handler {
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	s.auth.Logout(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }

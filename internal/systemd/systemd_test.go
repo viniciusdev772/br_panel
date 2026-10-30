@@ -35,3 +35,19 @@ func TestParseShow(t *testing.T) {
 		t.Errorf("%+v", i)
 	}
 }
+
+func TestRenderDatabaseUnit(t *testing.T) {
+	u := Unit{App: "pg", Desc: "BR Panel database pg", WorkDir: "/d/pg", StartCmd: "postgres -D /d/pg/data", User: "brdb",
+		Extra: []string{"KillSignal=SIGINT", "TimeoutStopSec=120"}}.Render()
+	for _, s := range []string{"Description=BR Panel database pg", "KillSignal=SIGINT", "TimeoutStopSec=120", "User=brdb"} {
+		if !strings.Contains(u, s) {
+			t.Errorf("faltou %q em:\n%s", s, u)
+		}
+	}
+	if strings.Contains(u, "EnvironmentFile") {
+		t.Error("sem EnvFile não deve haver EnvironmentFile")
+	}
+	if DBUnitName("pg") != "brpaneldb-pg.service" || DBUnitName("x") == UnitName("db-x") {
+		t.Error("nome de unit de banco")
+	}
+}

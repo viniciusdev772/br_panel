@@ -24,37 +24,57 @@
 {{if .hint}}<p class="hint">{{.hint}}</p>{{end}}
 </div>
 {{end}}
+{{define "logtools"}}
+<div class="mdc-card"><div class="card-body" id="logtools" data-base="{{.base}}">
+  <div class="logbar">
+    <div class="sw-tabs" role="tablist">{{range $i, $k := split .kinds ","}}{{$p := split $k ":"}}<button type="button" class="sw-tab {{if eq $i 0}}is-active{{end}}" data-kind="{{index $p 0}}">{{index $p 1}}</button>{{end}}</div>
+    <label class="select-label">Linhas
+      <select id="log-lines"><option>100</option><option selected>300</option><option>1000</option><option>5000</option></select>
+    </label>
+    <label class="select-label">Filtro
+      <input id="log-filter" type="search" placeholder="texto, erro, warn…" autocomplete="off">
+    </label>
+    <label class="select-label check"><input id="log-follow" type="checkbox" checked> Acompanhar</label>
+    <a class="mdc-button" id="log-download" href="#"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar</span></a>
+  </div>
+  <div class="logview" id="logview" role="log" aria-live="off"></div>
+  <div class="muted" id="log-status">Carregando…</div>
+</div></div>
+{{end}}
 {{define "layout"}}<!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} · BR Panel</title>
+  <script src="/static/theme.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="mdc-typography">
-  <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
-    <div class="mdc-top-app-bar__row">
-      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-        <a class="mdc-top-app-bar__navigation-icon material-icons brand-link" href="/" aria-label="Início">dns</a>
-        <span class="mdc-top-app-bar__title">BR Panel</span>
-      </section>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark"><i class="material-icons">dns</i></span><span>BR Panel</span></a>
+    {{if .Authed}}
+    <span class="crumb">/ <b>servidor</b></span>
+    <nav class="topnav" aria-label="Principal">
+      <a href="/" class="{{if eq .Nav "arch"}}active{{end}}"><i class="material-icons">hub</i><span class="label">Arquitetura</span></a>
+      <a href="/settings" class="{{if eq .Nav "settings"}}active{{end}}"><i class="material-icons">settings</i><span class="label">Configurações</span></a>
+      <a href="/github" class="{{if eq .Nav "github"}}active{{end}}"><i class="material-icons">merge_type</i><span class="label">GitHub</span></a>
+    </nav>
+    {{end}}
+    <div class="topright">
+      <button class="icon-btn" type="button" id="theme-toggle" aria-label="Alternar tema claro/escuro" title="Alternar tema"><i class="material-icons">brightness_6</i></button>
       {{if .Authed}}
-      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
-        <a class="mdc-button topbar-btn" href="/settings"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">settings</i><span class="mdc-button__label">Configurações</span></a>
-        <a class="mdc-button topbar-btn" href="/github"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">hub</i><span class="mdc-button__label">GitHub</span></a>
-        <form method="post" action="/logout">
-          <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <button class="mdc-button topbar-btn" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">logout</i><span class="mdc-button__label">Sair</span></button>
-        </form>
-      </section>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button class="icon-btn" type="submit" aria-label="Sair" title="Sair"><i class="material-icons">logout</i></button>
+      </form>
       {{end}}
     </div>
   </header>
-  <main class="content mdc-top-app-bar--fixed-adjust">
+  <main class="content{{if eq .Title "Arquitetura"}} content--wide{{end}}">
     {{if .Flash}}<div class="notice" role="status">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="notice notice--error" role="alert">{{.Error}}</div>{{end}}
     {{template "content" .}}

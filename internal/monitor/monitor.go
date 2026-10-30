@@ -56,20 +56,26 @@ func Run(ctx context.Context, st *store.Store) {
 
 func (sm *sampler) sample(now time.Time) {
 	seen := map[string]bool{}
-	for _, a := range sm.store.List() {
-		usec, mem, ok := sysinfo.ReadCgroup(filepath.Join(sm.cgRoot, systemd.UnitName(a.Name)))
+	record := func(key, unit string) {
+		usec, mem, ok := sysinfo.ReadCgroup(filepath.Join(sm.cgRoot, unit))
 		if !ok { // stopped: leave a gap in the chart
-			continue
+			return
 		}
-		seen[a.Name] = true
+		seen[key] = true
 		cpu := 0.0
-		if p, had := sm.prev[a.Name]; had && usec >= p.usec {
+		if p, had := sm.prev[key]; had && usec >= p.usec {
 			if dt := now.Sub(p.at).Microseconds(); dt > 0 {
 				cpu = float64(usec-p.usec) / float64(dt) * 100
 			}
 		}
-		sm.prev[a.Name] = cpuPrev{usec, now}
-		_ = sm.store.InsertMetrics(a.Name, []store.Point{{TS: now.Unix(), CPU: round1(cpu), Mem: int64(mem)}})
+		sm.prev[key] = cpuPrev{usec, now}
+		_ = sm.store.InsertMetrics(key, []store.Point{{TS: now.Unix(), CPU: round1(cpu), Mem: int64(mem)}})
+	}
+	for _, a := range sm.store.List() {
+		record(a.Name, systemd.UnitName(a.Name))
+	}
+	for _, d := range sm.store.ListDatabases() { // databases are stored under "db:<name>"
+		record(DBKey(d.Name), systemd.DBUnitName(d.Name))
 	}
 	for name := range sm.prev {
 		if !seen[name] {
@@ -77,6 +83,9 @@ func (sm *sampler) sample(now time.Time) {
 		}
 	}
 }
+
+// DBKey is the metrics key of a database (app names cannot contain a colon, so keys never collide).
+func DBKey(name string) string { return "db:" + name }
 
 func round1(f float64) float64 { return float64(int64(f*10+0.5)) / 10 }
 

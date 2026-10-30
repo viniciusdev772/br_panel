@@ -73,6 +73,7 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 		return a, fmt.Errorf("faltam programas no servidor: %s", strings.Join(missing, ", "))
 	}
 	a.StartCmd = det.Start
+	a.Kind = det.Kind
 	if a.BuildCmd == "" {
 		a.BuildCmd = det.Build
 	}
@@ -83,6 +84,7 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 	if err := d.Store.UpdateConfig(a); err != nil {
 		return a, err
 	}
+	d.Store.SetKind(a.Name, a.Kind)
 	return a, nil
 }
 

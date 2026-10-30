@@ -64,3 +64,23 @@ func TestBucket(t *testing.T) {
 		t.Errorf("Bucket %d %d", Bucket(time.Hour), Bucket(24*time.Hour))
 	}
 }
+
+func TestSamplerRecordsDatabases(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_ = s.CreateDatabase(store.Database{Name: "pg", Kind: "postgres", Port: 5433, Username: "u", Password: "p"})
+	root := t.TempDir()
+	dir := filepath.Join(root, systemd.DBUnitName("pg"))
+	_ = os.MkdirAll(dir, 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "cpu.stat"), []byte("usage_usec 1000000\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "memory.current"), []byte("52428800\n"), 0o644)
+	sm := &sampler{store: s, cgRoot: root, prev: map[string]cpuPrev{}}
+	sm.sample(time.Unix(1_800_000_000, 0))
+	pts := s.Metrics(DBKey("pg"), time.Unix(1_799_999_000, 0), 1)
+	if len(pts) != 1 || pts[0].Mem != 52428800 {
+		t.Errorf("%+v", pts)
+	}
+}

@@ -62,6 +62,30 @@ Um `Procfile` (linha `web:`) define o comando de início, e um `brpanel.json` na
 (`{"build": "...", "start": "...", "port": 8080}`) sobrescreve tudo. Se faltar algum programa no servidor
 (node, go, python3…), o painel avisa com a sugestão de instalação antes de tentar compilar.
 
+## Bancos de dados (PostgreSQL, MySQL/MariaDB, MongoDB, Redis)
+
+Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** por banco, como serviço systemd
+(`brpaneldb-<nome>.service`) com diretório de dados, porta e senha próprios, rodando com um usuário sem privilégios
+(`brdb`, configurável) e ouvindo só em `127.0.0.1`. Nada de Docker: usa os binários do próprio servidor.
+
+- **Instalação:** se o motor não está instalado, a página de criação mostra o que falta e, em Debian/Ubuntu, instala
+  com `apt-get` (`postgresql`, `mariadb-server`, `redis-server`) e desativa a instância padrão da distribuição.
+  O MongoDB não está nos repositórios padrão: instale `mongodb-org` + `mongosh` e o painel detecta sozinho.
+- **Conectar:** URL privada, host, porta, usuário, banco e senha (mascarada, com copiar/mostrar), linha de comando
+  pronta (`psql`, `mongosh`, `redis-cli`, `mariadb`) e **regenerar senha**.
+- **Variáveis de referência:** em *Variáveis* da aplicação, `${{postgres.DATABASE_URL}}` é resolvido no deploy
+  (`DATABASE_URL`/`MONGO_URL`/`REDIS_URL`, `URL`, `HOST`, `PORT`, `USER`, `PASSWORD`, `DATABASE`). Trocar a senha do banco
+  não exige editar a aplicação, só um novo deploy. As referências aparecem como **setas** no canvas.
+- **Dados:** navegador somente leitura (tabelas/coleções/chaves, até 50 linhas por item).
+- **Backups:** manual ou agendado (diário/semanal), os 14 mais recentes, download e **restauração**
+  (`pg_dump -Fc`, `mariadb-dump`, `mongodump --archive`, `redis-cli --rdb`).
+- **Acesso externo:** opcional (liga em `0.0.0.0`, ajusta o `pg_hba.conf` no PostgreSQL); libere a porta no firewall.
+- Métricas de CPU/RAM, logs do serviço e do provisionamento, iniciar/parar/reiniciar e exclusão.
+
+Validação: PostgreSQL, MariaDB e Redis foram exercitados de ponta a ponta contra servidores reais (criar, conectar,
+dados, backup, restauração, senha, acesso externo); MongoDB só tem testes das linhas de comando geradas, pois não
+foi possível instalá-lo no ambiente de desenvolvimento.
+
 ## Monitoramento e logs
 
 - **CPU e RAM por aplicação:** a cada 15 s o painel lê o cgroup v2 do serviço

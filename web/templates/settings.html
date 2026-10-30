@@ -71,6 +71,7 @@
     {{template "field" dict "name" "acme_root" "label" "Webroot do desafio ACME" "value" .Set.AcmeRoot}}
     {{template "field" dict "name" "cert_dir" "label" "Diretório dos certificados" "value" .Set.CertDir}}
     {{template "field" dict "name" "unit_dir" "label" "Diretório das units systemd" "value" .Set.UnitDir}}
+    {{template "field" dict "name" "db_user" "label" "Usuário do sistema dos bancos de dados" "value" .Set.DBUser "hint" "Criado automaticamente ao adicionar o primeiro banco. Roda PostgreSQL, MySQL, MongoDB e Redis sem privilégios."}}
   </div></div>
   {{end}}
 

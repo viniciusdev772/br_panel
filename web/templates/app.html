@@ -1,62 +1,116 @@
 {{define "action"}}
 <form method="post" action="/apps/{{.name}}/{{.action}}" {{if .confirm}}data-confirm="{{.confirm}}"{{end}}>
   <input type="hidden" name="csrf" value="{{.csrf}}">
-  <button class="mdc-button {{if .raised}}mdc-button--raised{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
+  <button class="mdc-button {{if .raised}}mdc-button--raised{{else if .danger}}mdc-button--outlined mdc-button--danger{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
 </form>
 {{end}}
 {{define "content"}}
-<div class="page-head">
-  <h1 class="mdc-typography--headline5">{{.App.Name}}
-    <span class="chip chip--{{.State}}">{{.State}}</span>
-    <span class="chip chip--{{.App.Status}}" id="deploy-status" data-deploying="{{.App.Deploying}}">{{.App.Status}}</span>
-  </h1>
-  <a class="mdc-button" href="/apps/{{.App.Name}}/edit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">edit</i><span class="mdc-button__label">Editar</span></a>
-</div>
-<div class="mdc-card"><div class="card-body">
-  <dl class="meta">
-    <dt>Repositório</dt><dd>{{.App.Repo}} <span class="muted">({{.App.Branch}})</span></dd>
-    <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
-    <dt>Início</dt><dd><code>{{.App.StartCmd}}</code></dd>
-    {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}</dd>{{end}}
-    {{if .App.Domain}}<dt>Domínio</dt><dd><a href="{{if .SSL}}https{{else}}http{{end}}://{{.App.Domain}}" target="_blank" rel="noopener noreferrer">{{.App.Domain}}</a>
-      <span class="chip {{if .SSL}}chip--active{{end}}">{{if .SSL}}SSL ativo{{else}}sem SSL{{end}}</span></dd>{{end}}
-    <dt>Deploy automático</dt><dd>{{if .App.AutoDeploy}}ativado (push em <code>{{.App.Branch}}</code>){{else}}desativado{{end}}</dd>
-    {{if not .App.LastDeploy.IsZero}}<dt>Último deploy</dt><dd>{{.App.LastDeploy.Format "02/01/2006 15:04:05"}}</dd>{{end}}
-  </dl>
-  <div class="actions actions--start">
-    {{template "action" dict "name" .App.Name "action" "deploy" "csrf" .CSRF "icon" "rocket_launch" "label" "Deploy" "raised" true "disabled" .App.Deploying}}
-    {{template "action" dict "name" .App.Name "action" "restart" "csrf" .CSRF "icon" "restart_alt" "label" "Reiniciar"}}
-    {{template "action" dict "name" .App.Name "action" "start" "csrf" .CSRF "icon" "play_arrow" "label" "Iniciar"}}
-    {{template "action" dict "name" .App.Name "action" "stop" "csrf" .CSRF "icon" "stop" "label" "Parar"}}
-    {{template "action" dict "name" .App.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "confirm" "Excluir esta aplicação, o serviço e os arquivos?"}}
+<div class="sheet" data-sheet="app">
+  <a class="sheet-back" href="/"><i class="material-icons">arrow_back</i>Arquitetura</a>
+  <div class="sheet-head">
+    <span class="badge badge--lg {{.Bdg.Class}}">{{.Bdg.Text}}</span>
+    <div>
+      <h1>{{.App.Name}}</h1>
+      <div class="sub">{{if .App.Kind}}{{.App.Kind}}{{else}}Aplicação{{end}}{{if .App.Domain}} · <a href="{{if .SSL}}https{{else}}http{{end}}://{{.App.Domain}}" target="_blank" rel="noopener noreferrer">{{.App.Domain}}</a>{{end}}</div>
+    </div>
+    <div class="chips">
+      <span class="chip chip--{{.State}}">serviço: {{.State}}</span>
+      <span class="chip chip--{{.App.Status}}" id="deploy-status" data-deploying="{{.App.Deploying}}">deploy: {{.App.Status}}</span>
+      {{if .App.Domain}}<span class="chip {{if .SSL}}chip--active{{end}}">{{if .SSL}}SSL ativo{{else}}sem SSL{{end}}</span>{{end}}
+    </div>
+    <div class="head-actions">
+      {{template "action" dict "name" .App.Name "action" "deploy" "csrf" .CSRF "icon" "rocket_launch" "label" "Deploy" "raised" true "disabled" .App.Deploying}}
+    </div>
   </div>
-</div></div>
 
-<div class="section-head">
-  <h2 class="mdc-typography--subtitle1 section-title">Monitoramento</h2>
-  <div class="range-picker" id="range-picker" role="group" aria-label="Período">
-    <button type="button" class="mdc-button range-btn is-active" data-range="1h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">1h</span></button>
-    <button type="button" class="mdc-button range-btn" data-range="6h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">6h</span></button>
-    <button type="button" class="mdc-button range-btn" data-range="24h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">24h</span></button>
+  <div class="tabs" role="tablist" data-tabs>
+    <button type="button" class="tab-btn is-active" data-tab="deploy" role="tab">Deploy</button>
+    <button type="button" class="tab-btn" data-tab="variaveis" role="tab">Variáveis</button>
+    <button type="button" class="tab-btn" data-tab="metricas" role="tab">Métricas</button>
+    <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs</button>
+    <button type="button" class="tab-btn" data-tab="configuracoes" role="tab">Configurações</button>
   </div>
-</div>
-<div class="stats" id="app-stats" data-app="{{.App.Name}}">
-  <div class="stat"><span class="stat-label">CPU agora</span><span class="stat-value" id="s-cpu">—</span></div>
-  <div class="stat"><span class="stat-label">RAM agora</span><span class="stat-value" id="s-mem">—</span></div>
-  <div class="stat"><span class="stat-label">No ar há</span><span class="stat-value" id="s-up">{{if .Info.Uptime}}…{{else}}—{{end}}</span></div>
-  <div class="stat"><span class="stat-label">Reinícios</span><span class="stat-value" id="s-restarts">{{.Info.Restarts}}</span></div>
-</div>
-<div class="mdc-card"><div class="card-body charts">
-  <div><div class="chart-title">CPU <span class="muted">(% de um núcleo)</span></div><canvas class="chart" id="chart-cpu" aria-label="Gráfico de CPU"></canvas></div>
-  <div><div class="chart-title">Memória RAM</div><canvas class="chart" id="chart-mem" aria-label="Gráfico de memória"></canvas></div>
-  <p class="muted chart-empty" id="chart-empty" hidden>Sem amostras neste período — a aplicação precisa estar rodando. As amostras são coletadas a cada 15 s e guardadas por 24 h.</p>
-</div></div>
 
-<div class="section-head">
-  <h2 class="mdc-typography--subtitle1 section-title">Log do deploy</h2>
-  <a class="mdc-button" href="/apps/{{.App.Name}}/logs"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">article</i><span class="mdc-button__label">Abrir logs completos</span></a>
+  <section class="panel" id="tab-deploy" data-panel="deploy">
+    <div class="mdc-card"><div class="card-body">
+      <dl class="meta">
+        <dt>Repositório</dt><dd>{{.App.Repo}} <span class="muted">({{.App.Branch}})</span></dd>
+        <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
+        <dt>Início</dt><dd><code>{{or .App.StartCmd "—"}}</code></dd>
+        {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}</dd>{{end}}
+        <dt>Deploy automático</dt><dd>{{if .App.AutoDeploy}}ativado (push em <code>{{.App.Branch}}</code>){{else}}desativado{{end}}</dd>
+        {{if not .App.LastDeploy.IsZero}}<dt>Último deploy</dt><dd>{{.App.LastDeploy.Format "02/01/2006 15:04:05"}}</dd>{{end}}
+      </dl>
+      <div class="actions actions--start">
+        {{template "action" dict "name" .App.Name "action" "restart" "csrf" .CSRF "icon" "restart_alt" "label" "Reiniciar"}}
+        {{template "action" dict "name" .App.Name "action" "start" "csrf" .CSRF "icon" "play_arrow" "label" "Iniciar"}}
+        {{template "action" dict "name" .App.Name "action" "stop" "csrf" .CSRF "icon" "stop" "label" "Parar"}}
+      </div>
+    </div></div>
+    <h2 class="panel-title">Log do deploy</h2>
+    <pre class="log" id="log-deploy" data-url="/apps/{{.App.Name}}/log?kind=deploy&lines=200">Carregando…</pre>
+    <h2 class="panel-title">Log do serviço (últimas 50 linhas)</h2>
+    <pre class="log" id="log-service" data-url="/apps/{{.App.Name}}/log?kind=service&lines=50">Carregando…</pre>
+  </section>
+
+  <section class="panel" id="tab-variaveis" data-panel="variaveis" hidden>
+    <form method="post" action="/apps/{{.App.Name}}/env" class="mdc-card"><div class="card-body">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <p class="muted">Uma por linha: <code>CHAVE=valor</code>. Referencie um banco com <code>${{"{{"}}nome.VARIAVEL{{"}}"}}</code> — o valor é resolvido no deploy, então trocar a senha do banco não exige editar aqui.</p>
+      <textarea class="code" name="env" id="env-editor" spellcheck="false" rows="10" placeholder="NODE_ENV=production">{{.App.Env}}</textarea>
+      <div class="actions">
+        <button class="mdc-button" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Salvar</span></button>
+        <button class="mdc-button mdc-button--raised" type="submit" name="deploy" value="1"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">rocket_launch</i><span class="mdc-button__label">Salvar e reimplantar</span></button>
+      </div>
+    </div></form>
+    <h2 class="panel-title">Variáveis dos bancos de dados</h2>
+    {{if .VarGroups}}
+    {{range .VarGroups}}
+    <div class="mdc-card"><div class="card-body">
+      <div class="row-between"><div class="rcard-top"><span class="badge badge--sm b-{{.Kind}}">{{.Badge}}</span><strong>{{.DB}}</strong></div><span class="muted">clique para inserir no editor</span></div>
+      <div class="refs">{{range .Vars}}<button type="button" class="ref" data-insert="{{.Ref}}" title="{{.Name}}">{{.Ref}}</button>{{end}}</div>
+    </div></div>
+    {{end}}
+    {{else}}
+    <div class="mdc-card"><div class="card-body"><p class="muted">Nenhum banco criado ainda. <a href="/databases/new?kind=postgres">Adicionar um banco de dados</a> para usar referências como <code>${{"{{"}}postgres.DATABASE_URL{{"}}"}}</code>.</p></div></div>
+    {{end}}
+  </section>
+
+  <section class="panel" id="tab-metricas" data-panel="metricas" hidden>
+    <div class="row-between">
+      <h2 class="panel-title">CPU e memória</h2>
+      <div class="range-picker" id="range-picker" role="group" aria-label="Período">
+        <button type="button" class="mdc-button range-btn is-active" data-range="1h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">1h</span></button>
+        <button type="button" class="mdc-button range-btn" data-range="6h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">6h</span></button>
+        <button type="button" class="mdc-button range-btn" data-range="24h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">24h</span></button>
+      </div>
+    </div>
+    <div class="stats" id="app-stats" data-metrics="/apps/{{.App.Name}}/metrics">
+      <div class="stat"><span class="stat-label">CPU agora</span><span class="stat-value" id="s-cpu">—</span></div>
+      <div class="stat"><span class="stat-label">RAM agora</span><span class="stat-value" id="s-mem">—</span></div>
+      <div class="stat"><span class="stat-label">No ar há</span><span class="stat-value" id="s-up">{{if .Info.Uptime}}…{{else}}—{{end}}</span></div>
+      <div class="stat"><span class="stat-label">Reinícios</span><span class="stat-value" id="s-restarts">{{.Info.Restarts}}</span></div>
+    </div>
+    <div class="mdc-card"><div class="card-body charts">
+      <div><div class="chart-title">CPU <span class="muted">(% de um núcleo)</span></div><canvas class="chart" id="chart-cpu" aria-label="Gráfico de CPU"></canvas></div>
+      <div><div class="chart-title">Memória RAM</div><canvas class="chart" id="chart-mem" aria-label="Gráfico de memória"></canvas></div>
+      <p class="muted chart-empty" id="chart-empty" hidden>Sem amostras neste período — a aplicação precisa estar rodando. As amostras são coletadas a cada 15 s e guardadas por 24 h.</p>
+    </div></div>
+  </section>
+
+  <section class="panel" id="tab-logs" data-panel="logs" hidden>
+    {{template "logtools" dict "base" (printf "/apps/%s" .App.Name) "kinds" "service:Serviço (journal),deploy:Deploy"}}
+  </section>
+
+  <section class="panel" id="tab-configuracoes" data-panel="configuracoes" hidden>
+    <div class="mdc-card"><div class="card-body row-between">
+      <div><strong>Configuração da aplicação</strong><p>Repositório, branch, comandos, porta, domínio e deploy automático.</p></div>
+      <a class="mdc-button mdc-button--outlined" href="/apps/{{.App.Name}}/edit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">edit</i><span class="mdc-button__label">Editar</span></a>
+    </div></div>
+    <div class="mdc-card danger-zone"><div class="card-body row-between">
+      <div><strong>Excluir aplicação</strong><p>Remove o serviço, o domínio no Nginx e todos os arquivos. Não pode ser desfeito.</p></div>
+      {{template "action" dict "name" .App.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "danger" true "confirm" "Excluir esta aplicação, o serviço e os arquivos?"}}
+    </div></div>
+  </section>
 </div>
-<pre class="log" id="log-deploy" data-url="/apps/{{.App.Name}}/log?kind=deploy&lines=200">Carregando…</pre>
-<h2 class="mdc-typography--subtitle1 section-title">Log do serviço (últimas 50 linhas)</h2>
-<pre class="log" id="log-service" data-url="/apps/{{.App.Name}}/log?kind=service&lines=50">Carregando…</pre>
 {{end}}

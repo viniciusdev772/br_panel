@@ -5,8 +5,9 @@ import math, random, sqlite3, sys, time
 db = sqlite3.connect(sys.argv[1])
 random.seed(7)
 now = int(time.time()); now -= now % 15
-profiles = {"loja": (18, 420), "api": (35, 300), "worker": (55, 780)}
-for (name,) in list(db.execute("select name from apps")):
+profiles = {"loja": (18, 420), "api": (35, 300), "worker": (55, 780), "db:postgres": (9, 210), "db:redis": (3, 48), "db:mysql": (6, 330)}
+names = [n for (n,) in db.execute("select name from apps")] + ["db:" + n for (n,) in db.execute("select name from databases")]
+for name in names:
     base_cpu, base_mem = profiles.get(name, (12, 200))
     rows = []
     for i in range(24 * 240):  # 24 h, one sample every 15 s

@@ -22,8 +22,15 @@ func main() {
 	flag.StringVar(&cfg.DataDir, "data", "/var/lib/brpanel", "diretório de dados (banco SQLite, logs e apps)")
 	flag.Parse()
 
-	for _, d := range []string{"", "logs", "env", "apps", "tmp"} {
-		if err := os.MkdirAll(filepath.Join(cfg.DataDir, d), 0o750); err != nil {
+	// Apps and databases run as unprivileged users: the data directory and the directories that
+	// lead to their files must be traversable (0711) without being listable. Everything else
+	// (database file, env files, logs, backups) stays private to root.
+	for d, mode := range map[string]os.FileMode{"": 0o711, "apps": 0o711, "databases": 0o711, "logs": 0o750, "env": 0o750, "tmp": 0o750} {
+		p := filepath.Join(cfg.DataDir, d)
+		if err := os.MkdirAll(p, mode); err != nil {
+			log.Fatal(err)
+		}
+		if err := os.Chmod(p, mode); err != nil {
 			log.Fatal(err)
 		}
 	}

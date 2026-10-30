@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/execx"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/nginx"
@@ -116,8 +117,21 @@ func (d *Deployer) capture(ctx context.Context, dir string, env []string, name s
 	return strings.TrimSpace(out.String()), err
 }
 
-func (d *Deployer) buildEnv(a store.App) ([]string, error) {
+// envPairs parses the app's variables and resolves ${{database.VAR}} references.
+func (d *Deployer) envPairs(a store.App) ([][2]string, error) {
 	kv, err := validate.ParseEnv(a.Env)
+	if err != nil {
+		return nil, err
+	}
+	dbs := d.Store.ListDatabases()
+	for i := range kv {
+		kv[i][1], _ = dbengine.Resolve(kv[i][1], dbs)
+	}
+	return kv, nil
+}
+
+func (d *Deployer) buildEnv(a store.App) ([]string, error) {
+	kv, err := d.envPairs(a)
 	if err != nil {
 		return nil, err
 	}
@@ -161,13 +175,16 @@ func (d *Deployer) Start(name, reason string) bool {
 		}
 		defer lf.Close()
 		fmt.Fprintf(lf, "== deploy de %s iniciado em %s (%s) ==\n", name, time.Now().Format(time.RFC3339), reason)
+		d.Store.AddEvent("deploy", name, "Deploy iniciado ("+reason+")")
 		if err := d.deploy(ctx, a, lf); err != nil {
 			fmt.Fprintf(lf, "\n== FALHOU: %v ==\n", err)
 			d.Store.FinishDeploy(name, false)
+			d.Store.AddEvent("deploy", name, "Deploy falhou")
 			return
 		}
 		fmt.Fprintf(lf, "\n== deploy concluído ==\n")
 		d.Store.FinishDeploy(name, true)
+		d.Store.AddEvent("deploy", name, "Deploy concluído")
 	}()
 	return true
 }
@@ -253,7 +270,7 @@ func (d *Deployer) envFileContent(a store.App) string {
 		b.WriteString(systemd.EnvFileLine("PORT", fmt.Sprint(a.Port)))
 	}
 	b.WriteString(systemd.EnvFileLine("HOST", ListenHost(a)))
-	kv, _ := validate.ParseEnv(a.Env) // validated on save
+	kv, _ := d.envPairs(a) // validated on save
 	for _, p := range kv {
 		b.WriteString(systemd.EnvFileLine(p[0], p[1]))
 	}

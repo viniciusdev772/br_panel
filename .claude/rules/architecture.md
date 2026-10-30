@@ -6,8 +6,9 @@ Direção das dependências (só para a direita/baixo; nunca o contrário):
 
 ```
 cmd/brpanel → server, store
-server      → auth, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
-deploy      → detect, execx, githubapp, nginx, settings, store, systemd, validate
+server      → auth, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
+deploy      → dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate
+dbengine    → execx, settings, store, systemd, validate
 monitor     → store, sysinfo, systemd
 nginx       → execx, settings          store → settings → githubapp, validate
 systemd     → sysinfo                  detect → validate

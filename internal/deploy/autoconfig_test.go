@@ -104,3 +104,20 @@ func project(t *testing.T, files map[string]string) string {
 	}
 	return dir
 }
+
+func TestEnvPairsResolveDatabaseReferences(t *testing.T) {
+	s := openTestStore(t)
+	_ = s.CreateDatabase(store.Database{Name: "pg", Kind: "postgres", Port: 5433, Username: "postgres", Password: "pw", DBName: "app"})
+	d := &Deployer{Store: s}
+	kv, err := d.envPairs(store.App{Env: "DATABASE_URL=${{pg.DATABASE_URL}}\nPLAIN=1\nMISSING=${{nope.URL}}"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kv[0][1] != "postgresql://postgres:pw@127.0.0.1:5433/app" || kv[1][1] != "1" || kv[2][1] != "${{nope.URL}}" {
+		t.Errorf("%v", kv)
+	}
+	content := d.envFileContent(store.App{Name: "web", Port: 3001, Env: "U=${{pg.URL}}"})
+	if !strings.Contains(content, `U="postgresql://postgres:pw@127.0.0.1:5433/app"`) {
+		t.Errorf("o arquivo de ambiente deve ter a referência resolvida:\n%s", content)
+	}
+}

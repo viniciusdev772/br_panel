@@ -316,3 +316,115 @@ func TestWebhook(t *testing.T) {
 		t.Errorf("app sem deploy automático não deve ser tocado: %s", a.Status)
 	}
 }
+
+func TestDatabaseRoutesRequireSessionAndCSRF(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	if err := s.store.CreateDatabase(store.Database{Name: "pg", Kind: "postgres", Port: 5433, Username: "postgres", Password: "pw", DBName: "app"}); err != nil {
+		t.Fatal(err)
+	}
+	s.store.SetDatabaseStatus("pg", store.DBReady)
+
+	// everything needs a session
+	for _, p := range []string{"/databases/new", "/databases/pg", "/databases/pg/log", "/databases/pg/metrics", "/databases/pg/data", "/api/overview"} {
+		if w := do(h, "GET", p, nil); w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/login" {
+			t.Errorf("%s sem sessão: %d", p, w.Code)
+		}
+	}
+	// the page renders for the admin and shows connection info, masked by default
+	w := do(h, "GET", "/databases/pg", nil, c)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "postgresql://postgres:pw@127.0.0.1:5433/app") {
+		t.Fatalf("página do banco: %d", w.Code)
+	}
+	if strings.Contains(strings.ReplaceAll(w.Body.String(), "data-value", ""), `class="kv-value" data-secret="true" data-value="">`) {
+		t.Error("valor secreto não pode ser vazio")
+	}
+	// state-changing routes: POST + CSRF
+	for _, action := range []string{"delete", "regenerate", "backup", "public", "restart"} {
+		if w := do(h, "POST", "/databases/pg/"+action, url.Values{}, c); w.Code != http.StatusForbidden {
+			t.Errorf("%s sem CSRF: %d", action, w.Code)
+		}
+	}
+	if w := do(h, "POST", "/databases", url.Values{"name": {"x"}, "kind": {"redis"}}, c); w.Code != http.StatusForbidden {
+		t.Errorf("criar sem CSRF: %d", w.Code)
+	}
+	if _, ok := s.store.GetDatabase("pg"); !ok {
+		t.Fatal("o banco não pode ter sido apagado sem CSRF")
+	}
+	// names are validated (path traversal / unknown)
+	for _, p := range []string{"/databases/..%2fetc", "/databases/inexistente", "/databases/pg/backups/..%2f..%2fetc%2fpasswd", "/databases/pg/backups/20261030-000000.dump"} {
+		if w := do(h, "GET", p, nil, c); w.Code != http.StatusNotFound {
+			t.Errorf("%s deveria ser 404: %d", p, w.Code)
+		}
+	}
+	csrf := csrfOf(t, h, "/databases/new", c)
+	if w := do(h, "POST", "/databases/pg/schedule", url.Values{"csrf": {csrf}, "schedule": {"hourly"}}, c); w.Header().Get("Location") == "" || !strings.Contains(w.Header().Get("Location"), "Falha") {
+		t.Errorf("agendamento inválido deveria falhar: %s", w.Header().Get("Location"))
+	}
+	if w := do(h, "POST", "/databases/pg/schedule", url.Values{"csrf": {csrf}, "schedule": {"daily"}}, c); w.Code != http.StatusSeeOther {
+		t.Errorf("agendar: %d", w.Code)
+	}
+	if d, _ := s.store.GetDatabase("pg"); d.BackupSchedule != "daily" {
+		t.Errorf("agendamento: %s", d.BackupSchedule)
+	}
+}
+
+func TestCreateDatabaseFailsWhenEngineMissing(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	t.Setenv("PATH", t.TempDir()) // no MongoDB tools anywhere
+	csrf := csrfOf(t, h, "/databases/new", c)
+	w := do(h, "POST", "/databases", url.Values{"csrf": {csrf}, "name": {"docs"}, "kind": {"mongodb"}}, c)
+	if w.Code != http.StatusUnprocessableEntity || !strings.Contains(w.Body.String(), "não está instalado") {
+		t.Errorf("%d %s", w.Code, w.Body.String())
+	}
+	if len(s.store.ListDatabases()) != 0 {
+		t.Error("nada deve ser criado")
+	}
+	if w := do(h, "GET", "/databases/new?kind=mongodb", nil, c); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "não instalado") {
+		t.Errorf("página de instalação: %d", w.Code)
+	}
+}
+
+func TestAppVariablesReferenceDatabases(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	_ = s.store.CreateDatabase(store.Database{Name: "pg", Kind: "postgres", Port: 5433, Username: "postgres", Password: "pw", DBName: "app"})
+	_ = s.store.Create(store.App{Name: "web", Repo: "https://github.com/o/r", Branch: "main", StartCmd: "x", Port: 3001})
+	csrf := csrfOf(t, h, "/apps/web", c)
+
+	save := func(env string) *httptest.ResponseRecorder {
+		return do(h, "POST", "/apps/web/env", url.Values{"csrf": {csrf}, "env": {env}}, c)
+	}
+	if w := save("DATABASE_URL=${{nope.URL}}"); !strings.Contains(w.Header().Get("Location"), "inexistente") {
+		t.Errorf("referência inexistente deveria ser recusada: %s", w.Header().Get("Location"))
+	}
+	if w := save("1BAD=x"); !strings.Contains(w.Header().Get("Location"), "N%C3%A3o+salvo") {
+		t.Errorf("env inválido: %s", w.Header().Get("Location"))
+	}
+	if a, _ := s.store.Get("web"); a.Env != "" {
+		t.Error("nada deveria ter sido salvo")
+	}
+	if w := save("DATABASE_URL=${{pg.DATABASE_URL}}"); w.Code != http.StatusSeeOther || strings.Contains(w.Header().Get("Location"), "N%C3%A3o") {
+		t.Errorf("salvar: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	// the canvas draws an edge from the app to the database it references
+	body := do(h, "GET", "/", nil, c).Body.String()
+	if !strings.Contains(body, `data-edges="web>pg;"`) {
+		t.Errorf("aresta app→banco ausente no canvas")
+	}
+	for _, want := range []string{`data-res="web"`, `data-res="pg"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("faltou o card %s", want)
+		}
+	}
+	// a database cannot take the name of an app, nor the reverse
+	if err := s.store.CreateDatabase(store.Database{Name: "web", Kind: "redis", Port: 6380, Username: "u", Password: "p"}); err == nil {
+		t.Error("nome de app reutilizado")
+	}
+	// the overview JSON lists both resources and the activity feed
+	ov := do(h, "GET", "/api/overview", nil, c).Body.String()
+	if !strings.Contains(ov, `"web":{"type":"app"`) || !strings.Contains(ov, `"pg":{"type":"db"`) {
+		t.Errorf("overview: %s", ov)
+	}
+}

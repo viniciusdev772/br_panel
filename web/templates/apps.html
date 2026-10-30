@@ -1,47 +1,71 @@
-{{define "content"}}
-<div class="page-head">
-  <h1 class="mdc-typography--headline5">Aplicações</h1>
-  <a class="mdc-button mdc-button--raised" href="/apps/new"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Nova aplicação</span></a>
-</div>
-<div class="stats" id="host-stats">
-  <div class="stat"><span class="stat-label">RAM do servidor</span><span class="stat-value" id="h-mem">—</span><div class="bar"><div class="bar-fill" id="h-mem-bar"></div></div></div>
-  <div class="stat"><span class="stat-label">Carga (1 / 5 / 15 min)</span><span class="stat-value" id="h-load">—</span><div class="bar"><div class="bar-fill" id="h-load-bar"></div></div></div>
-  <div class="stat"><span class="stat-label">Disco</span><span class="stat-value" id="h-disk">—</span><div class="bar"><div class="bar-fill" id="h-disk-bar"></div></div></div>
-  <div class="stat"><span class="stat-label">Servidor ligado há</span><span class="stat-value" id="h-up">—</span></div>
-</div>
-{{if .Apps}}
-<div class="mdc-data-table table-wrap">
-  <div class="mdc-data-table__table-container">
-    <table class="mdc-data-table__table" aria-label="Aplicações">
-      <thead><tr class="mdc-data-table__header-row">
-        <th class="mdc-data-table__header-cell" scope="col">Nome</th>
-        <th class="mdc-data-table__header-cell" scope="col">Repositório</th>
-        <th class="mdc-data-table__header-cell" scope="col">Domínio</th>
-        <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" scope="col">CPU</th>
-        <th class="mdc-data-table__header-cell mdc-data-table__header-cell--numeric" scope="col">RAM</th>
-        <th class="mdc-data-table__header-cell" scope="col">Serviço</th>
-        <th class="mdc-data-table__header-cell" scope="col">Deploy</th>
-      </tr></thead>
-      <tbody class="mdc-data-table__content">
-        {{range .Apps}}
-        <tr class="mdc-data-table__row">
-          <td class="mdc-data-table__cell"><a href="/apps/{{.Name}}">{{.Name}}</a></td>
-          <td class="mdc-data-table__cell repo-cell" title="{{.Repo}} ({{.Branch}})">{{.Repo}} <span class="muted">({{.Branch}})</span></td>
-          <td class="mdc-data-table__cell">{{or .Domain "—"}}</td>
-          <td class="mdc-data-table__cell mdc-data-table__cell--numeric" data-cpu="{{.Name}}">—</td>
-          <td class="mdc-data-table__cell mdc-data-table__cell--numeric" data-mem="{{.Name}}">—</td>
-          <td class="mdc-data-table__cell"><span class="chip chip--{{index $.States .Name}}" data-state="{{.Name}}">{{index $.States .Name}}</span></td>
-          <td class="mdc-data-table__cell"><span class="chip chip--{{.Status}}">{{.Status}}</span></td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table>
+{{define "createmenu"}}
+<div class="menu-wrap">
+  <button class="mdc-button mdc-button--raised" type="button" id="create-btn" aria-haspopup="true" aria-expanded="false"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Criar</span></button>
+  <div class="menu" id="create-menu" role="menu">
+    <h3>Aplicação</h3>
+    <a href="/apps/new" role="menuitem"><i class="material-icons">rocket_launch</i><span>Repositório Git</span></a>
+    <h3>Banco de dados</h3>
+    {{range .Kinds}}
+    <a href="/databases/new?kind={{.Kind}}" role="menuitem"><span class="badge badge--sm b-{{.Kind}}">{{.Badge}}</span><span>{{.Label}}</span>{{if not .Installed}}<small>instalar</small>{{end}}</a>
+    {{end}}
   </div>
 </div>
-{{else}}
-<div class="mdc-card empty"><div class="card-body">
-  <i class="material-icons big">cloud_upload</i>
-  <p>Nenhuma aplicação ainda. Informe um repositório Git e o painel clona, compila e sobe o serviço via systemd.</p>
-</div></div>
 {{end}}
+{{define "content"}}
+<div class="arch">
+  <section class="canvas" id="canvas" data-edges="{{range .Edges}}{{.From}}>{{.To}};{{end}}">
+    <div class="canvas-bar">
+      <div class="host-strip" id="host-stats">
+        <span>RAM <b id="h-mem">—</b></span>
+        <span>Carga <b id="h-load">—</b></span>
+        <span>Disco <b id="h-disk">—</b></span>
+        <span>Ligado há <b id="h-up">—</b></span>
+      </div>
+      <span class="spacer"></span>
+      {{template "createmenu" .}}
+    </div>
+    {{if .Cards}}
+    <svg class="edges" id="edges" aria-hidden="true">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z"/></marker></defs>
+    </svg>
+    <div class="grid">
+      {{range .Cards}}
+      <a class="rcard" href="{{.Href}}" data-res="{{.Name}}" data-type="{{.Type}}">
+        <div class="rcard-top">
+          <span class="badge {{.BadgeClass}}">{{.Badge}}</span>
+          <div class="rcard-title"><strong>{{.Name}}</strong><span class="rcard-sub">{{.Sub}}</span></div>
+        </div>
+        <div class="rcard-status {{.StatusClass}}">
+          <i class="material-icons">{{if eq .StatusClass "ok"}}check_circle{{else if eq .StatusClass "bad"}}error{{else if eq .StatusClass "warn"}}autorenew{{else}}schedule{{end}}</i>
+          <span class="st-text">{{.StatusText}}</span>
+          {{if not .Time.IsZero}}<time data-ts="{{iso .Time}}"></time>{{end}}
+        </div>
+        <div class="rcard-metrics"><span><i class="material-icons">memory</i><b data-cpu>—</b></span><span><i class="material-icons">sd_storage</i><b data-mem>—</b></span></div>
+      </a>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="canvas-empty">
+      <i class="material-icons big">hub</i>
+      <h2>Seu servidor está vazio</h2>
+      <p class="muted">Crie uma aplicação a partir de um repositório Git e adicione bancos de dados. As conexões aparecem aqui como setas.</p>
+      <div class="actions">
+        <a class="mdc-button mdc-button--raised" href="/apps/new"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">rocket_launch</i><span class="mdc-button__label">Nova aplicação</span></a>
+        <a class="mdc-button mdc-button--outlined" href="/databases/new?kind=postgres"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">storage</i><span class="mdc-button__label">Novo banco de dados</span></a>
+      </div>
+    </div>
+    {{end}}
+  </section>
+  <aside class="activity" aria-label="Atividade">
+    <h2><i class="material-icons">timeline</i>Atividade</h2>
+    <div id="events">
+      {{range .Events}}
+      <div class="event ev-{{.Kind}}"><i class="material-icons">{{if eq .Kind "deploy"}}rocket_launch{{else if eq .Kind "database"}}storage{{else if eq .Kind "backup"}}backup{{else}}add_circle{{end}}</i>
+        <div><strong>{{.Resource}}</strong><span>{{.Message}}</span><time data-ts="{{iso .TS}}"></time></div></div>
+      {{else}}
+      <p class="event-empty">Nenhuma atividade ainda.</p>
+      {{end}}
+    </div>
+  </aside>
+</div>
 {{end}}

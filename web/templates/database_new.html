@@ -1,0 +1,54 @@
+{{define "content"}}
+<div class="sheet">
+  <a class="sheet-back" href="/"><i class="material-icons">arrow_back</i>Arquitetura</a>
+  <div class="sheet-head"><h1>Novo banco de dados</h1></div>
+  <p class="muted">Cada banco roda como um serviço systemd próprio, com porta, diretório de dados e credenciais independentes — ouvindo só em <code>127.0.0.1</code> até você liberar o acesso externo.</p>
+
+  <h2 class="section-title">1. Escolha o motor</h2>
+  <div class="engines">
+    {{range .Kinds}}
+    <a class="engine {{if eq .Kind $.KindSel.Kind}}is-selected{{end}}" href="/databases/new?kind={{.Kind}}">
+      <span class="badge b-{{.Kind}}">{{.Badge}}</span>
+      <span><strong>{{.Label}}</strong><small>{{.Description}}</small>
+        <span class="chip tag {{if .Installed}}chip--active{{else}}chip--warn{{end}}">{{if .Installed}}instalado{{else}}não instalado{{end}}</span></span>
+    </a>
+    {{end}}
+  </div>
+
+  {{with .KindSel}}
+  {{if .Installed}}
+  <h2 class="section-title">2. Nome e criação</h2>
+  <div class="mdc-card"><form method="post" action="/databases" class="card-body">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <input type="hidden" name="kind" value="{{.Kind}}">
+    {{template "field" dict "name" "name" "label" "Nome do banco" "value" $.DefaultName "required" true "hint" "a-z, 0-9 e -. Usado nas referências: ${{nome.DATABASE_URL}}"}}
+    <p class="muted">{{.Label}}{{if $.DBVersion}} · versão {{$.DBVersion}}{{end}}. Senha gerada automaticamente; porta escolhida entre as livres.</p>
+    <div class="actions">
+      <a class="mdc-button" href="/"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Cancelar</span></a>
+      <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Criar banco</span></button>
+    </div>
+  </form></div>
+  {{else}}
+  <h2 class="section-title">2. Instalar {{.Label}}</h2>
+  <div class="mdc-card"><div class="card-body" id="install-box" data-kind="{{.Kind}}" data-running="{{$.InstallRunning}}">
+    <div class="banner warn"><i class="material-icons">info</i><div>
+      {{.Label}} ainda não está instalado neste servidor. <span class="muted">Faltam: {{.Missing}}.</span>
+      {{if .InstallNote}}<br><span class="muted">{{.InstallNote}}</span>{{end}}
+    </div></div>
+    {{if $.InstallErr}}<div class="banner bad"><i class="material-icons">error</i><div>{{$.InstallErr}}</div></div>{{end}}
+    {{if .CanInstall}}
+    <form method="post" action="/databases/install">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="kind" value="{{.Kind}}">
+      <div class="actions actions--start">
+        <button class="mdc-button mdc-button--raised" type="submit" {{if $.InstallRunning}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">{{if $.InstallRunning}}Instalando…{{else}}Instalar com apt{{end}}</span></button>
+      </div>
+      <p class="muted">Instala {{join .Packages " "}} e desativa a instância padrão da distribuição (o painel cria instâncias dedicadas).</p>
+    </form>
+    {{end}}
+    <pre class="log" id="install-log" hidden></pre>
+  </div></div>
+  {{end}}
+  {{end}}
+</div>
+{{end}}

@@ -145,3 +145,49 @@ func TestMetricsBucketsAndLatest(t *testing.T) {
 		t.Error("prune")
 	}
 }
+
+func TestDatabasesAndEvents(t *testing.T) {
+	s, _ := newTestStore(t)
+	_ = s.Create(App{Name: "web", Repo: "r", Branch: "main", StartCmd: "x", Port: 3001})
+	if err := s.CreateDatabase(Database{Name: "web", Kind: "postgres", Port: 5433, Username: "u", Password: "p"}); err != ErrExists {
+		t.Errorf("banco com nome de app deve falhar: %v", err)
+	}
+	if err := s.CreateDatabase(Database{Name: "pg", Kind: "postgres", Port: 5433, Username: "u", Password: "p", DBName: "app"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreateDatabase(Database{Name: "pg", Kind: "redis", Port: 6380, Username: "u", Password: "p"}); err != ErrExists {
+		t.Errorf("nome duplicado: %v", err)
+	}
+	if err := s.Create(App{Name: "pg", Repo: "r", Branch: "main", StartCmd: "x"}); err != ErrExists {
+		t.Errorf("app com nome de banco deve falhar: %v", err)
+	}
+	d, ok := s.GetDatabase("pg")
+	if !ok || d.Status != DBProvisioning || d.Public || d.BackupSchedule != "off" || d.DBName != "app" {
+		t.Fatalf("%+v %v", d, ok)
+	}
+	s.SetDatabaseStatus("pg", DBReady)
+	_ = s.SetDatabasePublic("pg", true)
+	_ = s.SetDatabasePassword("pg", "novo")
+	_ = s.SetDatabaseSchedule("pg", "daily")
+	if d, _ := s.GetDatabase("pg"); d.Status != DBReady || !d.Public || d.Password != "novo" || d.BackupSchedule != "daily" {
+		t.Errorf("%+v", d)
+	}
+	used := s.UsedPorts()
+	if !used[3001] || !used[5433] {
+		t.Errorf("portas: %v", used)
+	}
+	_ = s.InsertMetrics("db:pg", []Point{{TS: time.Now().Unix(), CPU: 1, Mem: 1}})
+	if err := s.DeleteDatabase("pg"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.GetDatabase("pg"); ok || len(s.Metrics("db:pg", time.Now().Add(-time.Hour), 1)) != 0 {
+		t.Error("DeleteDatabase deve remover o banco e as métricas")
+	}
+
+	for i := 0; i < 3; i++ {
+		s.AddEvent("deploy", "web", "msg")
+	}
+	if ev := s.Events(2); len(ev) != 2 || ev[0].Resource != "web" {
+		t.Errorf("%+v", ev)
+	}
+}

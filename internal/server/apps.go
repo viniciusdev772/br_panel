@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/viniciusdev772/br_panel/internal/dbengine"
+
 	"github.com/viniciusdev772/br_panel/internal/deploy"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/nginx"
@@ -16,12 +18,8 @@ import (
 )
 
 func (s *Server) handleApps(w http.ResponseWriter, r *http.Request) {
-	apps := s.store.List()
-	states := map[string]string{}
-	for _, a := range apps {
-		states[a.Name] = systemd.State(a.Name)
-	}
-	s.render(w, r, "apps", page{Title: "Aplicações", Apps: apps, States: states})
+	cards, edges := s.canvas()
+	s.render(w, r, "apps", page{Title: "Arquitetura", Cards: cards, Edges: edges, Events: s.store.Events(30), Kinds: s.dbm.Kinds()})
 }
 
 func (s *Server) handleNewForm(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +82,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("já existe uma aplicação com esse nome")
 		} else if s.domainTaken(a.Domain, a.Name) {
 			err = errors.New("domínio já usado por outra aplicação")
+		} else {
+			err = dbengine.CheckRefs(a.Env, s.store.ListDatabases())
 		}
 	}
 	if err != nil {
@@ -98,6 +98,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
 		return
 	}
+	s.store.AddEvent("app", a.Name, "Aplicação criada")
 	s.dep.Start(a.Name, "criação")
 	http.Redirect(w, r, "/apps/"+a.Name, http.StatusSeeOther)
 }
@@ -116,7 +117,8 @@ func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (store.App, bool
 
 func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "app", page{Title: a.Name, App: a, State: systemd.State(a.Name), Info: systemd.Info(a.Name), SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain)})
+		s.render(w, r, "app", page{Title: a.Name, App: a, State: systemd.State(a.Name), Info: systemd.Info(a.Name),
+			SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain), VarGroups: s.varGroups(), Bdg: appBadge(a.Kind)})
 	}
 }
 
@@ -135,6 +137,9 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	if err == nil && s.domainTaken(a.Domain, a.Name) {
 		err = errors.New("domínio já usado por outra aplicação")
 	}
+	if err == nil {
+		err = dbengine.CheckRefs(a.Env, s.store.ListDatabases())
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.render(w, r, "app_form", page{Title: "Editar " + old.Name, App: a, Editing: true, Error: err.Error()})
@@ -150,9 +155,10 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/apps/"+a.Name+"?msg=Configura%C3%A7%C3%A3o+salva.+Fa%C3%A7a+um+novo+deploy+para+aplicar.", http.StatusSeeOther)
 }
 
+// handleLogs keeps the old URL working: logs now live in a tab of the app page.
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "logs", page{Title: "Logs de " + a.Name, App: a})
+		http.Redirect(w, r, "/apps/"+a.Name+"#logs", http.StatusSeeOther)
 	}
 }
 
@@ -208,6 +214,7 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 			msg = "Falha ao excluir: " + err.Error()
 			break
 		}
+		s.store.AddEvent("app", a.Name, "Aplicação excluída")
 		http.Redirect(w, r, "/?msg=Aplica%C3%A7%C3%A3o+exclu%C3%ADda.", http.StatusSeeOther)
 		return
 	default:
@@ -219,4 +226,39 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		q = "?msg=" + url.QueryEscape(msg)
 	}
 	http.Redirect(w, r, "/apps/"+a.Name+q, http.StatusSeeOther)
+}
+
+// handleEnvSave saves the app's variables (the "Variáveis" tab), optionally redeploying.
+func (s *Server) handleEnvSave(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.appFor(w, r)
+	if !ok {
+		return
+	}
+	env := strings.ReplaceAll(r.PostFormValue("env"), "\r\n", "\n")
+	back := "/apps/" + a.Name
+	fail := func(msg string) {
+		http.Redirect(w, r, back+"?msg="+url.QueryEscape("Não salvo: "+msg)+"#variaveis", http.StatusSeeOther)
+	}
+	if _, err := validate.ParseEnv(env); err != nil {
+		fail(err.Error())
+		return
+	}
+	if err := dbengine.CheckRefs(env, s.store.ListDatabases()); err != nil {
+		fail(err.Error())
+		return
+	}
+	a.Env = env
+	if err := s.store.UpdateConfig(a); err != nil {
+		fail(err.Error())
+		return
+	}
+	msg := "Variáveis salvas. Faça um novo deploy para aplicar."
+	if r.PostFormValue("deploy") == "1" {
+		if s.dep.Start(a.Name, "variáveis alteradas") {
+			msg = "Variáveis salvas; novo deploy iniciado."
+		} else {
+			msg = "Variáveis salvas; já há um deploy em andamento."
+		}
+	}
+	http.Redirect(w, r, back+"?msg="+url.QueryEscape(msg)+"#variaveis", http.StatusSeeOther)
 }

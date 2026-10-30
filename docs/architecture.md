@@ -10,6 +10,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/server` | Camada HTTP: rotas, templates, setup inicial, login, apps, monitoramento, webhook |
 | `internal/deploy` | Pipeline de deploy: git → detecção → build → unit → Nginx/SSL; layout em disco; escolha de porta |
 | `internal/detect` | Detecta Node, Go, Rust, Python, Ruby, PHP e estáticos; lê `Procfile` e `brpanel.json` |
+| `internal/dbengine` | Bancos de dados: motores (Postgres, MySQL/MariaDB, MongoDB, Redis), provisionamento, backups, dados, referências `${{db.VAR}}` |
 | `internal/nginx` | Vhosts reverse-proxy, `nginx -t` com rollback, certbot (webroot) |
 | `internal/systemd` | Renderiza units; `systemctl`, `journalctl`; status do serviço |
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
@@ -28,8 +29,9 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 graph LR
   cmd[cmd/brpanel] --> server
   cmd --> store
-  server --> deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
-  deploy --> detect & nginx & githubapp & settings & store & systemd & validate & execx
+  server --> dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
+  deploy --> detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
+  dbengine --> settings & store & systemd & validate & execx
   monitor --> store & sysinfo & systemd
   nginx --> settings & execx
   store --> settings
@@ -53,6 +55,14 @@ Pacotes de `internal/` nunca importam `server`. A regra completa está em `.clau
 ### Webhook do GitHub
 `POST /webhooks/github` → confere `X-Hub-Signature-256` → evento `push` em `refs/heads/<branch>` → apps com deploy automático cujo repositório (sem diferenciar maiúsculas) e branch coincidem → `Deployer.Start`.
 
+### Banco de dados (`dbengine.Manager`)
+`Create` valida o nome (apps e bancos compartilham o namespace), exige o motor instalado, cria o usuário de serviço, escolhe uma
+porta livre e grava o registro (`provisioning`); em segundo plano: diretórios → `initdb`/`mariadb-install-db` (como o usuário do
+banco) → arquivos de configuração → unit `brpaneldb-<nome>.service` → `systemctl enable/restart` → espera a porta → cria banco e
+usuário (`postStart`) → `ready`. Segredos nunca vão em argv (variáveis de ambiente `PGPASSWORD`/`MYSQL_PWD`/`REDISCLI_AUTH` ou arquivos 0600
+temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `configure`, `execStart`, `postStart`, `url`, `backup`,
+`restore`, `setPassword`, `tables`, `preview`).
+
 ### Monitoramento
 `monitor.Run` lê a cada 15 s `cpu.stat` e `memory.current` (menos `inactive_file`) de `/sys/fs/cgroup/system.slice/brpanel-<app>.service` e grava em `metrics` (24 h). A UI consulta `/apps/{name}/metrics` e `/api/overview`.
 
@@ -71,7 +81,13 @@ Pacotes de `internal/` nunca importam `server`. A regra completa está em `.clau
 | `GET /apps/{name}/logs` | sessão | Página de logs |
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
-| `GET /api/overview` | sessão | JSON do dashboard |
+| `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
+| `GET /databases/new`, `POST /databases`, `POST /databases/install` | sessão (+CSRF) | Criar/instalar banco |
+| `GET /databases/{name}` | sessão | Página do banco (Conectar, Dados, Backups, Métricas, Logs, Configurações) |
+| `GET /databases/{name}/{log\|metrics\|data}` | sessão | Logs, métricas e navegador de dados |
+| `GET /databases/{name}/backups/{file}` | sessão | Download de backup (nome validado) |
+| `POST /databases/{name}/{start\|stop\|restart\|backup\|restore\|backup-delete\|schedule\|regenerate\|public\|delete}` | sessão+CSRF | Ações |
+| `POST /apps/{name}/env` | sessão+CSRF | Salvar variáveis (valida referências a bancos) |
 | `GET/POST /settings` | sessão (+CSRF) | Configurações |
 | `GET /github` | sessão | Guia do GitHub App |
 | `POST /webhooks/github` | HMAC do GitHub | Eventos `ping` e `push` |
@@ -85,6 +101,8 @@ setup_token                 só até concluir o primeiro início
 apps/<app>/src/             checkout do repositório
 env/<app>.env               variáveis do serviço, modo 0600
 logs/<app>.log              log do último deploy
+logs/db-<nome>.log          provisionamento e backups de um banco
+databases/<nome>/           data/ run/ backups/ (+ redis.conf, init.sql): dono = usuário dos bancos
 tmp/                        clones temporários da detecção
 ```
 

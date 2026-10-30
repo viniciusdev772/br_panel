@@ -1,0 +1,40 @@
+#!/bin/bash
+# Minimal systemctl stand-in for the integration tests (no systemd in CI/containers): it runs a
+# unit's ExecStart as the unit's User in the background and tracks it with a pid file.
+# Env: FAKE_UNITS (unit dir), FAKE_STATE (state dir, world-writable).
+cmd="$1"; shift
+unit="${@: -1}"
+file="$FAKE_UNITS/$unit"
+pidfile="$FAKE_STATE/$unit.pid"
+# Each service runs in its own session (setsid), so its pid is also its process-group id.
+alive() { [ -f "$pidfile" ] && kill -0 -- "-$(cat "$pidfile")" 2>/dev/null; }
+stop() {
+  if alive; then
+    kill -INT -- "-$(cat "$pidfile")" 2>/dev/null
+    for _ in $(seq 1 100); do alive || break; sleep 0.1; done
+    kill -9 -- "-$(cat "$pidfile")" 2>/dev/null
+  fi
+  rm -f "$pidfile"
+}
+start() {
+  alive && return 0
+  [ -f "$file" ] || { echo "Unit $unit not found." >&2; exit 5; }
+  line=$(grep '^ExecStart=' "$file" | head -1 | cut -d= -f2-)
+  user=$(grep '^User=' "$file" | head -1 | cut -d= -f2-)
+  if [ -n "$user" ]; then
+    setsid runuser -u "$user" -- /bin/sh -c "$line" > "$FAKE_STATE/$unit.log" 2>&1 < /dev/null &
+  else
+    setsid /bin/sh -c "$line" > "$FAKE_STATE/$unit.log" 2>&1 < /dev/null &
+  fi
+  echo $! > "$pidfile"
+}
+case "$cmd" in
+  daemon-reload|enable|reload) exit 0;;
+  start) start;;
+  restart) stop; start;;
+  stop) stop;;
+  disable) for a in "$@"; do [ "$a" = "--now" ] && stop; done; exit 0;;
+  is-active) if alive; then echo active; else echo inactive; exit 3; fi;;
+  show) printf 'ActiveState=active\nSubState=running\nNRestarts=0\nMainPID=%s\n' "$(cat "$pidfile" 2>/dev/null)";;
+esac
+exit 0

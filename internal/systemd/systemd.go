@@ -15,6 +15,10 @@ import (
 // UnitName is the systemd unit that runs an app.
 func UnitName(app string) string { return "brpanel-" + app + ".service" }
 
+// DBUnitName is the systemd unit that runs a managed database. The prefix has no hyphen after
+// "brpanel", so it can never collide with an app unit (brpanel-<app>.service).
+func DBUnitName(db string) string { return "brpaneldb-" + db + ".service" }
+
 // Escape escapes a string for use inside a double-quoted ExecStart argument.
 func Escape(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `%`, `%%`, `$`, `$$`)
@@ -30,23 +34,34 @@ func EnvFileLine(k, v string) string {
 // Unit describes the service to render.
 type Unit struct {
 	App      string
+	Desc     string // overrides the default description
 	WorkDir  string
-	EnvFile  string
+	EnvFile  string // optional
 	StartCmd string
-	User     string // empty = root
+	User     string   // empty = root
+	Extra    []string // additional [Service] lines, e.g. "TimeoutStopSec=120"
 }
 
 // Render returns the unit file contents.
 func (u Unit) Render() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "[Unit]\nDescription=BR Panel app %s\nAfter=network.target\n\n", u.App)
+	desc := u.Desc
+	if desc == "" {
+		desc = "BR Panel app " + u.App
+	}
+	fmt.Fprintf(&b, "[Unit]\nDescription=%s\nAfter=network.target\n\n", desc)
 	b.WriteString("[Service]\n")
 	fmt.Fprintf(&b, "WorkingDirectory=%s\n", u.WorkDir)
-	fmt.Fprintf(&b, "EnvironmentFile=%s\n", u.EnvFile)
+	if u.EnvFile != "" {
+		fmt.Fprintf(&b, "EnvironmentFile=%s\n", u.EnvFile)
+	}
 	fmt.Fprintf(&b, "ExecStart=/bin/sh -c \"exec %s\"\n", Escape(u.StartCmd))
 	b.WriteString("Restart=on-failure\nRestartSec=3\n")
 	if u.User != "" {
 		fmt.Fprintf(&b, "User=%s\n", u.User)
+	}
+	for _, l := range u.Extra {
+		b.WriteString(l + "\n")
 	}
 	b.WriteString("CPUAccounting=yes\nMemoryAccounting=yes\n")
 	b.WriteString("NoNewPrivileges=true\nPrivateTmp=true\nProtectSystem=full\n\n")
@@ -62,9 +77,12 @@ func Ctl(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-// State returns the unit's ActiveState ("active", "failed", …) or "unknown".
-func State(app string) string {
-	out, _ := Ctl("is-active", UnitName(app))
+// State returns the app unit's ActiveState ("active", "failed", …) or "unknown".
+func State(app string) string { return StateUnit(UnitName(app)) }
+
+// StateUnit is State for an arbitrary unit name.
+func StateUnit(unit string) string {
+	out, _ := Ctl("is-active", unit)
 	if out == "" {
 		return "unknown"
 	}
@@ -72,10 +90,13 @@ func State(app string) string {
 }
 
 // Journal returns the last n journal lines of the app's unit.
-func Journal(app string, lines int) string {
+func Journal(app string, lines int) string { return JournalUnit(UnitName(app), lines) }
+
+// JournalUnit is Journal for an arbitrary unit name.
+func JournalUnit(unit string, lines int) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "journalctl", "-u", UnitName(app), "-n", strconv.Itoa(lines), "--no-pager", "-o", "short-iso").CombinedOutput()
+	out, err := exec.CommandContext(ctx, "journalctl", "-u", unit, "-n", strconv.Itoa(lines), "--no-pager", "-o", "short-iso").CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "journalctl indisponível: " + err.Error()
 	}
@@ -112,8 +133,11 @@ func ParseShow(out string, upSeconds float64) ServiceInfo {
 	return info
 }
 
-func Info(app string) ServiceInfo {
-	out, _ := Ctl("show", UnitName(app), "-p", "ActiveState", "-p", "SubState", "-p", "NRestarts",
+func Info(app string) ServiceInfo { return InfoUnit(UnitName(app)) }
+
+// InfoUnit is Info for an arbitrary unit name.
+func InfoUnit(unit string) ServiceInfo {
+	out, _ := Ctl("show", unit, "-p", "ActiveState", "-p", "SubState", "-p", "NRestarts",
 		"-p", "MainPID", "-p", "ActiveEnterTimestampMonotonic")
 	return ParseShow(out, sysinfo.Uptime())
 }

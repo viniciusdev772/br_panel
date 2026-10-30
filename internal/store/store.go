@@ -36,6 +36,7 @@ type App struct {
 	Domain     string
 	AutoDeploy bool
 	Env        string
+	Kind       string // detected project type, e.g. "Node.js (npm)"; informational
 	Status     string
 	LastDeploy time.Time
 }
@@ -79,6 +80,28 @@ CREATE TABLE metrics (
 	mem INTEGER NOT NULL,
 	PRIMARY KEY (app, ts)
 ) WITHOUT ROWID;
+`, `
+CREATE TABLE databases (
+	name            TEXT PRIMARY KEY,
+	kind            TEXT NOT NULL,
+	port            INTEGER NOT NULL,
+	username        TEXT NOT NULL,
+	password        TEXT NOT NULL,
+	dbname          TEXT NOT NULL DEFAULT '',
+	public          INTEGER NOT NULL DEFAULT 0,
+	status          TEXT NOT NULL DEFAULT 'provisioning',
+	backup_schedule TEXT NOT NULL DEFAULT 'off',
+	created_at      INTEGER NOT NULL
+);
+CREATE TABLE events (
+	id       INTEGER PRIMARY KEY AUTOINCREMENT,
+	ts       INTEGER NOT NULL,
+	kind     TEXT NOT NULL,
+	resource TEXT NOT NULL,
+	message  TEXT NOT NULL
+);
+CREATE INDEX events_ts ON events(ts DESC);
+ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT '';
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -144,14 +167,14 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, status, last_deploy`
+const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanApp(r rowScanner) (App, error) {
 	var a App
 	var auto, last int64
-	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Status, &last)
+	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last)
 	a.AutoDeploy = auto != 0
 	if last > 0 {
 		a.LastDeploy = time.Unix(last, 0)
@@ -188,6 +211,10 @@ func b2i(b bool) int {
 
 // Create inserts a new app; ErrExists if the name or domain is already taken.
 func (s *Store) Create(a App) error {
+	var taken int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM databases WHERE name = ?`, a.Name).Scan(&taken); err == nil && taken > 0 {
+		return ErrExists // apps and databases share one namespace (variable references use the name)
+	}
 	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, status, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, StatusIdle, time.Now().Unix())
@@ -396,4 +423,177 @@ func (s *Store) SaveSettings(set settings.Settings) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// SetKind records the detected project type of an app.
+func (s *Store) SetKind(name, kind string) {
+	_, _ = s.db.Exec(`UPDATE apps SET kind = ? WHERE name = ?`, kind, name)
+}
+
+// ---- databases (managed database instances) ----
+
+// Database statuses.
+const (
+	DBProvisioning = "provisioning"
+	DBReady        = "ready"
+	DBFailed       = "failed"
+)
+
+// Database is a managed database instance (PostgreSQL, MySQL/MariaDB, MongoDB or Redis).
+type Database struct {
+	Name           string
+	Kind           string
+	Port           int
+	Username       string
+	Password       string
+	DBName         string
+	Public         bool // listens on all interfaces instead of loopback only
+	Status         string
+	BackupSchedule string // off | daily | weekly
+	CreatedAt      time.Time
+}
+
+const dbCols = `name, kind, port, username, password, dbname, public, status, backup_schedule, created_at`
+
+func scanDB(r rowScanner) (Database, error) {
+	var d Database
+	var pub, created int64
+	err := r.Scan(&d.Name, &d.Kind, &d.Port, &d.Username, &d.Password, &d.DBName, &pub, &d.Status, &d.BackupSchedule, &created)
+	d.Public = pub != 0
+	d.CreatedAt = time.Unix(created, 0)
+	return d, err
+}
+
+// CreateDatabase inserts a database; ErrExists when the name is taken (by a database or an app).
+func (s *Store) CreateDatabase(d Database) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var n int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM apps WHERE name = ?`, d.Name).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrExists
+	}
+	_, err = tx.Exec(`INSERT INTO databases (`+dbCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.Name, d.Kind, d.Port, d.Username, d.Password, d.DBName, b2i(d.Public), DBProvisioning, "off", time.Now().Unix())
+	if isConstraint(err) {
+		return ErrExists
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ListDatabases() []Database {
+	rows, err := s.db.Query(`SELECT ` + dbCols + ` FROM databases ORDER BY name`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []Database
+	for rows.Next() {
+		if d, err := scanDB(rows); err == nil {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func (s *Store) GetDatabase(name string) (Database, bool) {
+	d, err := scanDB(s.db.QueryRow(`SELECT `+dbCols+` FROM databases WHERE name = ?`, name))
+	return d, err == nil
+}
+
+func (s *Store) SetDatabaseStatus(name, status string) {
+	_, _ = s.db.Exec(`UPDATE databases SET status = ? WHERE name = ?`, status, name)
+}
+
+func (s *Store) SetDatabasePassword(name, password string) error {
+	_, err := s.db.Exec(`UPDATE databases SET password = ? WHERE name = ?`, password, name)
+	return err
+}
+
+func (s *Store) SetDatabasePublic(name string, public bool) error {
+	_, err := s.db.Exec(`UPDATE databases SET public = ? WHERE name = ?`, b2i(public), name)
+	return err
+}
+
+func (s *Store) SetDatabaseSchedule(name, schedule string) error {
+	_, err := s.db.Exec(`UPDATE databases SET backup_schedule = ? WHERE name = ?`, schedule, name)
+	return err
+}
+
+// DeleteDatabase removes the database record and its monitoring samples.
+func (s *Store) DeleteDatabase(name string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM metrics WHERE app = ?`, "db:"+name); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM databases WHERE name = ?`, name); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UsedPorts returns every port assigned to an app or a database.
+func (s *Store) UsedPorts() map[int]bool {
+	used := map[int]bool{}
+	for _, q := range []string{`SELECT port FROM apps`, `SELECT port FROM databases`} {
+		rows, err := s.db.Query(q)
+		if err != nil {
+			continue
+		}
+		for rows.Next() {
+			var p int
+			if rows.Scan(&p) == nil {
+				used[p] = true
+			}
+		}
+		rows.Close()
+	}
+	return used
+}
+
+// ---- activity feed ----
+
+// Event is one entry of the activity feed.
+type Event struct {
+	TS       time.Time `json:"ts"`
+	Kind     string    `json:"kind"` // deploy, database, backup, app
+	Resource string    `json:"resource"`
+	Message  string    `json:"message"`
+}
+
+// AddEvent appends to the activity feed (keeping the latest 500).
+func (s *Store) AddEvent(kind, resource, message string) {
+	_, _ = s.db.Exec(`INSERT INTO events (ts, kind, resource, message) VALUES (?, ?, ?, ?)`, time.Now().Unix(), kind, resource, message)
+	_, _ = s.db.Exec(`DELETE FROM events WHERE id <= (SELECT MAX(id) FROM events) - 500`)
+}
+
+// Events returns the newest events first.
+func (s *Store) Events(limit int) []Event {
+	rows, err := s.db.Query(`SELECT ts, kind, resource, message FROM events ORDER BY id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []Event
+	for rows.Next() {
+		var e Event
+		var ts int64
+		if rows.Scan(&ts, &e.Kind, &e.Resource, &e.Message) == nil {
+			e.TS = time.Unix(ts, 0)
+			out = append(out, e)
+		}
+	}
+	return out
 }

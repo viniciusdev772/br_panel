@@ -31,6 +31,7 @@ type Settings struct {
 	PanelDomain string
 	AcmeEmail   string
 	AppUser     string
+	DBUser      string // unprivileged system user that runs managed databases
 
 	NginxDir string
 	AcmeRoot string
@@ -48,6 +49,7 @@ func Default() Settings {
 		AcmeRoot: "/var/www/brpanel-acme",
 		CertDir:  "/etc/letsencrypt/live",
 		UnitDir:  "/etc/systemd/system",
+		DBUser:   "brdb",
 	}
 }
 
@@ -55,7 +57,7 @@ func Default() Settings {
 func (s *Settings) Fields() map[string]*string {
 	return map[string]*string{
 		"admin_user": &s.AdminUser, "admin_hash": &s.AdminHash,
-		"panel_domain": &s.PanelDomain, "acme_email": &s.AcmeEmail, "app_user": &s.AppUser,
+		"panel_domain": &s.PanelDomain, "acme_email": &s.AcmeEmail, "app_user": &s.AppUser, "db_user": &s.DBUser,
 		"nginx_dir": &s.NginxDir, "acme_root": &s.AcmeRoot, "cert_dir": &s.CertDir, "unit_dir": &s.UnitDir,
 		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret,
 	}
@@ -136,6 +138,9 @@ func Validate(s Settings) error {
 	}
 	if s.AppUser != "" && !sysUserRe.MatchString(s.AppUser) {
 		return errors.New("usuário das aplicações inválido (use letras minúsculas, números, _ e -)")
+	}
+	if !sysUserRe.MatchString(s.DBUser) {
+		return errors.New("usuário dos bancos de dados inválido (use letras minúsculas, números, _ e -)")
 	}
 	for label, p := range map[string]string{"diretório do Nginx": s.NginxDir, "webroot ACME": s.AcmeRoot, "diretório de certificados": s.CertDir, "diretório das units": s.UnitDir} {
 		if err := validateAbsDir(label, p); err != nil {

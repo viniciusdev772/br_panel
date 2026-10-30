@@ -112,7 +112,7 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 	set.AcmeEmail = v("acme_email")
 	set.AppUser = v("app_user")
 	if !setup {
-		for k, dst := range map[string]*string{"nginx_dir": &set.NginxDir, "acme_root": &set.AcmeRoot, "cert_dir": &set.CertDir, "unit_dir": &set.UnitDir} {
+		for k, dst := range map[string]*string{"nginx_dir": &set.NginxDir, "acme_root": &set.AcmeRoot, "cert_dir": &set.CertDir, "unit_dir": &set.UnitDir, "db_user": &set.DBUser} {
 			if r.PostForm.Has(k) {
 				*dst = v(k)
 			}
