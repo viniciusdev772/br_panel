@@ -27,7 +27,6 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await shot('01-setup');
   await page.fill('[name=token]', token); await page.fill('[name=username]', 'admin');
   await page.fill('[name=password]', PASSWORD); await page.fill('[name=password2]', PASSWORD);
-  await page.fill('[name=webhook_secret]', '');
   await page.click(SUBMIT); await idle();
   await shot('02-arquitetura-vazia');
 
