@@ -5,10 +5,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 ## [Não lançado]
 
 ### Corrigido
+- Aplicações com comando de início `VAR=valor comando` (ex.: `NODE_ENV=production npm start`, o que a detecção gera) entravam em loop de reinício com `exec: NODE_ENV=production: not found`. A unit usa `exec env VAR=valor comando` nesse caso e não usa `exec` em comandos compostos (`a && b`), onde o `b` nunca rodava.
 - O build das aplicações (`npm ci`, `pip`, `cargo`…) falhava com `EACCES: mkdir '/home/brapps'`: o `runuser` trocava o `HOME` pela pasta pessoal do usuário das aplicações, que não existe. Agora usa `runuser -m`, e o build recebe o `HOME`, `PORT` e `HOST` definidos pelo deploy.
 - "Detectar automaticamente" e o primeiro deploy de qualquer aplicação falhavam com `chown: exit status 1` quando o usuário das aplicações estava configurado (o padrão do primeiro início): o `chown` rodava como esse usuário, sem privilégio. Agora roda como o painel, e o erro mostra a mensagem do comando. A pasta `tmp` (clones de detecção) passou de 0750 para 0711 para o usuário das aplicações conseguir entrar na subpasta dele.
 
 ### Alterado
+- A versão do Node.js instalada pelo nvm é configurável (Configurações > Node.js) e o padrão passou de `lts/*` para 24: o Node 25+ removeu APIs (como `buffer.SlowBuffer`) que dependências antigas, como o `jsonwebtoken`, ainda usam. Salvar outra versão com o Node.js já instalado troca o `node`/`npm` do servidor em segundo plano.
 - Emissão do SSL mais confiável: antes de chamar o certbot o painel espera o DNS do domínio aparecer nos resolvedores públicos (até 2 min) e repete o certbot até 3 vezes, em vez de falhar na primeira consulta com `NXDOMAIN` logo após criar o registro. Vale para o painel e para as aplicações.
 - A página GitHub mostra o motivo real quando o SSL do painel não é emitido e tem o botão **Tentar de novo**, que repete a publicação (antes só recarregava a página). Enquanto publica, ela atualiza sozinha.
 - Integração com a Cloudflare (opcional): com um API Token (ou a Global API Key e o e-mail da conta) em Configurações, o deploy cria ou corrige o registro DNS A do domínio da aplicação apontando para o servidor, antes de emitir o SSL.

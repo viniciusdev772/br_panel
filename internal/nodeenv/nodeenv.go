@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +25,17 @@ const nvmVersion = "v0.40.8"
 
 const installTimeout = 15 * time.Minute
 
+// DefaultVersion is the Node.js version installed when none is configured. It is the LTS line
+// before the newest one on purpose: Node.js 25 removed APIs (such as buffer.SlowBuffer) that
+// popular older dependencies still use, and `lts/*` would pick a release that breaks them.
+const DefaultVersion = "24"
+
+var versionRe = regexp.MustCompile(`^(lts/\*|node|[0-9]{1,2}(\.[0-9]{1,3}){0,2})$`)
+
+// ValidVersion reports whether v is a version nvm accepts and the panel allows: lts/*, node,
+// or a number such as 24, 22.12 or 20.18.1. Nothing else ever reaches the install script.
+func ValidVersion(v string) bool { return versionRe.MatchString(v) }
+
 // linked are the executables of the default Node.js version exposed on the PATH.
 // pnpm and yarn are corepack shims, present once corepack is enabled.
 var linked = []string{"node", "npm", "npx", "corepack", "pnpm", "pnpx", "yarn", "yarnpkg"}
@@ -32,6 +45,7 @@ type Installer struct {
 	Dir     string        // nvm home, e.g. <data>/nvm
 	LinkDir string        // where node/npm/... are linked; /usr/local/bin in production
 	User    func() string // unprivileged app user, to check it can run node; may be nil
+	Version func() string // Node.js version to install (see ValidVersion); nil = DefaultVersion
 
 	runMu sync.Mutex // serializes installs (button and deploy)
 
@@ -42,8 +56,17 @@ type Installer struct {
 }
 
 // New returns an Installer that keeps nvm in dir and links binaries into /usr/local/bin.
-func New(dir string, user func() string) *Installer {
-	return &Installer{Dir: dir, LinkDir: "/usr/local/bin", User: user}
+func New(dir string, user, version func() string) *Installer {
+	return &Installer{Dir: dir, LinkDir: "/usr/local/bin", User: user, Version: version}
+}
+
+func (i *Installer) version() string {
+	if i.Version != nil {
+		if v := i.Version(); ValidVersion(v) {
+			return v
+		}
+	}
+	return DefaultVersion
 }
 
 // Available reports whether node and npm are both on the PATH.
@@ -75,6 +98,7 @@ func (i *Installer) Start() bool {
 		i.running = false
 		if err != nil {
 			i.err = err.Error()
+			log.Printf("Node.js (nvm): %v", err)
 		}
 		i.mu.Unlock()
 	}()
@@ -133,11 +157,12 @@ func (i *Installer) install(ctx context.Context, log io.Writer) error {
 		}
 	}
 
-	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + i.Dir, "NVM_DIR=" + i.Dir, "LANG=C.UTF-8"}
+	ver := i.version()
+	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + i.Dir, "NVM_DIR=" + i.Dir, "NODE_VERSION=" + ver, "LANG=C.UTF-8"}
 	// The script is fixed text: nothing user-controlled reaches the shell.
 	// corepack provides pnpm and yarn; recent Node.js versions no longer bundle it, so fall back to npm.
-	const script = `. "$NVM_DIR/nvm.sh" && nvm install --lts && nvm alias default 'lts/*' && { corepack enable >/dev/null 2>&1 || { npm install -g corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1; } || true; }`
-	fmt.Fprintln(log, "Instalando o Node.js LTS com o nvm (pode levar alguns minutos)…")
+	const script = `. "$NVM_DIR/nvm.sh" && nvm install "$NODE_VERSION" && nvm alias default "$NODE_VERSION" && { corepack enable >/dev/null 2>&1 || { npm install -g corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1; } || true; }`
+	fmt.Fprintf(log, "Instalando o Node.js %s com o nvm (pode levar alguns minutos)…\n", ver)
 	if err := run(ctx, log, i.Dir, env, "bash", "-c", script); err != nil {
 		return fmt.Errorf("o nvm não conseguiu instalar o Node.js: %w", err)
 	}

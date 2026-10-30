@@ -18,6 +18,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/auth"
 	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/nginx"
+	"github.com/viniciusdev772/br_panel/internal/nodeenv"
 	"github.com/viniciusdev772/br_panel/internal/settings"
 )
 
@@ -149,6 +150,11 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 	set.PanelDomain = strings.ToLower(v("panel_domain"))
 	set.AcmeEmail = v("acme_email")
 	set.AppUser = v("app_user")
+	if !setup && r.PostForm.Has("node_version") {
+		if set.NodeVersion = v("node_version"); set.NodeVersion == "" {
+			set.NodeVersion = nodeenv.DefaultVersion
+		}
+	}
 	if !setup {
 		for k, dst := range map[string]*string{"nginx_dir": &set.NginxDir, "acme_root": &set.AcmeRoot, "cert_dir": &set.CertDir, "unit_dir": &set.UnitDir, "db_user": &set.DBUser} {
 			if r.PostForm.Has(k) {
@@ -246,6 +252,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.applySettings(set); err != nil {
 		fail(http.StatusInternalServerError, err.Error())
 		return
+	}
+	if set.NodeVersion != cur.NodeVersion && nodeenv.Available() {
+		s.node.Start() // installs the new version in the background and relinks node/npm
 	}
 	if passwordChanged { // end every session, including attackers', then keep this one
 		s.auth.RevokeAll()

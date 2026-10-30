@@ -38,6 +38,11 @@
     {{template "field" dict "name" "app_user" "label" "Usuário do sistema (recomendado)" "value" .Set.AppUser "hint" "Ex.: brapps. Criado automaticamente se não existir. As aplicações são clonadas, compiladas e executadas com ele, sem privilégios de root."}}
   </div></div>
 
+  <h2 class="mdc-typography--subtitle1 section-title">Node.js</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "node_version" "label" "Versão do Node.js (nvm)" "value" .Set.NodeVersion "hint" "Padrão 24. Ex.: 22, 20.18.1, lts/* (a mais nova pode quebrar dependências antigas). Ao salvar uma versão diferente com o Node.js já instalado, o painel instala a nova em segundo plano e troca o node/npm do servidor."}}
+  </div></div>
+
   <h2 class="mdc-typography--subtitle1 section-title">GitHub App (opcional)</h2>
   <div class="mdc-card"><div class="card-body">
     <p class="muted">Deploy automático a cada push e clone de repositórios privados. Veja o passo a passo na página <a href="/github">GitHub</a>.</p>

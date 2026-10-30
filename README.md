@@ -50,7 +50,7 @@ Projetos Node.js precisam de `node` e `npm` no servidor. O painel instala os doi
 - Em **Nova aplicação**, quando a detecção avisa que faltam `node`/`npm`, aparece o botão **Instalar Node.js com nvm**, com o andamento ao vivo; ao terminar, a detecção roda de novo.
 - No **deploy**, se um projeto Node.js precisa de `node`/`npm`/`pnpm`/`yarn` e eles não existem, o painel instala sozinho antes de seguir.
 
-O nvm (versão fixa, clonada do GitHub, sem `curl | bash`) fica em `<data>/nvm`; o Node.js LTS é instalado como padrão e o corepack habilitado (`pnpm` e `yarn`). `node`, `npm`, `npx`, `corepack`, `pnpm` e `yarn` são ligados em `/usr/local/bin`, então builds e serviços systemd os encontram. Um `node` que já exista ali (pacote da distribuição) nunca é sobrescrito. Ao terminar, o painel confere que o usuário das aplicações consegue executá-los. Requer `git`, `bash` e `curl` ou `wget`.
+O nvm (versão fixa, clonada do GitHub, sem `curl | bash`) fica em `<data>/nvm`. A versão do Node.js é a de **Configurações > Node.js** (padrão **24**; aceita `22`, `20.18.1`, `lts/*`…): evite `lts/*` com dependências antigas, porque o Node 25+ removeu APIs que elas usam. Trocar a versão depois, com o Node.js já instalado, reinstala em segundo plano e religa `node`/`npm`. O corepack é habilitado (`pnpm` e `yarn`). `node`, `npm`, `npx`, `corepack`, `pnpm` e `yarn` são ligados em `/usr/local/bin`, então builds e serviços systemd os encontram. Um `node` que já exista ali (pacote da distribuição) nunca é sobrescrito. Ao terminar, o painel confere que o usuário das aplicações consegue executá-los. Requer `git`, `bash` e `curl` ou `wget`.
 
 ## Configuração automática do projeto
 

@@ -73,7 +73,7 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, store: st, auth: auth.New()}
 	s.dep = deploy.New(st, cfg.DataDir, s.settings, s.githubApp)
-	s.node = nodeenv.New(filepath.Join(cfg.DataDir, "nvm"), func() string { return s.settings().AppUser })
+	s.node = nodeenv.New(filepath.Join(cfg.DataDir, "nvm"), func() string { return s.settings().AppUser }, func() string { return s.settings().NodeVersion })
 	s.dep.Node = s.node
 	s.dbm = dbengine.New(st, cfg.DataDir, s.settings)
 	s.dummyHash, _ = settings.HashPassword(auth.RandomToken(16))

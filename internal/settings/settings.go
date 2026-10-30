@@ -20,6 +20,7 @@ import (
 
 	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
+	"github.com/viniciusdev772/br_panel/internal/nodeenv"
 	"github.com/viniciusdev772/br_panel/internal/validate"
 )
 
@@ -45,17 +46,20 @@ type Settings struct {
 
 	GitHubAppSlug string // set when the App was created through the manifest flow; builds the install link
 
+	NodeVersion string // Node.js version installed with nvm (nodeenv.ValidVersion)
+
 	CloudflareEmail string // set only when CloudflareToken is the Global API Key
 	CloudflareToken string // scoped API token (Zone:Read + DNS:Edit) or Global API Key; empty disables DNS automation
 }
 
 func Default() Settings {
 	return Settings{
-		NginxDir: "/etc/nginx/conf.d",
-		AcmeRoot: "/var/www/brpanel-acme",
-		CertDir:  "/etc/letsencrypt/live",
-		UnitDir:  "/etc/systemd/system",
-		DBUser:   "brdb",
+		NginxDir:    "/etc/nginx/conf.d",
+		AcmeRoot:    "/var/www/brpanel-acme",
+		CertDir:     "/etc/letsencrypt/live",
+		UnitDir:     "/etc/systemd/system",
+		DBUser:      "brdb",
+		NodeVersion: nodeenv.DefaultVersion,
 	}
 }
 
@@ -66,7 +70,7 @@ func (s *Settings) Fields() map[string]*string {
 		"panel_domain": &s.PanelDomain, "acme_email": &s.AcmeEmail, "app_user": &s.AppUser, "db_user": &s.DBUser,
 		"nginx_dir": &s.NginxDir, "acme_root": &s.AcmeRoot, "cert_dir": &s.CertDir, "unit_dir": &s.UnitDir,
 		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret, "github_app_slug": &s.GitHubAppSlug,
-		"cloudflare_token": &s.CloudflareToken, "cloudflare_email": &s.CloudflareEmail,
+		"cloudflare_token": &s.CloudflareToken, "node_version": &s.NodeVersion, "cloudflare_email": &s.CloudflareEmail,
 	}
 }
 
@@ -165,6 +169,9 @@ func Validate(s Settings) error {
 		if _, err := githubapp.Parse(s.GitHubAppID, []byte(s.GitHubKey)); err != nil {
 			return fmt.Errorf("GitHub App: %w", err)
 		}
+	}
+	if !nodeenv.ValidVersion(s.NodeVersion) {
+		return errors.New("versão do Node.js inválida (use 24, 22.12, 20.18.1 ou lts/*)")
 	}
 	if s.GitHubAppSlug != "" && !githubapp.AppSlugRe.MatchString(s.GitHubAppSlug) {
 		return errors.New("slug do GitHub App inválido")

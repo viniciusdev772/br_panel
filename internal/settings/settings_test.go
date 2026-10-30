@@ -43,6 +43,8 @@ func TestValidateSettings(t *testing.T) {
 		"app sem chave":        mut(func(s *Settings) { s.GitHubAppID = "123" }),
 		"chave inválida":       mut(func(s *Settings) { s.GitHubAppID, s.GitHubKey = "123", "não é pem" }),
 		"segredo curto":        mut(func(s *Settings) { s.GitHubWebhookSecret = "curto" }),
+		"node injeção":         mut(func(s *Settings) { s.NodeVersion = "24; id" }),
+		"node vazio":           mut(func(s *Settings) { s.NodeVersion = "" }),
 		"global key sem email": mut(func(s *Settings) { s.CloudflareToken = strings.Repeat("a", 37) }),
 		"token cf curto":       mut(func(s *Settings) { s.CloudflareToken = "abc" }),
 		"token cf injeção":     mut(func(s *Settings) { s.CloudflareToken = strings.Repeat("a", 30) + "\nX: y" }),

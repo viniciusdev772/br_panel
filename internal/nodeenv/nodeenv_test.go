@@ -143,3 +143,39 @@ func TestStartRunsInTheBackgroundOnce(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestValidVersion(t *testing.T) {
+	for v, want := range map[string]bool{
+		"24": true, "22.12": true, "20.18.1": true, "lts/*": true, "node": true,
+		"": false, "v24": false, "24;rm -rf /": false, "$(id)": false, "24 && x": false, "../24": false, "lts/iron": false, "123": false, "24.1.2.3": false,
+	} {
+		if got := ValidVersion(v); got != want {
+			t.Errorf("ValidVersion(%q) = %v", v, got)
+		}
+	}
+	if !ValidVersion(DefaultVersion) {
+		t.Error("o padrão precisa ser válido")
+	}
+}
+
+func TestInstallUsesTheConfiguredVersionThroughTheEnvironment(t *testing.T) {
+	i := fakeWorld(t, map[string]string{"bash": `case "$2" in
+*dirname*) echo "$NVM_DIR/versions/node/v22.0.0/bin" ;;
+*) echo "$NODE_VERSION" > "$NVM_DIR/versao"; case "$2" in *'"$NODE_VERSION"'*) : ;; *) echo "script sem a variavel" >&2; exit 9 ;; esac
+   d="$NVM_DIR/versions/node/v22.0.0/bin"; mkdir -p "$d"
+   for n in node npm; do printf '#!/bin/sh\necho 22.0.0\n' > "$d/$n"; chmod +x "$d/$n"; done ;;
+esac`})
+	i.Version = func() string { return "22.12" }
+	if err := i.install(context.Background(), io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(i.Dir, "versao"))
+	if strings.TrimSpace(string(got)) != "22.12" {
+		t.Errorf("NODE_VERSION = %q", got)
+	}
+	// An invalid configured value never reaches the script: the default is used instead.
+	i.Version = func() string { return "24; touch /tmp/invadido" }
+	if i.version() != DefaultVersion {
+		t.Errorf("versão inválida deveria cair no padrão, veio %q", i.version())
+	}
+}
