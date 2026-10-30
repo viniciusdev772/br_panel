@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/execx"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
@@ -261,7 +262,26 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 	if a.Domain == "" {
 		return d.nginx().Remove(ctx, log, a.Name)
 	}
+	d.ensureDNS(ctx, log, a.Domain)
 	return d.nginx().Ensure(ctx, log, nginx.Site{Key: a.Name, Domain: a.Domain, Upstream: fmt.Sprintf("127.0.0.1:%d", a.Port)})
+}
+
+// ensureDNS points the domain at this server through Cloudflare, before certbot runs
+// (the HTTP-01 challenge needs the record). Failures only warn: DNS may be managed elsewhere.
+func (d *Deployer) ensureDNS(ctx context.Context, log io.Writer, domain string) {
+	cf := cloudflare.New(d.Settings().CloudflareEmail, d.Settings().CloudflareToken)
+	if cf == nil {
+		return
+	}
+	ip, err := cloudflare.ServerIP()
+	if err == nil {
+		var res string
+		if res, err = cf.EnsureA(ctx, domain, ip); err == nil {
+			fmt.Fprintf(log, "DNS na Cloudflare: %s -> %s (%s)\n", domain, ip, res)
+			return
+		}
+	}
+	fmt.Fprintf(log, "AVISO: não foi possível ajustar o DNS na Cloudflare (%v). Aponte %s para este servidor manualmente.\n", err, domain)
 }
 
 func (d *Deployer) envFileContent(a store.App) string {

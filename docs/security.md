@@ -14,6 +14,7 @@
 | Injeção em comando/unit/Nginx | Validadores estritos; argv separado; `Escape` de `ExecStart`; `nginx -t` com rollback | `validate`, `systemd`, `nginx` |
 | Detecção maliciosa (`package.json`) | Caminhos só passam por `safeRel`; nomes por regex | `detect` |
 | Webhook forjado | HMAC-SHA256 em tempo constante antes de qualquer efeito; limite de 5 MiB | `githubapp`, `server/webhook.go` |
+| Vazamento da credencial da Cloudflare (a Global API Key dá acesso total à conta; prefira um token restrito) | Guardada só no SQLite (0600); enviada apenas em cabeçalhos (`Authorization` ou `X-Auth-Email`/`X-Auth-Key`) para `api.cloudflare.com`; nunca em log, argv, URL ou ambiente das apps; não volta ao navegador | `cloudflare`, `settings` |
 | Vazamento do token do GitHub | Token de 1 h, só leitura, restrito ao repositório; entregue só ao `git` via `GIT_CONFIG_*`; nunca em argv/log/ambiente do build | `githubapp.AuthEnv` |
 | Segredos de bancos vazando em `ps`/logs | Senhas só por variável de ambiente ou arquivo 0600 temporário (apagado); nunca em argv; config com senha 0600 | `dbengine` |
 | Injeção via nomes de tabela/coleção/chave | Identificadores validados por regex e citados; chaves Redis vão como argumento (sem shell) | `dbengine` |

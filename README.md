@@ -108,6 +108,18 @@ Requer `nginx` e `certbot` e o DNS apontando para o servidor. Ao informar um **d
 Se a emissão falhar (ex.: DNS ainda não propagou), o site continua em HTTP e o próximo deploy tenta de novo.
 O domínio do painel (Configurações) usa o mesmo mecanismo.
 
+### DNS automático na Cloudflare (opcional)
+
+Se o DNS do domínio está na Cloudflare, o painel pode criar o registro por você:
+
+1. Na Cloudflare, escolha a credencial:
+   - **Global API Key** (acesso a todos os domínios da conta): **Meu perfil > Tokens de API > Chaves de API > Global API Key**. No painel, preencha também o e-mail da conta. Ela dá acesso total à conta, então só use se aceitar esse risco.
+   - **API Token restrito** (recomendado): **Criar token > modelo "Editar DNS da zona"**, com *Zone:Read* e *DNS:Edit* só nas zonas desejadas. Deixe o e-mail em branco.
+2. No painel: **Configurações > Cloudflare**, cole a credencial e salve.
+3. A cada deploy de uma app com domínio, antes do SSL, o painel procura a zona (o domínio ou um domínio pai) e cria o registro `A` apontando para o IP do servidor, ou o corrige se estiver diferente. O registro fica sem proxy; se você já o deixou com proxy (nuvem laranja), o proxy é mantido. Nada é apagado.
+
+Se algo falhar (zona fora da conta, token sem permissão, servidor atrás de NAT), o deploy só registra um aviso no log e segue. A credencial fica no SQLite e nunca volta para o navegador.
+
 ## GitHub App: deploy automático
 
 1. Crie um GitHub App (a página **GitHub** do painel mostra a URL do webhook e as permissões):

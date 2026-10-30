@@ -151,6 +151,16 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 			}
 		}
 	}
+	if !setup {
+		if r.PostFormValue("clear_cloudflare") == "on" {
+			set.CloudflareToken, set.CloudflareEmail = "", ""
+		} else {
+			set.CloudflareEmail = v("cloudflare_email")
+			if t := v("cloudflare_token"); t != "" {
+				set.CloudflareToken = t
+			}
+		}
+	}
 	if !setup && r.PostFormValue("clear_github") == "on" {
 		set.GitHubAppID, set.GitHubKey, set.GitHubWebhookSecret = "", "", ""
 		return set
@@ -169,14 +179,14 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 
 // viewSettings hides stored secrets before they are sent to the browser.
 func viewSettings(set settings.Settings) settings.Settings {
-	set.AdminHash, set.GitHubKey, set.GitHubWebhookSecret = "", "", ""
+	set.AdminHash, set.GitHubKey, set.GitHubWebhookSecret, set.CloudflareToken = "", "", "", ""
 	return set
 }
 
 func (s *Server) handleSettingsForm(w http.ResponseWriter, r *http.Request) {
 	cur := s.settings()
 	s.render(w, r, "settings", page{Title: "Configurações", Set: viewSettings(cur), Checks: settings.CheckSystem(),
-		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", Form: map[string]string{"username": cur.AdminUser}})
+		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Form: map[string]string{"username": cur.AdminUser}})
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +194,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	fail := func(code int, msg string) {
 		w.WriteHeader(code)
 		s.render(w, r, "settings", page{Title: "Configurações", Set: viewSettings(readSettingsForm(r, cur, false)), Checks: settings.CheckSystem(),
-			HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", Error: msg, Form: map[string]string{"username": cur.AdminUser}})
+			HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Error: msg, Form: map[string]string{"username": cur.AdminUser}})
 	}
 	set := readSettingsForm(r, cur, false)
 	passwordChanged := false

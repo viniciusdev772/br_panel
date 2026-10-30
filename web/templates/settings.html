@@ -56,6 +56,22 @@
     {{end}}
   </div></div>
 
+  <h2 class="mdc-typography--subtitle1 section-title">Cloudflare (opcional)</h2>
+  <div class="mdc-card"><div class="card-body">
+    <p class="muted">Ao publicar uma aplicação com domínio, o painel cria (ou corrige) o registro DNS tipo A apontando para este servidor, antes de emitir o SSL. O registro fica sem proxy (nuvem cinza); se já existir e estiver com proxy, o proxy é mantido. O domínio precisa estar numa zona da sua conta.</p>
+    {{template "field" dict "name" "cloudflare_email" "label" "E-mail da conta Cloudflare (só para a Global API Key)" "value" .Set.CloudflareEmail "autocomplete" "off" "hint" "Deixe em branco se usar um API Token restrito."}}
+    {{template "field" dict "name" "cloudflare_token" "label" "Global API Key ou API Token" "type" "password" "autocomplete" "off" "hint" (or (and .HasCF "Credencial já configurada — preencha para substituir.") "Global API Key: Meu perfil > Tokens de API > Chaves de API > Global API Key (acesso total à conta, todos os domínios). API Token restrito: modelo \"Editar DNS da zona\" (Zone:Read e DNS:Edit).")}}
+    {{if .HasCF}}
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_cloudflare" name="clear_cloudflare">
+        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="clear_cloudflare">Remover a integração com a Cloudflare</label>
+    </div>
+    {{end}}
+  </div></div>
 
   <h2 class="mdc-typography--subtitle1 section-title">Alterar senha</h2>
   <div class="mdc-card"><div class="card-body">

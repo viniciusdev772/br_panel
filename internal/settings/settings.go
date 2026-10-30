@@ -41,6 +41,9 @@ type Settings struct {
 	GitHubAppID         string
 	GitHubKey           string // PEM private key of the GitHub App
 	GitHubWebhookSecret string
+
+	CloudflareEmail string // set only when CloudflareToken is the Global API Key
+	CloudflareToken string // scoped API token (Zone:Read + DNS:Edit) or Global API Key; empty disables DNS automation
 }
 
 func Default() Settings {
@@ -60,6 +63,7 @@ func (s *Settings) Fields() map[string]*string {
 		"panel_domain": &s.PanelDomain, "acme_email": &s.AcmeEmail, "app_user": &s.AppUser, "db_user": &s.DBUser,
 		"nginx_dir": &s.NginxDir, "acme_root": &s.AcmeRoot, "cert_dir": &s.CertDir, "unit_dir": &s.UnitDir,
 		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret,
+		"cloudflare_token": &s.CloudflareToken, "cloudflare_email": &s.CloudflareEmail,
 	}
 }
 
@@ -116,6 +120,7 @@ var (
 	userNameRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{2,31}$`)
 	sysUserRe  = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 	appIDRe    = regexp.MustCompile(`^[A-Za-z0-9._-]{1,40}$`)
+	cfTokenRe  = regexp.MustCompile(`^[A-Za-z0-9_-]{20,128}$`)
 )
 
 func validateAbsDir(label, p string) error {
@@ -160,6 +165,18 @@ func Validate(s Settings) error {
 	}
 	if s.GitHubWebhookSecret != "" && (len(s.GitHubWebhookSecret) < 16 || len(s.GitHubWebhookSecret) > 128 || strings.ContainsAny(s.GitHubWebhookSecret, " \t\r\n")) {
 		return errors.New("segredo do webhook: use 16 a 128 caracteres, sem espaços")
+	}
+	if s.CloudflareToken != "" && !cfTokenRe.MatchString(s.CloudflareToken) {
+		return errors.New("credencial da Cloudflare inválida (use um API Token ou a Global API Key, sem espaços)")
+	}
+	if s.CloudflareEmail != "" {
+		a, err := mail.ParseAddress(s.CloudflareEmail)
+		if err != nil || a.Address != s.CloudflareEmail || len(s.CloudflareEmail) > 254 || strings.ContainsAny(s.CloudflareEmail, " \"'") {
+			return errors.New("e-mail da Cloudflare inválido")
+		}
+		if s.CloudflareToken == "" {
+			return errors.New("Cloudflare: informe a Global API Key junto com o e-mail")
+		}
 	}
 	return nil
 }

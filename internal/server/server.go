@@ -274,6 +274,7 @@ type page struct {
 	Set            settings.Settings
 	HasKey         bool
 	HasSecret      bool
+	HasCF          bool
 	Checks         []settings.Check
 	Form           map[string]string // submitted values to refill on errors
 }

@@ -15,6 +15,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/systemd` | Renderiza units; `systemctl`, `journalctl`; status do serviço |
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
 | `internal/sysinfo` | Leitura de cgroup v2 e `/proc` (RAM, carga, disco, uptime) |
+| `internal/cloudflare` | Registro DNS A do domínio da app via API Token da Cloudflare (só biblioteca padrão) |
 | `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório |
 | `internal/settings` | Configuração guardada no banco, validação, Argon2id |
 | `internal/store` | SQLite: apps, configurações, métricas; migrações |
@@ -30,7 +31,7 @@ graph LR
   cmd[cmd/brpanel] --> server
   cmd --> store
   server --> dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
-  deploy --> detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
+  deploy --> cloudflare & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
   dbengine --> settings & store & systemd & validate & execx
   monitor --> store & sysinfo & systemd
   nginx --> settings & execx
@@ -50,7 +51,7 @@ Pacotes de `internal/` nunca importam `server`. A regra completa está em `.clau
 3. O middleware `gate` redireciona tudo para `/setup`. O formulário exige o token, cria o admin e as configurações iniciais, apaga o token e abre a sessão.
 
 ### Deploy (`deploy.Deployer.Start`)
-`BeginDeploy` (compare-and-set no SQLite) → `git clone/fetch --depth 1` (com token do GitHub App só para o git, se houver) → `autoConfigure` (apenas se o comando de início está vazio; grava build/start/porta detectados) → build via `sh -c` → env file + unit → `systemctl daemon-reload/enable/restart` → vhost Nginx e certificado (se há domínio) → `FinishDeploy`. Um push durante o deploy marca "pendente" e dispara mais um deploy ao final.
+`BeginDeploy` (compare-and-set no SQLite) → `git clone/fetch --depth 1` (com token do GitHub App só para o git, se houver) → `autoConfigure` (apenas se o comando de início está vazio; grava build/start/porta detectados) → build via `sh -c` → env file + unit → `systemctl daemon-reload/enable/restart` → DNS na Cloudflare (se há token) → vhost Nginx e certificado (se há domínio) → `FinishDeploy`. Um push durante o deploy marca "pendente" e dispara mais um deploy ao final.
 
 ### Webhook do GitHub
 `POST /webhooks/github` → confere `X-Hub-Signature-256` → evento `push` em `refs/heads/<branch>` → apps com deploy automático cujo repositório (sem diferenciar maiúsculas) e branch coincidem → `Deployer.Start`.
