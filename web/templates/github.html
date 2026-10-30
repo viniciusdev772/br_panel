@@ -27,9 +27,18 @@
   <p class="muted">Defina o domínio do painel em <a href="/settings">Configurações</a> (com o DNS já apontando para este servidor) ou configure a Cloudflare lá para o painel criar o registro DNS por você. Depois volte aqui.</p>
   {{end}}
 {{else if not .GH.PanelReady}}
-  <p>Publicando <b>{{.GH.PanelDomain}}</b> e emitindo o SSL. Isso leva alguns instantes.</p>
-  <div class="actions"><a class="mdc-button mdc-button--raised" href="/github"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Verificar de novo</span></a></div>
-  <p class="muted">Se não concluir em alguns minutos, confira se o DNS de {{.GH.PanelDomain}} aponta para este servidor e se o e-mail do Let's Encrypt está salvo em <a href="/settings">Configurações</a>.</p>
+  {{if .GH.PublishErr}}
+  <p><b>Não foi possível emitir o SSL de {{.GH.PanelDomain}}.</b></p>
+  <p class="muted">{{.GH.PublishErr}}</p>
+  <form method="post" action="/github/publish">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="actions"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Tentar de novo</span></button></div>
+  </form>
+  <p class="muted">Confira se o DNS de {{.GH.PanelDomain}} aponta para este servidor e se o e-mail do Let's Encrypt está salvo em <a href="/settings">Configurações</a>. O Let's Encrypt limita a 5 falhas por hora para o mesmo domínio.</p>
+  {{else}}
+  <div data-refresh="5"></div>
+  <p>Publicando <b>{{.GH.PanelDomain}}</b> e emitindo o SSL. O painel espera o DNS propagar e tenta o certificado até 3 vezes, então pode levar alguns minutos. Esta página atualiza sozinha.</p>
+  {{end}}
 {{else if not .GH.OnPanelDomain}}
   <p>O painel já está em <b>https://{{.GH.PanelDomain}}</b>. Continue por lá (será preciso entrar de novo), porque o GitHub devolve você a esse endereço.</p>
   <div class="actions"><a class="mdc-button mdc-button--raised" href="https://{{.GH.PanelDomain}}/github"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Abrir em https://{{.GH.PanelDomain}}</span></a></div>

@@ -105,7 +105,7 @@ Requer `nginx` e `certbot` e o DNS apontando para o servidor. Ao informar um **d
 3. com e-mail configurado, emite o certificado via `certbot certonly --webroot` e passa o site para HTTPS.
    A renovação fica com o timer do pacote do certbot; um `--deploy-hook` recarrega o Nginx.
 
-Se a emissão falhar (ex.: DNS ainda não propagou), o site continua em HTTP e o próximo deploy tenta de novo.
+Antes de pedir o certificado, o painel espera o DNS aparecer nos resolvedores públicos (até 2 min) e repete o certbot até 3 vezes. Se mesmo assim a emissão falhar, o site continua em HTTP e o próximo deploy tenta de novo; para o painel, a página **GitHub** mostra o motivo e o botão **Tentar de novo**.
 O domínio do painel (Configurações) usa o mesmo mecanismo.
 
 ### DNS automático na Cloudflare (opcional)

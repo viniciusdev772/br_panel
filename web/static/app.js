@@ -476,6 +476,10 @@
     });
   }
 
+  // ---- pages waiting for a background job reload themselves ----
+  var refresher = $('[data-refresh]');
+  if (refresher) { setTimeout(function () { location.reload(); }, (+refresher.dataset.refresh || 5) * 1000); }
+
   // ---- initial tab (after all 'tabshown' listeners exist) ----
   if (tabsEl) {
     if (location.hash.length > 1) { showTab(location.hash.slice(1), false); }

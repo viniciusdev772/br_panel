@@ -92,6 +92,7 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `GET/POST /settings` | sessão (+CSRF) | Configurações |
 | `GET /github` | sessão | Criação guiada do GitHub App e guia manual |
 | `POST /github/domain` | sessão + CSRF | Cria o registro DNS na Cloudflare, salva o domínio do painel e o publica |
+| `POST /github/publish` | sessão + CSRF | Repete a publicação (Nginx + SSL) do painel no domínio salvo |
 | `GET /github/app/new` | sessão | Página que envia o manifest do App ao GitHub (CSP relaxada só aqui) |
 | `GET /github/app/callback` | `state` de uso único | Retorno do GitHub: troca o `code` pelas credenciais do App e as salva |
 | `POST /webhooks/github` | HMAC do GitHub | Eventos `ping` e `push` |

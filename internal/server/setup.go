@@ -2,9 +2,13 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -257,23 +261,97 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings?msg=Configura%C3%A7%C3%B5es+salvas.", http.StatusSeeOther)
 }
 
-// publishPanel exposes the panel itself on the configured panel domain (needed to receive GitHub webhooks).
+// tailBuf keeps the last bytes written to it; certbot's and nginx's output goes through it
+// so a failed publication can say why. Safe for the concurrent stdout/stderr copies.
+type tailBuf struct {
+	mu sync.Mutex
+	b  []byte
+}
+
+func (t *tailBuf) Write(p []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.b = append(t.b, p...)
+	if len(t.b) > 8192 {
+		t.b = t.b[len(t.b)-8192:]
+	}
+	return len(p), nil
+}
+
+// reason picks the most telling line: Let's Encrypt's "Detail:" if present, else the last line.
+func (t *tailBuf) reason() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var last, detail string
+	for _, l := range strings.Split(string(t.b), "\n") {
+		if l = strings.TrimSpace(l); l == "" {
+			continue
+		}
+		last = l
+		if strings.HasPrefix(l, "Detail:") {
+			detail = l
+		}
+	}
+	if detail != "" {
+		return detail
+	}
+	return last
+}
+
+// publishPanel exposes the panel itself on the configured panel domain (needed to receive GitHub
+// webhooks) and records the outcome for the GitHub page. One run at a time.
 func (s *Server) publishPanel() {
+	s.pubMu.Lock()
+	if s.pubRunning {
+		s.pubMu.Unlock()
+		return
+	}
+	s.pubRunning, s.pubErr = true, ""
+	s.pubMu.Unlock()
+
+	err := s.publishPanelNow()
+	s.pubMu.Lock()
+	s.pubRunning, s.pubErr = false, ""
+	if err != nil {
+		s.pubErr = err.Error()
+		log.Printf("publicação do painel: %v", err)
+	}
+	s.pubMu.Unlock()
+}
+
+func (s *Server) publishPanelNow() error {
 	set := s.settings()
 	host, port, err := net.SplitHostPort(s.cfg.Addr)
 	if err != nil {
-		log.Printf("publicação do painel: endereço de escuta inválido: %v", err)
-		return
+		return fmt.Errorf("endereço de escuta inválido: %w", err)
 	}
 	if host == "" || host == "0.0.0.0" || host == "::" {
 		host = "127.0.0.1"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+	tail := &tailBuf{}
 	site := nginx.Site{Key: "_panel", Domain: set.PanelDomain, Upstream: net.JoinHostPort(host, port), MaxBody: "6m"}
-	if err := nginx.FromSettings(set).Ensure(ctx, os.Stderr, site); err != nil {
-		log.Printf("publicação do painel: %v", err)
-		return
+	mgr := nginx.FromSettings(set)
+	if err := mgr.Ensure(ctx, io.MultiWriter(os.Stderr, tail), site); err != nil {
+		return err
+	}
+	if !mgr.HasCert(set.PanelDomain) { // Ensure keeps the site on HTTP when issuance fails
+		if set.AcmeEmail == "" {
+			return errors.New("informe o e-mail do Let's Encrypt em Configurações para emitir o SSL")
+		}
+		return fmt.Errorf("o certificado não foi emitido (%s)", tail.reason())
 	}
 	log.Printf("painel publicado em %s", set.PanelDomain)
+	return nil
+}
+
+// handleGitHubPublish retries the panel publication (Nginx + SSL) for the saved domain.
+func (s *Server) handleGitHubPublish(w http.ResponseWriter, r *http.Request) {
+	if s.settings().PanelDomain == "" {
+		s.githubPage(w, r, http.StatusUnprocessableEntity, "Defina o domínio do painel primeiro.")
+		return
+	}
+	go s.publishPanel()
+	http.Redirect(w, r, "/github?msg="+url.QueryEscape("Tentando publicar o painel de novo; a página atualiza sozinha."), http.StatusSeeOther)
 }

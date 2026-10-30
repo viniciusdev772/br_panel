@@ -137,3 +137,59 @@ func TestGitHubCallback(t *testing.T) {
 		t.Errorf("state reutilizado: %d", w.Code)
 	}
 }
+
+func TestGitHubPublishRetryRoute(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	if w := do(h, "POST", "/github/publish", url.Values{}); w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/login" {
+		t.Errorf("sem sessão: %d", w.Code)
+	}
+	if w := do(h, "POST", "/github/publish", url.Values{}, c); w.Code != http.StatusForbidden {
+		t.Errorf("sem CSRF: %d", w.Code)
+	}
+	csrf := csrfOf(t, h, "/github", c)
+	if w := do(h, "POST", "/github/publish", url.Values{"csrf": {csrf}}, c); w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("sem domínio: %d", w.Code)
+	}
+}
+
+func TestGitHubPageShowsPublicationState(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	set := s.settings()
+	set.PanelDomain, set.CertDir = "p.example.com", t.TempDir() // no certificate
+	if err := s.applySettings(set); err != nil {
+		t.Fatal(err)
+	}
+	s.pubMu.Lock()
+	s.pubRunning = true
+	s.pubMu.Unlock()
+	body := do(h, "GET", "/github", nil, c).Body.String()
+	if !strings.Contains(body, `data-refresh="5"`) || strings.Contains(body, "Tentar de novo") {
+		t.Errorf("publicando: deve atualizar sozinha e sem botão\n%s", body)
+	}
+	s.pubMu.Lock()
+	s.pubRunning, s.pubErr = false, "o certificado não foi emitido (Detail: NXDOMAIN)"
+	s.pubMu.Unlock()
+	body = do(h, "GET", "/github", nil, c).Body.String()
+	if !strings.Contains(body, "Tentar de novo") || !strings.Contains(body, "NXDOMAIN") || strings.Contains(body, "data-refresh") {
+		t.Errorf("falhou: deve mostrar o motivo e o botão\n%s", body)
+	}
+}
+
+func TestTailBufReason(t *testing.T) {
+	var b tailBuf
+	_, _ = b.Write([]byte("Requesting a certificate\n  Detail: DNS problem: NXDOMAIN\nSome challenges have failed.\n"))
+	if got := b.reason(); got != "Detail: DNS problem: NXDOMAIN" {
+		t.Errorf("reason = %q", got)
+	}
+	var c tailBuf
+	_, _ = c.Write([]byte("a\n\nultima linha\n"))
+	if got := c.reason(); got != "ultima linha" {
+		t.Errorf("reason = %q", got)
+	}
+	_, _ = c.Write([]byte(strings.Repeat("x", 20000)))
+	if len(c.b) > 8192 {
+		t.Errorf("buffer sem limite: %d", len(c.b))
+	}
+}

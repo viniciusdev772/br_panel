@@ -141,9 +141,14 @@ func (m *Manager) Ensure(ctx context.Context, log io.Writer, site Site) error {
 		fmt.Fprintln(log, "SSL não configurado: informe o e-mail do Let's Encrypt em Configurações para emitir certificados automaticamente.")
 		return nil
 	}
-	err := execx.Run(ctx, log, "certbot", "certonly", "--webroot", "-w", m.AcmeRoot, "-d", site.Domain,
-		"--non-interactive", "--agree-tos", "--no-eff-email", "-m", m.Email,
-		"--deploy-hook", "systemctl reload nginx")
+	if !waitDNS(ctx, log, site.Domain, publicLookup, dnsPollEvery, dnsPollMax) {
+		fmt.Fprintf(log, "AVISO: o DNS de %s ainda não resolve nos resolvers públicos; tentando mesmo assim.\n", site.Domain)
+	}
+	err := retry(ctx, log, certAttempts, certRetryWait, func() error {
+		return execx.Run(ctx, log, "certbot", "certonly", "--webroot", "-w", m.AcmeRoot, "-d", site.Domain,
+			"--non-interactive", "--agree-tos", "--no-eff-email", "-m", m.Email,
+			"--deploy-hook", "systemctl reload nginx")
+	})
 	if err != nil {
 		fmt.Fprintf(log, "AVISO: não foi possível emitir o certificado (%v). Confira se o DNS de %s aponta para este servidor; o site segue em HTTP e o próximo deploy tenta de novo.\n", err, site.Domain)
 		return nil

@@ -54,6 +54,10 @@ type Server struct {
 	ghStateExp time.Time
 	ghAPI      string // GitHub API base; empty outside tests
 
+	pubMu      sync.Mutex // guards the panel publication status shown on /github
+	pubRunning bool
+	pubErr     string // why the last publication ended without a certificate
+
 	configured atomic.Bool
 	setupToken string // one-time token required by /setup, empty once configured
 	dummyHash  string // verified against when the user does not exist (timing parity)
@@ -190,6 +194,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /webhooks/github", s.handleGitHubWebhook)
 	mux.HandleFunc("GET /github", s.protected(s.handleGitHub))
 	mux.HandleFunc("POST /github/domain", s.protected(s.handleGitHubDomain))
+	mux.HandleFunc("POST /github/publish", s.protected(s.handleGitHubPublish))
 	mux.HandleFunc("GET /github/app/new", s.protected(s.handleGitHubAppNew))
 	mux.HandleFunc("GET /github/app/callback", s.handleGitHubCallback) // reached from github.com: validated by its single-use state
 	mux.HandleFunc("GET /{$}", s.protected(s.handleApps))
@@ -298,6 +303,8 @@ type ghStatus struct {
 	PanelReady    bool // domain set and certificate issued
 	OnPanelDomain bool // the browser is already on the panel domain
 	NeedEmail     bool // no Let's Encrypt e-mail saved yet
+	Publishing    bool // Nginx/SSL for the panel domain is being set up right now
+	PublishErr    string
 	InstallURL    string
 	CreateURL     string
 	Manifest      string

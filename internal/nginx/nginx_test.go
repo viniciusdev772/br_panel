@@ -1,8 +1,12 @@
 package nginx
 
 import (
+	"context"
+	"errors"
+	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRenderVhost(t *testing.T) {
@@ -24,5 +28,52 @@ func TestRenderVhost(t *testing.T) {
 	}
 	if strings.Count(tls, "proxy_pass") != 1 {
 		t.Error("proxy_pass deve aparecer só no bloco 443")
+	}
+}
+
+func TestWaitDNSWaitsUntilTheNameResolves(t *testing.T) {
+	calls := 0
+	lookup := func(context.Context, string) ([]string, error) {
+		if calls++; calls < 3 {
+			return nil, errors.New("NXDOMAIN")
+		}
+		return []string{"203.0.113.9"}, nil
+	}
+	var log strings.Builder
+	if !waitDNS(context.Background(), &log, "p.exemplo.com", lookup, time.Millisecond, time.Second) || calls != 3 {
+		t.Fatalf("calls = %d", calls)
+	}
+	if !strings.Contains(log.String(), "Aguardando o DNS") {
+		t.Errorf("log: %q", log.String())
+	}
+}
+
+func TestWaitDNSGivesUp(t *testing.T) {
+	never := func(context.Context, string) ([]string, error) { return nil, errors.New("NXDOMAIN") }
+	if waitDNS(context.Background(), io.Discard, "p.exemplo.com", never, 5*time.Millisecond, 20*time.Millisecond) {
+		t.Error("deveria desistir depois do limite")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if waitDNS(ctx, io.Discard, "p.exemplo.com", never, time.Hour, time.Hour) {
+		t.Error("contexto cancelado deveria interromper a espera")
+	}
+}
+
+func TestRetry(t *testing.T) {
+	n := 0
+	err := retry(context.Background(), io.Discard, 3, time.Millisecond, func() error {
+		if n++; n < 3 {
+			return errors.New("falhou")
+		}
+		return nil
+	})
+	if err != nil || n != 3 {
+		t.Errorf("n=%d err=%v", n, err)
+	}
+	n = 0
+	err = retry(context.Background(), io.Discard, 2, time.Millisecond, func() error { n++; return errors.New("sempre") })
+	if err == nil || n != 2 {
+		t.Errorf("n=%d err=%v", n, err)
 	}
 }

@@ -54,6 +54,9 @@ func (s *Server) githubPage(w http.ResponseWriter, r *http.Request, code int, er
 		OnPanelDomain:  set.PanelDomain != "" && strings.EqualFold(hostOnly(r.Host), set.PanelDomain),
 		NeedEmail:      set.AcmeEmail == "",
 	}
+	s.pubMu.Lock()
+	st.Publishing, st.PublishErr = s.pubRunning, s.pubErr
+	s.pubMu.Unlock()
 	if set.GitHubAppSlug != "" {
 		st.InstallURL = "https://github.com/apps/" + set.GitHubAppSlug + "/installations/new"
 	}
