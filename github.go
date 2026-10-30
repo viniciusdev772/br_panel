@@ -18,7 +18,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -67,12 +66,8 @@ type GitHubApp struct {
 	api    string
 }
 
-func LoadGitHubApp(appID, keyFile string) (*GitHubApp, error) {
-	raw, err := os.ReadFile(keyFile)
-	if err != nil {
-		return nil, err
-	}
-	blk, _ := pem.Decode(raw)
+func ParseGitHubApp(appID string, keyPEM []byte) (*GitHubApp, error) {
+	blk, _ := pem.Decode(keyPEM)
 	if blk == nil {
 		return nil, errors.New("chave privada: PEM inválido")
 	}
@@ -161,7 +156,8 @@ func (g *GitHubApp) InstallationToken(ctx context.Context, owner, repo string) (
 
 // githubToken returns an installation token for private HTTPS GitHub repos, or "" to clone anonymously.
 func (s *Server) githubToken(ctx context.Context, a App, logw io.Writer) string {
-	if s.gh == nil || !strings.HasPrefix(a.Repo, "https://") {
+	gh := s.githubApp()
+	if gh == nil || !strings.HasPrefix(a.Repo, "https://") {
 		return ""
 	}
 	slug, ok := githubSlug(a.Repo)
@@ -169,7 +165,7 @@ func (s *Server) githubToken(ctx context.Context, a App, logw io.Writer) string 
 		return ""
 	}
 	owner, repo, _ := strings.Cut(slug, "/")
-	tok, err := s.gh.InstallationToken(ctx, owner, repo)
+	tok, err := gh.InstallationToken(ctx, owner, repo)
 	switch {
 	case errors.Is(err, errNotInstalled):
 		fmt.Fprintln(logw, "GitHub App não instalado neste repositório; clonando sem autenticação.")
@@ -183,7 +179,8 @@ func (s *Server) githubToken(ctx context.Context, a App, logw io.Writer) string 
 
 // handleGitHubWebhook receives push events and redeploys matching apps.
 func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.GitHubWebhookSecret == "" {
+	secret := s.settings().GitHubWebhookSecret
+	if secret == "" {
 		http.NotFound(w, r)
 		return
 	}
@@ -192,7 +189,7 @@ func (s *Server) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "corpo inválido", http.StatusRequestEntityTooLarge)
 		return
 	}
-	if !validSignature(s.cfg.GitHubWebhookSecret, body, r.Header.Get("X-Hub-Signature-256")) {
+	if !validSignature(secret, body, r.Header.Get("X-Hub-Signature-256")) {
 		http.Error(w, "assinatura inválida", http.StatusUnauthorized)
 		return
 	}

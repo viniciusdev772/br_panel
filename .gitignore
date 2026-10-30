@@ -1,3 +1,6 @@
 /brpanel
 /data/
 *.log
+*.db
+*.db-wal
+*.db-shm

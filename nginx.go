@@ -26,11 +26,11 @@ map $http_upgrade $brpanel_connection_upgrade {
 `
 
 func (s *Server) vhostPath(key string) string {
-	return filepath.Join(s.cfg.NginxDir, "brpanel-"+key+".conf")
+	return filepath.Join(s.settings().NginxDir, "brpanel-"+key+".conf")
 }
 
 func (s *Server) certFile(domain, name string) string {
-	return filepath.Join(s.cfg.CertDir, domain, name)
+	return filepath.Join(s.settings().CertDir, domain, name)
 }
 
 func (s *Server) hasCert(domain string) bool {
@@ -85,7 +85,7 @@ func renderVhost(site Site, acmeRoot, fullchain, privkey string, tls bool) strin
 func (s *Server) applyVhost(ctx context.Context, log io.Writer, site Site, tls bool) error {
 	path := s.vhostPath(site.Key)
 	prev, readErr := os.ReadFile(path)
-	conf := renderVhost(site, s.cfg.AcmeRoot, s.certFile(site.Domain, "fullchain.pem"), s.certFile(site.Domain, "privkey.pem"), tls)
+	conf := renderVhost(site, s.settings().AcmeRoot, s.certFile(site.Domain, "fullchain.pem"), s.certFile(site.Domain, "privkey.pem"), tls)
 	if err := writeFile(path, conf, 0o644); err != nil {
 		return err
 	}
@@ -100,15 +100,15 @@ func (s *Server) applyVhost(ctx context.Context, log io.Writer, site Site, tls b
 	return sysRun(ctx, log, "systemctl", "reload", "nginx")
 }
 
-// ensureSite publishes the domain over HTTP and, when PANEL_ACME_EMAIL is set,
+// ensureSite publishes the domain over HTTP and, when an ACME e-mail is configured,
 // obtains a Let's Encrypt certificate (webroot) and switches to HTTPS.
 // Certificate issuance failures (typically DNS not pointing here yet) are not
 // fatal: the site stays on HTTP and the next deploy retries.
 func (s *Server) ensureSite(ctx context.Context, log io.Writer, site Site) error {
-	if err := os.MkdirAll(s.cfg.AcmeRoot, 0o755); err != nil {
+	if err := os.MkdirAll(s.settings().AcmeRoot, 0o755); err != nil {
 		return err
 	}
-	if err := writeFile(filepath.Join(s.cfg.NginxDir, "00-brpanel-common.conf"), commonConf, 0o644); err != nil {
+	if err := writeFile(filepath.Join(s.settings().NginxDir, "00-brpanel-common.conf"), commonConf, 0o644); err != nil {
 		return err
 	}
 	hasCert := s.hasCert(site.Domain)
@@ -118,12 +118,12 @@ func (s *Server) ensureSite(ctx context.Context, log io.Writer, site Site) error
 	if hasCert {
 		return nil
 	}
-	if s.cfg.AcmeEmail == "" {
-		fmt.Fprintln(log, "SSL não configurado: defina PANEL_ACME_EMAIL para emitir certificados automaticamente.")
+	if s.settings().AcmeEmail == "" {
+		fmt.Fprintln(log, "SSL não configurado: informe o e-mail do Let's Encrypt em Configurações para emitir certificados automaticamente.")
 		return nil
 	}
-	err := sysRun(ctx, log, "certbot", "certonly", "--webroot", "-w", s.cfg.AcmeRoot, "-d", site.Domain,
-		"--non-interactive", "--agree-tos", "--no-eff-email", "-m", s.cfg.AcmeEmail,
+	err := sysRun(ctx, log, "certbot", "certonly", "--webroot", "-w", s.settings().AcmeRoot, "-d", site.Domain,
+		"--non-interactive", "--agree-tos", "--no-eff-email", "-m", s.settings().AcmeEmail,
 		"--deploy-hook", "systemctl reload nginx")
 	if err != nil {
 		fmt.Fprintf(log, "AVISO: não foi possível emitir o certificado (%v). Confira se o DNS de %s aponta para este servidor; o site segue em HTTP e o próximo deploy tenta de novo.\n", err, site.Domain)

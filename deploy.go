@@ -20,8 +20,8 @@ const deployTimeout = 20 * time.Minute
 // Every argument is passed separately; nothing is interpreted by a shell
 // unless the caller explicitly asks for `sh -c`.
 func (s *Server) command(ctx context.Context, dir string, env []string, name string, args ...string) *exec.Cmd {
-	if s.cfg.AppUser != "" {
-		args = append([]string{"-u", s.cfg.AppUser, "--", name}, args...)
+	if s.settings().AppUser != "" {
+		args = append([]string{"-u", s.settings().AppUser, "--", name}, args...)
 		name = "runuser"
 	}
 	c := exec.CommandContext(ctx, name, args...)
@@ -123,8 +123,8 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		return err
 	}
-	if s.cfg.AppUser != "" {
-		if err := s.run(ctx, log, "/", env, "chown", s.cfg.AppUser+":", appDir); err != nil {
+	if s.settings().AppUser != "" {
+		if err := s.run(ctx, log, "/", env, "chown", s.settings().AppUser+":", appDir); err != nil {
 			return err
 		}
 	}
@@ -164,8 +164,8 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 	if err := writeFile(s.paths.EnvFile(a.Name), s.envFileContent(a), 0o600); err != nil {
 		return err
 	}
-	unit := renderUnit(a, s.paths, s.cfg.AppUser)
-	if err := writeFile(s.paths.UnitFile(a.Name), unit, 0o644); err != nil {
+	unit := renderUnit(a, s.paths, s.settings().AppUser)
+	if err := writeFile(s.unitFile(a.Name), unit, 0o644); err != nil {
 		return err
 	}
 	for _, args := range [][]string{{"daemon-reload"}, {"enable", unitName(a.Name)}, {"restart", unitName(a.Name)}} {
@@ -226,7 +226,7 @@ func serviceState(app string) string {
 func (s *Server) removeApp(name string) error {
 	unit := unitName(name)
 	_, _ = systemctl("disable", "--now", unit)
-	for _, p := range []string{s.paths.UnitFile(name), s.paths.EnvFile(name), s.paths.LogFile(name)} {
+	for _, p := range []string{s.unitFile(name), s.paths.EnvFile(name), s.paths.LogFile(name)} {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			return err
 		}

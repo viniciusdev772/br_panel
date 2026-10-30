@@ -26,7 +26,7 @@ func randomToken(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func passwordEqual(a, b string) bool {
+func constEqual(a, b string) bool {
 	ha, hb := sha256.Sum256([]byte(a)), sha256.Sum256([]byte(b))
 	return subtle.ConstantTimeCompare(ha[:], hb[:]) == 1
 }
@@ -37,9 +37,6 @@ type session struct {
 }
 
 type Auth struct {
-	password string
-	secure   bool
-
 	mu       sync.Mutex
 	sessions map[string]session
 	fails    map[string]*failState
@@ -50,8 +47,8 @@ type failState struct {
 	until time.Time
 }
 
-func NewAuth(password string, secure bool) *Auth {
-	return &Auth{password: password, secure: secure, sessions: map[string]session{}, fails: map[string]*failState{}}
+func NewAuth() *Auth {
+	return &Auth{sessions: map[string]session{}, fails: map[string]*failState{}}
 }
 
 // clientIP returns the peer address. X-Real-IP (set by our nginx vhost) is
@@ -76,27 +73,26 @@ func (a *Auth) locked(ip string) bool {
 	return f != nil && time.Now().Before(f.until)
 }
 
-// Login checks the password and, on success, sets a session cookie.
-func (a *Auth) Login(w http.ResponseWriter, r *http.Request, pw string) bool {
-	ip := clientIP(r)
-	if a.locked(ip) {
-		return false
-	}
+// Fail records a failed attempt from ip, locking it out after maxFails.
+func (a *Auth) Fail(ip string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if !passwordEqual(pw, a.password) {
-		f := a.fails[ip]
-		if f == nil {
-			f = &failState{}
-			a.fails[ip] = f
-		}
-		f.n++
-		if f.n >= maxFails {
-			f.n, f.until = 0, time.Now().Add(lockFor)
-		}
-		return false
+	f := a.fails[ip]
+	if f == nil {
+		f = &failState{}
+		a.fails[ip] = f
 	}
-	delete(a.fails, ip)
+	f.n++
+	if f.n >= maxFails {
+		f.n, f.until = 0, time.Now().Add(lockFor)
+	}
+}
+
+// Start clears ip's failures and opens a session (cookie Secure when served over HTTPS).
+func (a *Auth) Start(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	delete(a.fails, clientIP(r))
 	now := time.Now()
 	for k, s := range a.sessions {
 		if now.After(s.exp) {
@@ -106,10 +102,19 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request, pw string) bool {
 	id := randomToken(32)
 	a.sessions[id] = session{csrf: randomToken(16), exp: now.Add(sessionTTL)}
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: id, Path: "/", HttpOnly: true, Secure: a.secure,
+		Name: sessionCookie, Value: id, Path: "/", HttpOnly: true, Secure: isHTTPS(r),
 		SameSite: http.SameSiteStrictMode, MaxAge: int(sessionTTL.Seconds()),
 	})
-	return true
+}
+
+// isHTTPS is true for direct TLS or when our own nginx (loopback) says the client used HTTPS.
+func isHTTPS(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	h, _, err := net.SplitHostPort(r.RemoteAddr)
+	ip := net.ParseIP(h)
+	return err == nil && ip != nil && ip.IsLoopback() && r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +123,7 @@ func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 		delete(a.sessions, c.Value)
 		a.mu.Unlock()
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.secure})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: isHTTPS(r)})
 }
 
 // Session returns the CSRF token for a valid session.
@@ -135,4 +140,11 @@ func (a *Auth) Session(r *http.Request) (csrf string, ok bool) {
 		return "", false
 	}
 	return s.csrf, true
+}
+
+// RevokeAll ends every session (used after a password change).
+func (a *Auth) RevokeAll() {
+	a.mu.Lock()
+	a.sessions = map[string]session{}
+	a.mu.Unlock()
 }

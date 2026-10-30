@@ -3,11 +3,10 @@ Description=BR Panel
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/brpanel
-EnvironmentFile=-/etc/brpanel.env
+ExecStart=/usr/local/bin/brpanel -data /var/lib/brpanel -addr :8080
 Restart=on-failure
-# O painel precisa de root para gerenciar units systemd.
-# Defina PANEL_APP_USER para que as aplicações rodem sem privilégios.
+# O painel precisa de root para gerenciar units systemd e o Nginx.
+# Na primeira execução, o token de instalação aparece em: journalctl -u brpanel
 
 [Install]
 WantedBy=multi-user.target

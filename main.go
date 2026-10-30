@@ -4,19 +4,17 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"flag"
 	"html/template"
 	"io/fs"
 	"log"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -24,23 +22,11 @@ import (
 //go:embed web
 var webFS embed.FS
 
+// Config holds the only bootstrap options, given as flags: where to listen and
+// where to keep data. Everything else lives in the SQLite database (see Settings).
 type Config struct {
-	Addr     string
-	DataDir  string
-	UnitDir  string
-	Password string
-	AppUser  string
-	Secure   bool
-
-	NginxDir    string
-	AcmeRoot    string
-	CertDir     string
-	AcmeEmail   string
-	PanelDomain string
-
-	GitHubAppID         string
-	GitHubKeyFile       string
-	GitHubWebhookSecret string
+	Addr    string
+	DataDir string
 }
 
 type Server struct {
@@ -48,64 +34,59 @@ type Server struct {
 	paths Paths
 	store *Store
 	auth  *Auth
-	gh    *GitHubApp // nil unless PANEL_GITHUB_APP_ID/PANEL_GITHUB_KEY_FILE are set
 	tmpl  map[string]*template.Template
+
+	setMu sync.RWMutex
+	set   Settings
+	gh    *GitHubApp // nil unless a GitHub App is configured
+
+	configured  atomic.Bool
+	setupToken  string // one-time token required by /setup, empty once configured
+	suggestedWH string // webhook secret suggested on the setup form
+	dummyHash   string // verified against when the user does not exist (timing parity)
 
 	pendMu  sync.Mutex
 	pending map[string]bool
 }
 
-func env(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
 func main() {
-	cfg := Config{
-		Addr:    env("PANEL_ADDR", "127.0.0.1:8080"),
-		DataDir: env("PANEL_DATA", "/var/lib/brpanel"),
-		UnitDir: env("PANEL_UNIT_DIR", "/etc/systemd/system"),
-		AppUser: os.Getenv("PANEL_APP_USER"),
-		Secure:  os.Getenv("PANEL_SECURE_COOKIE") == "1",
+	var cfg Config
+	flag.StringVar(&cfg.Addr, "addr", ":8080", "endereço de escuta do painel (ex.: 127.0.0.1:8080 após configurar o SSL)")
+	flag.StringVar(&cfg.DataDir, "data", "/var/lib/brpanel", "diretório de dados (banco SQLite, logs e apps)")
+	flag.Parse()
 
-		NginxDir:    env("PANEL_NGINX_DIR", "/etc/nginx/conf.d"),
-		AcmeRoot:    env("PANEL_ACME_ROOT", "/var/www/brpanel-acme"),
-		CertDir:     env("PANEL_CERT_DIR", "/etc/letsencrypt/live"),
-		AcmeEmail:   os.Getenv("PANEL_ACME_EMAIL"),
-		PanelDomain: strings.ToLower(os.Getenv("PANEL_DOMAIN")),
-
-		GitHubAppID:         os.Getenv("PANEL_GITHUB_APP_ID"),
-		GitHubKeyFile:       os.Getenv("PANEL_GITHUB_KEY_FILE"),
-		GitHubWebhookSecret: os.Getenv("PANEL_GITHUB_WEBHOOK_SECRET"),
-	}
-	if err := validateDomain(cfg.PanelDomain); err != nil {
-		log.Fatal("PANEL_DOMAIN: ", err)
-	}
-	if cfg.AppUser != "" && !regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`).MatchString(cfg.AppUser) {
-		log.Fatal("PANEL_APP_USER inválido")
-	}
 	for _, d := range []string{"", "logs", "env", "apps"} {
 		if err := os.MkdirAll(filepath.Join(cfg.DataDir, d), 0o750); err != nil {
 			log.Fatal(err)
 		}
 	}
-	cfg.Password = loadPassword(cfg.DataDir)
-
-	paths := Paths{Data: cfg.DataDir, Units: cfg.UnitDir}
-	store, err := OpenStore(paths.AppsFile())
+	store, err := OpenStore(filepath.Join(cfg.DataDir, "brpanel.db"))
+	if err != nil {
+		log.Fatal("banco de dados: ", err)
+	}
+	defer store.Close()
+	if err := store.ImportLegacy(filepath.Join(cfg.DataDir, "apps.json")); err != nil {
+		log.Fatal("migração do apps.json: ", err)
+	}
+	set, err := store.LoadSettings()
 	if err != nil {
 		log.Fatal(err)
 	}
-	srv := &Server{cfg: cfg, paths: paths, store: store, auth: NewAuth(cfg.Password, cfg.Secure), pending: map[string]bool{}}
-	if cfg.GitHubAppID != "" || cfg.GitHubKeyFile != "" {
-		if srv.gh, err = LoadGitHubApp(cfg.GitHubAppID, cfg.GitHubKeyFile); err != nil {
-			log.Fatal("GitHub App: ", err)
-		}
+
+	srv := &Server{cfg: cfg, paths: Paths{Data: cfg.DataDir}, store: store, auth: NewAuth(), pending: map[string]bool{}}
+	srv.dummyHash, _ = hashPassword(randomToken(16))
+	if err := srv.applySettings(set); err != nil {
+		log.Fatal(err)
 	}
 	if err := srv.loadTemplates(); err != nil {
 		log.Fatal(err)
+	}
+	if srv.configured.Load() {
+		if set.PanelDomain != "" {
+			go srv.publishPanel()
+		}
+	} else {
+		srv.announceSetup()
 	}
 
 	hs := &http.Server{
@@ -116,9 +97,6 @@ func main() {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    16 << 10,
-	}
-	if cfg.PanelDomain != "" {
-		go srv.publishPanel()
 	}
 	go func() {
 		log.Printf("BR Panel em http://%s (dados em %s)", cfg.Addr, cfg.DataDir)
@@ -134,21 +112,40 @@ func main() {
 	_ = hs.Shutdown(ctx)
 }
 
-// loadPassword uses PANEL_PASSWORD, or a generated one persisted in the data dir.
-func loadPassword(dir string) string {
-	if p := os.Getenv("PANEL_PASSWORD"); p != "" {
-		return p
+// settings returns a snapshot of the current settings.
+func (s *Server) settings() Settings {
+	s.setMu.RLock()
+	defer s.setMu.RUnlock()
+	return s.set
+}
+
+func (s *Server) githubApp() *GitHubApp {
+	s.setMu.RLock()
+	defer s.setMu.RUnlock()
+	return s.gh
+}
+
+func (s *Server) unitFile(app string) string {
+	return filepath.Join(s.settings().UnitDir, unitName(app))
+}
+
+// applySettings persists set and makes it the live configuration.
+func (s *Server) applySettings(set Settings) error {
+	var gh *GitHubApp
+	if set.GitHubAppID != "" && set.GitHubKey != "" {
+		var err error
+		if gh, err = ParseGitHubApp(set.GitHubAppID, []byte(set.GitHubKey)); err != nil {
+			return err
+		}
 	}
-	file := filepath.Join(dir, "admin_password")
-	if b, err := os.ReadFile(file); err == nil && len(strings.TrimSpace(string(b))) > 0 {
-		return strings.TrimSpace(string(b))
+	if err := s.store.SaveSettings(set); err != nil {
+		return err
 	}
-	p := randomToken(12)
-	if err := os.WriteFile(file, []byte(p+"\n"), 0o600); err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("senha de admin gerada (salva em %s): %s", file, p)
-	return p
+	s.setMu.Lock()
+	s.set, s.gh = set, gh
+	s.setMu.Unlock()
+	s.configured.Store(set.AdminHash != "")
+	return nil
 }
 
 func (s *Server) loadTemplates() error {
@@ -160,7 +157,7 @@ func (s *Server) loadTemplates() error {
 		}
 		return m
 	}}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(webFS, "web/templates/layout.html", "web/templates/"+page+".html")
 		if err != nil {
 			return err
@@ -177,6 +174,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.protected(s.handleLogout))
+	mux.HandleFunc("GET /setup", s.handleSetupForm)
+	mux.HandleFunc("POST /setup", s.handleSetup)
+	mux.HandleFunc("GET /settings", s.protected(s.handleSettingsForm))
+	mux.HandleFunc("POST /settings", s.protected(s.handleSettings))
 	mux.HandleFunc("POST /webhooks/github", s.handleGitHubWebhook)
 	mux.HandleFunc("GET /github", s.protected(s.handleGitHub))
 	mux.HandleFunc("GET /{$}", s.protected(s.handleApps))
@@ -187,7 +188,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /apps/{name}/edit", s.protected(s.handleEdit))
 	mux.HandleFunc("GET /apps/{name}/log", s.protected(s.handleLog))
 	mux.HandleFunc("POST /apps/{name}/{action}", s.protected(s.handleAction))
-	return securityHeaders(mux)
+	return securityHeaders(s.gate(mux))
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -222,6 +223,13 @@ type page struct {
 	Editing bool
 	SSL     bool
 	GH      ghStatus
+
+	Setup     bool
+	Set       Settings
+	HasKey    bool
+	HasSecret bool
+	Checks    []Check
+	Form      map[string]string // submitted values to refill on errors
 }
 
 type ghStatus struct {
@@ -253,7 +261,7 @@ func (s *Server) protected(h http.HandlerFunc) http.HandlerFunc {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-		if r.Method == http.MethodPost && !passwordEqual(r.PostFormValue("csrf"), csrf) {
+		if r.Method == http.MethodPost && !constEqual(r.PostFormValue("csrf"), csrf) {
 			http.Error(w, "token CSRF inválido", http.StatusForbidden)
 			return
 		}
@@ -266,241 +274,52 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if s.auth.locked(clientIP(r)) {
+	ip := clientIP(r)
+	if s.auth.locked(ip) {
 		w.WriteHeader(http.StatusTooManyRequests)
 		s.render(w, r, "login", page{Title: "Entrar", Error: "Muitas tentativas. Aguarde um minuto."})
 		return
 	}
-	if !s.auth.Login(w, r, r.PostFormValue("password")) {
+	set := s.settings()
+	username := strings.TrimSpace(r.PostFormValue("username"))
+	hash := set.AdminHash
+	if !constEqual(username, set.AdminUser) {
+		hash = s.dummyHash // same work whether or not the user exists
+	}
+	pw := r.PostFormValue("password")
+	if len(pw) > maxPassword || !verifyPassword(pw, hash) || hash == s.dummyHash {
+		s.auth.Fail(ip)
 		w.WriteHeader(http.StatusUnauthorized)
-		s.render(w, r, "login", page{Title: "Entrar", Error: "Senha incorreta."})
+		s.render(w, r, "login", page{Title: "Entrar", Error: "Usuário ou senha incorretos."})
 		return
 	}
+	s.auth.Start(w, r)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// gate sends everything to /setup until the first-run wizard has been completed,
+// and hides the wizard afterwards.
+func (s *Server) gate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if s.configured.Load() {
+			if p == "/setup" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+		} else if p != "/setup" && !strings.HasPrefix(p, "/static/") {
+			if p == "/webhooks/github" {
+				http.NotFound(w, r)
+				return
+			}
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	s.auth.Logout(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
-}
-
-func (s *Server) handleApps(w http.ResponseWriter, r *http.Request) {
-	apps := s.store.List()
-	states := map[string]string{}
-	for _, a := range apps {
-		states[a.Name] = serviceState(a.Name)
-	}
-	s.render(w, r, "apps", page{Title: "Aplicações", Apps: apps, States: states})
-}
-
-func (s *Server) handleNewForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, "app_form", page{Title: "Nova aplicação", App: App{Branch: "main"}})
-}
-
-func appFromForm(r *http.Request, name string) (App, error) {
-	port, _ := strconv.Atoi(strings.TrimSpace(r.PostFormValue("port")))
-	a := App{
-		Name:       name,
-		Repo:       strings.TrimSpace(r.PostFormValue("repo")),
-		Branch:     strings.TrimSpace(r.PostFormValue("branch")),
-		BuildCmd:   strings.TrimSpace(r.PostFormValue("build_cmd")),
-		StartCmd:   strings.TrimSpace(r.PostFormValue("start_cmd")),
-		Port:       port,
-		Domain:     strings.ToLower(strings.TrimSpace(r.PostFormValue("domain"))),
-		AutoDeploy: r.PostFormValue("auto_deploy") == "on",
-		Env:        r.PostFormValue("env"),
-		Status:     StatusIdle,
-	}
-	if a.Branch == "" {
-		a.Branch = "main"
-	}
-	for _, err := range []error{
-		validateName(a.Name), validateRepo(a.Repo), validateBranch(a.Branch),
-		validateCommand("Comando de build", a.BuildCmd, false),
-		validateCommand("Comando de início", a.StartCmd, true),
-		validatePort(a.Port), validateDomain(a.Domain),
-	} {
-		if err != nil {
-			return a, err
-		}
-	}
-	if a.Domain != "" && a.Port == 0 {
-		return a, errors.New("informe a porta da aplicação para publicar um domínio")
-	}
-	if _, ok := githubSlug(a.Repo); a.AutoDeploy && !ok {
-		return a, errors.New("deploy automático exige um repositório do GitHub")
-	}
-	_, err := parseEnv(a.Env)
-	return a, err
-}
-
-// domainTaken reports whether another app (or the panel) already uses the domain.
-func (s *Server) domainTaken(domain, except string) bool {
-	if domain == "" {
-		return false
-	}
-	if domain == s.cfg.PanelDomain {
-		return true
-	}
-	for _, o := range s.store.List() {
-		if o.Name != except && o.Domain == domain {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
-	a, err := appFromForm(r, strings.TrimSpace(r.PostFormValue("name")))
-	if err == nil {
-		if _, exists := s.store.Get(a.Name); exists {
-			err = errors.New("já existe uma aplicação com esse nome")
-		} else if s.domainTaken(a.Domain, a.Name) {
-			err = errors.New("domínio já usado por outra aplicação")
-		}
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		s.render(w, r, "app_form", page{Title: "Nova aplicação", App: a, Error: err.Error()})
-		return
-	}
-	if err := s.store.Put(a); err != nil {
-		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
-		return
-	}
-	s.startDeploy(a.Name, "criação")
-	http.Redirect(w, r, "/apps/"+a.Name, http.StatusSeeOther)
-}
-
-// appFor loads the app named in the path, replying 404 if absent.
-func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (App, bool) {
-	name := r.PathValue("name")
-	if validateName(name) == nil {
-		if a, ok := s.store.Get(name); ok {
-			return a, true
-		}
-	}
-	http.NotFound(w, r)
-	return App{}, false
-}
-
-func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
-	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "app", page{Title: a.Name, App: a, State: serviceState(a.Name), SSL: a.Domain != "" && s.hasCert(a.Domain)})
-	}
-}
-
-func (s *Server) handleEditForm(w http.ResponseWriter, r *http.Request) {
-	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "app_form", page{Title: "Editar " + a.Name, App: a, Editing: true})
-	}
-}
-
-func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
-	old, ok := s.appFor(w, r)
-	if !ok {
-		return
-	}
-	a, err := appFromForm(r, old.Name)
-	if err == nil && s.domainTaken(a.Domain, a.Name) {
-		err = errors.New("domínio já usado por outra aplicação")
-	}
-	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		s.render(w, r, "app_form", page{Title: "Editar " + old.Name, App: a, Editing: true, Error: err.Error()})
-		return
-	}
-	a.Status, a.LastDeploy = old.Status, old.LastDeploy
-	if err := s.store.Put(a); err != nil {
-		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/apps/"+a.Name+"?msg=Configura%C3%A7%C3%A3o+salva.+Fa%C3%A7a+um+novo+deploy+para+aplicar.", http.StatusSeeOther)
-}
-
-func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.appFor(w, r)
-	if !ok {
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Deploying", strconv.FormatBool(a.Deploying()))
-	if r.URL.Query().Get("kind") == "service" {
-		_, _ = w.Write([]byte(journal(a.Name)))
-		return
-	}
-	_, _ = w.Write([]byte(tailFile(s.paths.LogFile(a.Name), 64<<10)))
-}
-
-func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.appFor(w, r)
-	if !ok {
-		return
-	}
-	msg := ""
-	switch action := r.PathValue("action"); action {
-	case "deploy":
-		if !s.startDeploy(a.Name, "manual") {
-			msg = "Já existe um deploy em andamento."
-		}
-	case "start", "stop", "restart":
-		if out, err := systemctl(action, unitName(a.Name)); err != nil {
-			msg = "Falha: " + out
-		} else {
-			msg = "Ação executada: " + action
-		}
-	case "delete":
-		if a.Deploying() {
-			msg = "Aguarde o deploy terminar antes de excluir."
-			break
-		}
-		if err := s.removeApp(a.Name); err != nil {
-			msg = "Falha ao excluir: " + err.Error()
-			break
-		}
-		http.Redirect(w, r, "/?msg=Aplica%C3%A7%C3%A3o+exclu%C3%ADda.", http.StatusSeeOther)
-		return
-	default:
-		http.NotFound(w, r)
-		return
-	}
-	q := ""
-	if msg != "" {
-		q = "?msg=" + url.QueryEscape(msg)
-	}
-	http.Redirect(w, r, "/apps/"+a.Name+q, http.StatusSeeOther)
-}
-
-func (s *Server) handleGitHub(w http.ResponseWriter, r *http.Request) {
-	scheme, host := "http", r.Host
-	if s.cfg.PanelDomain != "" {
-		scheme, host = "https", s.cfg.PanelDomain
-	} else if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
-	}
-	s.render(w, r, "github", page{Title: "GitHub", GH: ghStatus{
-		WebhookEnabled: s.cfg.GitHubWebhookSecret != "",
-		AppEnabled:     s.gh != nil,
-		WebhookURL:     scheme + "://" + host + "/webhooks/github",
-	}})
-}
-
-// publishPanel exposes the panel itself on PANEL_DOMAIN (needed to receive GitHub webhooks).
-func (s *Server) publishPanel() {
-	host, port, err := net.SplitHostPort(s.cfg.Addr)
-	if err != nil {
-		log.Printf("PANEL_DOMAIN: PANEL_ADDR inválido: %v", err)
-		return
-	}
-	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "127.0.0.1"
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	site := Site{Key: "_panel", Domain: s.cfg.PanelDomain, Upstream: net.JoinHostPort(host, port), MaxBody: "6m"}
-	if err := s.ensureSite(ctx, os.Stderr, site); err != nil {
-		log.Printf("PANEL_DOMAIN: %v", err)
-		return
-	}
-	log.Printf("painel publicado em %s", s.cfg.PanelDomain)
 }

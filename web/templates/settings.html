@@ -1,0 +1,81 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">{{if .Setup}}Bem-vindo ao BR Panel{{else}}Configurações{{end}}</h1></div>
+{{if .Setup}}<p class="intro">Este é o primeiro início. Crie a conta de administrador e ajuste o básico — tudo fica salvo no banco SQLite interno do painel e pode ser alterado depois em <b>Configurações</b>.</p>{{end}}
+
+<h2 class="mdc-typography--subtitle1 section-title">Verificação do servidor</h2>
+<div class="mdc-card"><div class="card-body checks">
+  {{range .Checks}}
+  <div class="check"><i class="material-icons {{if .OK}}ok{{else if .Optional}}warn{{else}}bad{{end}}">{{if .OK}}check_circle{{else if .Optional}}error_outline{{else}}cancel{{end}}</i>
+    <span>{{.Name}}</span>{{if not .OK}}<span class="muted">— {{.Hint}}</span>{{end}}</div>
+  {{end}}
+</div></div>
+
+<form method="post" action="{{if .Setup}}/setup{{else}}/settings{{end}}">
+  {{if not .Setup}}<input type="hidden" name="csrf" value="{{.CSRF}}">{{end}}
+
+  {{if .Setup}}
+  <h2 class="mdc-typography--subtitle1 section-title">1. Token de instalação</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "token" "label" "Token de instalação" "required" true "autocomplete" "off" "hint" "Impresso no log do serviço na primeira execução (journalctl -u brpanel) e salvo em <diretório de dados>/setup_token. Impede que outra pessoa configure o painel antes de você."}}
+  </div></div>
+
+  <h2 class="mdc-typography--subtitle1 section-title">2. Conta de administrador</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "username" "label" "Usuário" "value" .Form.username "required" true "autocomplete" "username" "hint" "3 a 32 caracteres: a-z, 0-9, _ e -"}}
+    {{template "field" dict "name" "password" "label" "Senha (mínimo 12 caracteres)" "type" "password" "required" true "autocomplete" "new-password"}}
+    {{template "field" dict "name" "password2" "label" "Repita a senha" "type" "password" "required" true "autocomplete" "new-password"}}
+  </div></div>
+  {{end}}
+
+  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}3. {{end}}Domínio e SSL do painel</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "panel_domain" "label" "Domínio do painel (opcional)" "value" .Set.PanelDomain "hint" "Ex.: painel.exemplo.com.br. O DNS precisa apontar para este servidor; o painel é publicado via Nginx."}}
+    {{template "field" dict "name" "acme_email" "label" "E-mail do Let's Encrypt (opcional)" "value" .Set.AcmeEmail "autocomplete" "email" "hint" "Com e-mail, o SSL é emitido e renovado automaticamente para o painel e para os domínios das aplicações."}}
+  </div></div>
+
+  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}4. {{end}}Execução das aplicações</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "app_user" "label" "Usuário do sistema (recomendado)" "value" .Set.AppUser "hint" "Ex.: brapps. Criado automaticamente se não existir. As aplicações são clonadas, compiladas e executadas com ele, sem privilégios de root."}}
+  </div></div>
+
+  <h2 class="mdc-typography--subtitle1 section-title">{{if .Setup}}5. {{end}}GitHub App (opcional)</h2>
+  <div class="mdc-card"><div class="card-body">
+    <p class="muted">Deploy automático a cada push e clone de repositórios privados. Veja o passo a passo na página <a href="/github">GitHub</a>.</p>
+    {{template "field" dict "name" "github_app_id" "label" "App ID" "value" .Set.GitHubAppID}}
+    {{template "area" dict "name" "github_key" "label" "Chave privada (.pem)" "value" "" "rows" 6 "hint" (printf "%s" (or (and .HasKey "Chave já configurada — cole outra para substituir.") "Cole o conteúdo completo do arquivo .pem."))}}
+    {{template "field" dict "name" "webhook_secret" "label" "Segredo do webhook" "value" .Set.GitHubWebhookSecret "autocomplete" "off" "hint" (or (and .HasSecret "Segredo já configurado — preencha para substituir.") (and .Setup "Valor sugerido: copie para o campo Webhook secret do GitHub App.") "Mínimo de 16 caracteres.")}}
+    {{if and (not .Setup) (or .HasKey .HasSecret)}}
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_github" name="clear_github">
+        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="clear_github">Remover a integração com o GitHub</label>
+    </div>
+    {{end}}
+  </div></div>
+
+  {{if not .Setup}}
+  <h2 class="mdc-typography--subtitle1 section-title">Alterar senha</h2>
+  <div class="mdc-card"><div class="card-body">
+    <p class="muted">Usuário: <b>{{.Form.username}}</b>. Deixe em branco para manter a senha atual. Ao trocar, todas as sessões são encerradas.</p>
+    {{template "field" dict "name" "current_password" "label" "Senha atual" "type" "password" "autocomplete" "current-password"}}
+    {{template "field" dict "name" "new_password" "label" "Nova senha (mínimo 12 caracteres)" "type" "password" "autocomplete" "new-password"}}
+    {{template "field" dict "name" "new_password2" "label" "Repita a nova senha" "type" "password" "autocomplete" "new-password"}}
+  </div></div>
+
+  <h2 class="mdc-typography--subtitle1 section-title">Avançado</h2>
+  <div class="mdc-card"><div class="card-body">
+    {{template "field" dict "name" "nginx_dir" "label" "Diretório de vhosts do Nginx" "value" .Set.NginxDir}}
+    {{template "field" dict "name" "acme_root" "label" "Webroot do desafio ACME" "value" .Set.AcmeRoot}}
+    {{template "field" dict "name" "cert_dir" "label" "Diretório dos certificados" "value" .Set.CertDir}}
+    {{template "field" dict "name" "unit_dir" "label" "Diretório das units systemd" "value" .Set.UnitDir}}
+  </div></div>
+  {{end}}
+
+  <div class="actions form-end">
+    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Setup}}Concluir configuração{{else}}Salvar{{end}}</span></button>
+  </div>
+</form>
+{{end}}

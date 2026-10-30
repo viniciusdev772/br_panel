@@ -14,7 +14,7 @@ func TestSystemdEscape(t *testing.T) {
 }
 
 func TestRenderUnit(t *testing.T) {
-	u := renderUnit(App{Name: "web", StartCmd: "npm start"}, Paths{Data: "/d", Units: "/u"}, "app")
+	u := renderUnit(App{Name: "web", StartCmd: "npm start"}, Paths{Data: "/d"}, "app")
 	for _, s := range []string{"WorkingDirectory=/d/apps/web/src", "EnvironmentFile=/d/env/web.env", `ExecStart=/bin/sh -c "exec npm start"`, "User=app"} {
 		if !strings.Contains(u, s) {
 			t.Errorf("faltou %q em:\n%s", s, u)

@@ -1,3 +1,29 @@
+{{define "field"}}
+<div class="field">
+<label class="mdc-text-field mdc-text-field--outlined full">
+  <span class="mdc-notched-outline">
+    <span class="mdc-notched-outline__leading"></span>
+    <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-{{.name}}">{{.label}}</span></span>
+    <span class="mdc-notched-outline__trailing"></span>
+  </span>
+  <input class="mdc-text-field__input" type="{{or .type "text"}}" name="{{.name}}" value="{{.value}}" aria-labelledby="lbl-{{.name}}" {{if .autocomplete}}autocomplete="{{.autocomplete}}"{{end}} {{if .required}}required{{end}} {{if .readonly}}readonly{{end}}>
+</label>
+{{if .hint}}<p class="hint">{{.hint}}</p>{{end}}
+</div>
+{{end}}
+{{define "area"}}
+<div class="field">
+<label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
+  <span class="mdc-notched-outline">
+    <span class="mdc-notched-outline__leading"></span>
+    <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-{{.name}}">{{.label}}</span></span>
+    <span class="mdc-notched-outline__trailing"></span>
+  </span>
+  <span class="mdc-text-field__resizer"><textarea class="mdc-text-field__input" rows="{{or .rows 5}}" name="{{.name}}" aria-labelledby="lbl-{{.name}}" spellcheck="false" autocomplete="off">{{.value}}</textarea></span>
+</label>
+{{if .hint}}<p class="hint">{{.hint}}</p>{{end}}
+</div>
+{{end}}
 {{define "layout"}}<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -18,6 +44,7 @@
       </section>
       {{if .Authed}}
       <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
+        <a class="mdc-button topbar-btn" href="/settings"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">settings</i><span class="mdc-button__label">Configurações</span></a>
         <a class="mdc-button topbar-btn" href="/github"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">hub</i><span class="mdc-button__label">GitHub</span></a>
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">

@@ -12,10 +12,10 @@
 <div class="mdc-card"><div class="card-body steps">
   <ol>
     <li>No GitHub: <b>Settings → Developer settings → GitHub Apps → New GitHub App</b>.</li>
-    <li><b>Webhook URL:</b> <code>{{.GH.WebhookURL}}</code> (precisa ser HTTPS público; defina <code>PANEL_DOMAIN</code> para o painel ganhar Nginx + SSL). <b>Content type:</b> <code>application/json</code>.</li>
-    <li>Defina um <b>Webhook secret</b> e exporte o mesmo valor em <code>PANEL_GITHUB_WEBHOOK_SECRET</code>.</li>
+    <li><b>Webhook URL:</b> <code>{{.GH.WebhookURL}}</code> (precisa ser HTTPS público; informe um domínio para o painel em <a href="/settings">Configurações</a> para ele ganhar Nginx + SSL). <b>Content type:</b> <code>application/json</code>.</li>
+    <li>Defina um <b>Webhook secret</b> e salve o mesmo valor em <a href="/settings">Configurações</a>.</li>
     <li><b>Permissions → Repository:</b> <i>Contents: Read-only</i> (Metadata é incluída automaticamente). <b>Subscribe to events:</b> <i>Push</i>.</li>
-    <li>Gere uma <b>private key</b> (.pem), salve no servidor e informe <code>PANEL_GITHUB_APP_ID</code> e <code>PANEL_GITHUB_KEY_FILE</code> — usado para clonar repositórios privados com um token de 1 hora, somente leitura.</li>
+    <li>Gere uma <b>private key</b> (.pem), cole o conteúdo e o App ID em <a href="/settings">Configurações</a> — usado para clonar repositórios privados com um token de 1 hora, somente leitura.</li>
     <li><b>Install App</b> nos repositórios desejados e marque <i>Deploy automático</i> na aplicação.</li>
   </ol>
   <p class="muted">Cada push na branch configurada dispara um deploy; pushes recebidos durante um deploy geram uma nova execução ao final.</p>

@@ -12,8 +12,6 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -61,11 +59,7 @@ func testApp(t *testing.T, api string) (*GitHubApp, *rsa.PrivateKey) {
 		t.Fatal(err)
 	}
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	f := filepath.Join(t.TempDir(), "k.pem")
-	if err := os.WriteFile(f, pemBytes, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	g, err := LoadGitHubApp("12345", f)
+	g, err := ParseGitHubApp("12345", pemBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
