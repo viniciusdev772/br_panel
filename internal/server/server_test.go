@@ -116,6 +116,16 @@ func TestFirstRunGate(t *testing.T) {
 	}
 }
 
+func TestSetupLinkCarriesCode(t *testing.T) {
+	s, h := newTestServer(t)
+	if w := do(h, "GET", "/setup?code="+s.setupToken, nil); !strings.Contains(w.Body.String(), `type="hidden" name="token" value="`+s.setupToken+`"`) {
+		t.Error("link com o código deveria preencher o token e esconder o campo")
+	}
+	if w := do(h, "GET", "/setup?code=errado", nil); strings.Contains(w.Body.String(), s.setupToken) || !strings.Contains(w.Body.String(), "Código de instalação") {
+		t.Error("código errado deve mostrar o campo e nunca vazar o token")
+	}
+}
+
 func TestSetupRequiresTokenAndStrongPassword(t *testing.T) {
 	s, h := newTestServer(t)
 	base := func() url.Values {

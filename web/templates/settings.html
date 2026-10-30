@@ -20,7 +20,7 @@
   {{if .Setup}}
   {{if .AppUserDefault}}<input type="hidden" name="app_user" value="{{.AppUserDefault}}">{{end}}
   <div class="mdc-card"><div class="card-body">
-    {{template "field" dict "name" "token" "label" "Código de instalação" "required" true "autocomplete" "off" "hint" "Aparece na tela do terminal onde você instalou o painel. É só para garantir que foi você mesmo."}}
+    {{if .SetupCode}}<input type="hidden" name="token" value="{{.SetupCode}}">{{else}}{{template "field" dict "name" "token" "label" "Código de instalação" "required" true "autocomplete" "off" "hint" "Aparece na tela do terminal onde você instalou o painel. É só para garantir que foi você mesmo."}}{{end}}
     {{template "field" dict "name" "username" "label" "Seu nome de usuário" "value" .Form.username "required" true "autocomplete" "username"}}
     {{template "field" dict "name" "password" "label" "Crie uma senha" "type" "password" "required" true "autocomplete" "new-password" "hint" "Pelo menos 12 caracteres."}}
     {{template "field" dict "name" "password2" "label" "Repita a senha" "type" "password" "required" true "autocomplete" "new-password"}}

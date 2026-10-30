@@ -17,12 +17,12 @@ make build                                   # gera bin/brpanel
 sudo install -m 0755 bin/brpanel /usr/local/bin/brpanel
 sudo install -m 0644 deployments/systemd/brpanel.service /etc/systemd/system/
 sudo systemctl enable --now brpanel
-sudo journalctl -u brpanel | grep "PRIMEIRO INÍCIO"   # mostra o token de instalação
+sudo journalctl -u brpanel | grep "PRIMEIRO INÍCIO"   # mostra o link de configuração
 ```
 
 Abra `http://<IP-do-servidor>:8080/setup`. A tela pede só três coisas:
 
-1. **Código de instalação** — impresso no log na primeira execução (e em `/var/lib/brpanel/setup_token`).
+1. **Código de instalação** — já vem no link do log (também em `/var/lib/brpanel/setup_token`); sem o link, digite-o.
    Impede que outra pessoa configure o painel antes de você; é apagado ao concluir.
 2. **Usuário** e **senha** (mín. 12 caracteres).
 

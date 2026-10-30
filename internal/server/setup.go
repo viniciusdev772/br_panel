@@ -26,17 +26,29 @@ func (s *Server) announceSetup() {
 		log.Fatal(err)
 	}
 	_, port, _ := net.SplitHostPort(s.cfg.Addr)
-	log.Printf("PRIMEIRO INÍCIO: abra http://<IP-do-servidor>:%s/setup e informe o token de instalação: %s", port, s.setupToken)
+	log.Printf("PRIMEIRO INÍCIO: abra o link http://<IP-do-servidor>:%s/setup?code=%s", port, s.setupToken)
 	log.Printf("(o token também está em %s e é removido ao concluir)", file)
 }
 
+// validCode returns code when it is the current setup token, so a wrong one never hides the field.
+func (s *Server) validCode(code string) string {
+	if code = strings.TrimSpace(code); auth.ConstEqual(code, s.setupToken) {
+		return code
+	}
+	return ""
+}
+
 func (s *Server) handleSetupForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: settings.Default(), AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Form: map[string]string{}})
+	code := s.validCode(r.URL.Query().Get("code")) // the link printed at install time carries it
+	if code != "" {
+		w.Header().Set("Referrer-Policy", "no-referrer")
+	}
+	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, SetupCode: code, Set: settings.Default(), AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Form: map[string]string{}})
 }
 
 func (s *Server) setupError(w http.ResponseWriter, r *http.Request, code int, set settings.Settings, msg string) {
 	w.WriteHeader(code)
-	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, Set: set, AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Error: msg,
+	s.render(w, r, "settings", page{Title: "Configuração inicial", Setup: true, SetupCode: s.validCode(r.PostFormValue("token")), Set: set, AppUserDefault: defaultAppUser(), Checks: settings.CheckSystem(), Error: msg,
 		Form: map[string]string{"username": strings.TrimSpace(r.PostFormValue("username"))}})
 }
 

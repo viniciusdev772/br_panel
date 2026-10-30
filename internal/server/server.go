@@ -268,6 +268,7 @@ type page struct {
 	UsedBy         []string
 	VarGroups      []varGroup
 
+	SetupCode      string // setup only: code already known from the install link
 	AppUserDefault string // setup only: system user submitted silently with the form
 	Setup          bool
 	Set            settings.Settings

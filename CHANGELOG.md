@@ -5,7 +5,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 ## [Não lançado]
 
 ### Alterado
-- Primeiro início simplificado: pede apenas código de instalação, usuário e senha; domínio, SSL e GitHub passaram para Configurações e o usuário das aplicações é criado automaticamente.
+- Primeiro início simplificado (o log imprime um link `/setup?code=…` que já traz o código): pede apenas código de instalação, usuário e senha; domínio, SSL e GitHub passaram para Configurações e o usuário das aplicações é criado automaticamente.
 
 ### Adicionado
 - Painel web em Go para clonar repositórios Git e subir aplicações como serviços systemd, com interface Material Design 2.
