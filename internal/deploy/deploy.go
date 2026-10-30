@@ -273,13 +273,10 @@ func (d *Deployer) ensureDNS(ctx context.Context, log io.Writer, domain string) 
 	if cf == nil {
 		return
 	}
-	ip, err := cloudflare.ServerIP()
+	ip, res, err := cf.EnsureServerA(ctx, domain)
 	if err == nil {
-		var res string
-		if res, err = cf.EnsureA(ctx, domain, ip); err == nil {
-			fmt.Fprintf(log, "DNS na Cloudflare: %s -> %s (%s)\n", domain, ip, res)
-			return
-		}
+		fmt.Fprintf(log, "DNS na Cloudflare: %s -> %s (%s)\n", domain, ip, res)
+		return
 	}
 	fmt.Fprintf(log, "AVISO: não foi possível ajustar o DNS na Cloudflare (%v). Aponte %s para este servidor manualmente.\n", err, domain)
 }

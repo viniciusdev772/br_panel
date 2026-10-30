@@ -1,0 +1,16 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">GitHub App</h1></div>
+<div class="mdc-card"><div class="card-body">
+{{if .Error}}
+  <p>Não foi possível concluir a criação do App.</p>
+  <div class="actions"><a class="mdc-button mdc-button--raised" href="/github"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Voltar</span></a></div>
+{{else}}
+  <p><b>GitHub App criado e salvo.</b> O painel já guardou o App ID, a chave privada e o segredo do webhook.</p>
+  <p>Falta instalar o App nos repositórios que terão deploy automático. Depois, marque <i>Deploy automático</i> na aplicação.</p>
+  <div class="actions">
+    <a class="mdc-button mdc-button--raised" href="{{.GH.InstallURL}}" rel="noopener"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Instalar nos repositórios</span></a>
+    <a class="mdc-button" href="/github"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Voltar ao painel</span></a>
+  </div>
+{{end}}
+</div></div>
+{{end}}

@@ -125,3 +125,30 @@ func TestInstallationToken(t *testing.T) {
 		t.Fatalf("esperava ErrNotInstalled, veio %v", err)
 	}
 }
+
+func TestManifestAndConvert(t *testing.T) {
+	m, err := Manifest("BR Panel x", "https://p.example.com")
+	if err != nil || !strings.Contains(m, `"url":"https://p.example.com/webhooks/github"`) || !strings.Contains(m, `"redirect_url":"https://p.example.com/github/app/callback"`) ||
+		!strings.Contains(m, `"contents":"read"`) || !strings.Contains(m, `"push"`) {
+		t.Fatalf("%v %s", err, m)
+	}
+	var path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.Method + " " + r.URL.Path
+		if r.Header.Get("Authorization") != "" {
+			t.Error("conversão não deve enviar credenciais")
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":42,"slug":"br-panel-x","pem":"-----BEGIN-----","webhook_secret":"abcdef0123456789abcd"}`))
+	}))
+	defer srv.Close()
+	c, err := ConvertManifest(context.Background(), srv.URL, "abc123")
+	if err != nil || c.ID != 42 || c.Slug != "br-panel-x" || path != "POST /app-manifests/abc123/conversions" {
+		t.Fatalf("%+v %v %s", c, err, path)
+	}
+	for _, bad := range []string{"", "../x", "a/b", "a b", strings.Repeat("a", 101)} {
+		if _, err := ConvertManifest(context.Background(), srv.URL, bad); err == nil {
+			t.Errorf("código %q aceito", bad)
+		}
+	}
+}

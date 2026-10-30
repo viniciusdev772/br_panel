@@ -49,6 +49,11 @@ type Server struct {
 	set   settings.Settings
 	gh    *githubapp.Client // nil unless a GitHub App is configured
 
+	ghMu       sync.Mutex // guards the pending GitHub App creation state
+	ghState    string     // single-use "state" of the manifest flow in progress
+	ghStateExp time.Time
+	ghAPI      string // GitHub API base; empty outside tests
+
 	configured atomic.Bool
 	setupToken string // one-time token required by /setup, empty once configured
 	dummyHash  string // verified against when the user does not exist (timing parity)
@@ -161,7 +166,7 @@ func (s *Server) loadTemplates() error {
 		"join":  strings.Join,
 		"split": strings.Split,
 	}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "settings", "database", "database_new"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {
 			return err
@@ -184,6 +189,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /settings", s.protected(s.handleSettings))
 	mux.HandleFunc("POST /webhooks/github", s.handleGitHubWebhook)
 	mux.HandleFunc("GET /github", s.protected(s.handleGitHub))
+	mux.HandleFunc("POST /github/domain", s.protected(s.handleGitHubDomain))
+	mux.HandleFunc("GET /github/app/new", s.protected(s.handleGitHubAppNew))
+	mux.HandleFunc("GET /github/app/callback", s.handleGitHubCallback) // reached from github.com: validated by its single-use state
 	mux.HandleFunc("GET /{$}", s.protected(s.handleApps))
 	mux.HandleFunc("GET /apps/new", s.protected(s.handleNewForm))
 	mux.HandleFunc("POST /apps", s.protected(s.handleCreate))
@@ -283,6 +291,16 @@ type ghStatus struct {
 	WebhookEnabled bool
 	AppEnabled     bool
 	WebhookURL     string
+
+	// One-click App creation (manifest flow).
+	HasCloudflare bool
+	PanelDomain   string
+	PanelReady    bool // domain set and certificate issued
+	OnPanelDomain bool // the browser is already on the panel domain
+	NeedEmail     bool // no Let's Encrypt e-mail saved yet
+	InstallURL    string
+	CreateURL     string
+	Manifest      string
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, p page) {

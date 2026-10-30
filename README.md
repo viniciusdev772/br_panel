@@ -122,6 +122,16 @@ Se algo falhar (zona fora da conta, token sem permissão, servidor atrás de NAT
 
 ## GitHub App: deploy automático
 
+### Criação automática (recomendado)
+
+Na página **GitHub** do painel:
+
+1. **Domínio do painel.** O GitHub só entrega pushes a um endereço HTTPS público. Se a Cloudflare estiver configurada, informe um domínio (e o e-mail do Let's Encrypt, se ainda não salvo): o painel cria o registro DNS A, publica o painel com Nginx e emite o SSL. Sem a Cloudflare, defina o domínio em **Configurações**, com o DNS já apontando para o servidor.
+2. Abra o painel pelo domínio (`https://<domínio>/github`; será preciso entrar de novo) e clique em **Criar GitHub App**. O painel envia ao GitHub o App já preenchido (webhook de push, *Contents: read-only*); você só confirma lá.
+3. O GitHub devolve você ao painel, que guarda sozinho o App ID, a chave privada e o segredo do webhook. Depois, instale o App nos repositórios e marque **Deploy automático** na aplicação.
+
+### Configuração manual
+
 1. Crie um GitHub App (a página **GitHub** do painel mostra a URL do webhook e as permissões):
    webhook em `https://<domínio-do-painel>/webhooks/github`, content type JSON, evento **Push**,
    permissão **Contents: read-only**.

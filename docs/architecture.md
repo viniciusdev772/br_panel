@@ -16,7 +16,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
 | `internal/sysinfo` | Leitura de cgroup v2 e `/proc` (RAM, carga, disco, uptime) |
 | `internal/cloudflare` | Registro DNS A do domínio da app via API Token da Cloudflare (só biblioteca padrão) |
-| `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório |
+| `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório, criação do App pelo fluxo de manifest |
 | `internal/settings` | Configuração guardada no banco, validação, Argon2id |
 | `internal/store` | SQLite: apps, configurações, métricas; migrações |
 | `internal/auth` | Sessões, CSRF, bloqueio por IP, `ClientIP`/`IsHTTPS` |
@@ -30,7 +30,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 graph LR
   cmd[cmd/brpanel] --> server
   cmd --> store
-  server --> dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
+  server --> cloudflare & dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
   deploy --> cloudflare & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
   dbengine --> settings & store & systemd & validate & execx
   monitor --> store & sysinfo & systemd
@@ -90,7 +90,10 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `POST /databases/{name}/{start\|stop\|restart\|backup\|restore\|backup-delete\|schedule\|regenerate\|public\|delete}` | sessão+CSRF | Ações |
 | `POST /apps/{name}/env` | sessão+CSRF | Salvar variáveis (valida referências a bancos) |
 | `GET/POST /settings` | sessão (+CSRF) | Configurações |
-| `GET /github` | sessão | Guia do GitHub App |
+| `GET /github` | sessão | Criação guiada do GitHub App e guia manual |
+| `POST /github/domain` | sessão + CSRF | Cria o registro DNS na Cloudflare, salva o domínio do painel e o publica |
+| `GET /github/app/new` | sessão | Página que envia o manifest do App ao GitHub (CSP relaxada só aqui) |
+| `GET /github/app/callback` | `state` de uso único | Retorno do GitHub: troca o `code` pelas credenciais do App e as salva |
 | `POST /webhooks/github` | HMAC do GitHub | Eventos `ping` e `push` |
 | `GET /static/*` | — | CSS/JS embutidos |
 

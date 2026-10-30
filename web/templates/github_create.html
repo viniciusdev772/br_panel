@@ -1,0 +1,16 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">Criar GitHub App</h1></div>
+<div class="mdc-card"><div class="card-body steps">
+  <ol>
+    <li>Clique em <b>Continuar no GitHub</b>. O painel envia o formulário do App já preenchido (webhook de push e permissão <i>Contents: read-only</i>).</li>
+    <li>No GitHub, confira o nome (ele precisa ser único; pode trocar) e confirme com <b>Create GitHub App</b>.</li>
+    <li>O GitHub devolve você ao painel, que guarda o App ID, a chave privada e o segredo do webhook sozinho.</li>
+    <li>Por fim, instale o App nos repositórios desejados e marque <i>Deploy automático</i> na aplicação.</li>
+  </ol>
+  <p class="muted">O App é criado na conta do GitHub em que você estiver logado. Este pedido vale por 15 minutos.</p>
+  <form method="post" action="{{.GH.CreateURL}}">
+    <input type="hidden" name="manifest" value="{{.GH.Manifest}}">
+    <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Continuar no GitHub</span></button></div>
+  </form>
+</div></div>
+{{end}}

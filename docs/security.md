@@ -3,7 +3,7 @@
 ## Modelo de ameaças
 - O painel roda como root e **executa código de repositórios Git** (build e início). Quem controla um repositório cadastrado controla o que roda como o usuário das aplicações. Use um repositório em que você confia e o usuário sem privilégios (Configurações).
 - Quem acessa o painel como admin tem execução de código no servidor (comandos de build/início são definidos por ele).
-- A internet vê: `/setup` (só antes de configurar, com token), `/login`, `/static/*` e `/webhooks/github` (com HMAC).
+- A internet vê: `/setup` (só antes de configurar, com token), `/login`, `/static/*` `/webhooks/github` (com HMAC) e `/github/app/callback` (só com o `state` de uso único gerado para o admin logado).
 
 ## Controles
 | Risco | Controle | Onde |
@@ -14,6 +14,7 @@
 | Injeção em comando/unit/Nginx | Validadores estritos; argv separado; `Escape` de `ExecStart`; `nginx -t` com rollback | `validate`, `systemd`, `nginx` |
 | Detecção maliciosa (`package.json`) | Caminhos só passam por `safeRel`; nomes por regex | `detect` |
 | Webhook forjado | HMAC-SHA256 em tempo constante antes de qualquer efeito; limite de 5 MiB | `githubapp`, `server/webhook.go` |
+| Retorno forjado do GitHub na criação do App | O cookie de sessão é `SameSite=Strict` e não acompanha o redirecionamento; o callback exige o `state` aleatório de uso único (15 min, comparação em tempo constante). `code` validado por regex antes de ir à URL da API. Resposta com `Referrer-Policy: no-referrer` | `server/githubsetup.go`, `githubapp.ConvertManifest` |
 | Vazamento da credencial da Cloudflare (a Global API Key dá acesso total à conta; prefira um token restrito) | Guardada só no SQLite (0600); enviada apenas em cabeçalhos (`Authorization` ou `X-Auth-Email`/`X-Auth-Key`) para `api.cloudflare.com`; nunca em log, argv, URL ou ambiente das apps; não volta ao navegador | `cloudflare`, `settings` |
 | Vazamento do token do GitHub | Token de 1 h, só leitura, restrito ao repositório; entregue só ao `git` via `GIT_CONFIG_*`; nunca em argv/log/ambiente do build | `githubapp.AuthEnv` |
 | Segredos de bancos vazando em `ps`/logs | Senhas só por variável de ambiente ou arquivo 0600 temporário (apagado); nunca em argv; config com senha 0600 | `dbengine` |

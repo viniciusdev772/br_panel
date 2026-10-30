@@ -154,6 +154,15 @@ func (c *Client) EnsureA(ctx context.Context, domain, ip string) (string, error)
 	}
 }
 
+// EnsureServerA points domain at this machine's public IPv4 and reports that IP.
+func (c *Client) EnsureServerA(ctx context.Context, domain string) (ip, result string, err error) {
+	if ip, err = ServerIP(); err != nil {
+		return "", "", err
+	}
+	result, err = c.EnsureA(ctx, domain, ip)
+	return ip, result, err
+}
+
 // ServerIP returns the IPv4 this machine uses to reach the internet (a UDP
 // "connect" sends no packet). On a VPS this is the public address; behind NAT
 // it would be private, which EnsureA callers should treat as a misconfiguration.

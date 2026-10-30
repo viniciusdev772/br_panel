@@ -162,7 +162,7 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 		}
 	}
 	if !setup && r.PostFormValue("clear_github") == "on" {
-		set.GitHubAppID, set.GitHubKey, set.GitHubWebhookSecret = "", "", ""
+		set.GitHubAppID, set.GitHubKey, set.GitHubWebhookSecret, set.GitHubAppSlug = "", "", "", ""
 		return set
 	}
 	set.GitHubAppID = v("github_app_id")
@@ -244,21 +244,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, "/settings?msg=Configura%C3%A7%C3%B5es+salvas.", http.StatusSeeOther)
-}
-
-func (s *Server) handleGitHub(w http.ResponseWriter, r *http.Request) {
-	set := s.settings()
-	scheme, host := "http", r.Host
-	if set.PanelDomain != "" {
-		scheme, host = "https", set.PanelDomain
-	} else if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
-		scheme = "https"
-	}
-	s.render(w, r, "github", page{Title: "GitHub", GH: ghStatus{
-		WebhookEnabled: set.GitHubWebhookSecret != "",
-		AppEnabled:     set.GitHubKey != "",
-		WebhookURL:     scheme + "://" + host + "/webhooks/github",
-	}})
 }
 
 // publishPanel exposes the panel itself on the configured panel domain (needed to receive GitHub webhooks).

@@ -189,3 +189,66 @@ func token(ctx context.Context, gh *Client, repo string, logw io.Writer) string 
 	}
 	return tok
 }
+
+// ---- GitHub App manifest flow (one-click App creation) ----
+
+// Manifest is the JSON a browser posts to github.com/settings/apps/new. The webhook
+// and permissions match what the panel needs: push events and read-only contents.
+func Manifest(name, panelURL string) (string, error) {
+	b, err := json.Marshal(map[string]any{
+		"name":                name,
+		"url":                 panelURL,
+		"hook_attributes":     map[string]any{"url": panelURL + "/webhooks/github", "active": true},
+		"redirect_url":        panelURL + "/github/app/callback",
+		"public":              false,
+		"default_permissions": map[string]string{"contents": "read", "metadata": "read"},
+		"default_events":      []string{"push"},
+	})
+	return string(b), err
+}
+
+// Created is what GitHub returns once the user approves the manifest.
+type Created struct {
+	ID            int64  `json:"id"`
+	Slug          string `json:"slug"`
+	PEM           string `json:"pem"`
+	WebhookSecret string `json:"webhook_secret"`
+}
+
+var (
+	manifestCodeRe = regexp.MustCompile(`^[A-Za-z0-9]{1,100}$`)
+	// AppSlugRe is the shape of a GitHub App slug (used in its install URL).
+	AppSlugRe = regexp.MustCompile(`^[A-Za-z0-9-]{1,60}$`)
+)
+
+// ConvertManifest exchanges the temporary code GitHub sent to the redirect URL for the
+// new App's credentials. The call is unauthenticated; api is empty outside tests.
+func ConvertManifest(ctx context.Context, api, code string) (Created, error) {
+	var c Created
+	if !manifestCodeRe.MatchString(code) {
+		return c, errors.New("código do GitHub inválido")
+	}
+	if api == "" {
+		api = githubAPI
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, api+"/app-manifests/"+code+"/conversions", nil)
+	if err != nil {
+		return c, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", githubAPIVersion)
+	req.Header.Set("User-Agent", "brpanel")
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return c, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode >= 300 {
+		return c, fmt.Errorf("GitHub recusou o código (%s); refaça a criação do App", resp.Status)
+	}
+	if err := json.Unmarshal(data, &c); err != nil || c.ID == 0 || c.PEM == "" || c.WebhookSecret == "" || !AppSlugRe.MatchString(c.Slug) {
+		return Created{}, errors.New("resposta inesperada do GitHub ao criar o App")
+	}
+	return c, nil
+}

@@ -42,6 +42,8 @@ type Settings struct {
 	GitHubKey           string // PEM private key of the GitHub App
 	GitHubWebhookSecret string
 
+	GitHubAppSlug string // set when the App was created through the manifest flow; builds the install link
+
 	CloudflareEmail string // set only when CloudflareToken is the Global API Key
 	CloudflareToken string // scoped API token (Zone:Read + DNS:Edit) or Global API Key; empty disables DNS automation
 }
@@ -62,7 +64,7 @@ func (s *Settings) Fields() map[string]*string {
 		"admin_user": &s.AdminUser, "admin_hash": &s.AdminHash,
 		"panel_domain": &s.PanelDomain, "acme_email": &s.AcmeEmail, "app_user": &s.AppUser, "db_user": &s.DBUser,
 		"nginx_dir": &s.NginxDir, "acme_root": &s.AcmeRoot, "cert_dir": &s.CertDir, "unit_dir": &s.UnitDir,
-		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret,
+		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret, "github_app_slug": &s.GitHubAppSlug,
 		"cloudflare_token": &s.CloudflareToken, "cloudflare_email": &s.CloudflareEmail,
 	}
 }
@@ -162,6 +164,9 @@ func Validate(s Settings) error {
 		if _, err := githubapp.Parse(s.GitHubAppID, []byte(s.GitHubKey)); err != nil {
 			return fmt.Errorf("GitHub App: %w", err)
 		}
+	}
+	if s.GitHubAppSlug != "" && !githubapp.AppSlugRe.MatchString(s.GitHubAppSlug) {
+		return errors.New("slug do GitHub App inválido")
 	}
 	if s.GitHubWebhookSecret != "" && (len(s.GitHubWebhookSecret) < 16 || len(s.GitHubWebhookSecret) > 128 || strings.ContainsAny(s.GitHubWebhookSecret, " \t\r\n")) {
 		return errors.New("segredo do webhook: use 16 a 128 caracteres, sem espaços")
