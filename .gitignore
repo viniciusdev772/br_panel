@@ -1,7 +1,12 @@
 /brpanel
+/br_panel
+/bin/
 /data/
 *.log
 *.db
 *.db-wal
 *.db-shm
-/br_panel
+*.pem
+.claude/settings.local.json
+CLAUDE.local.md
+coverage.out
