@@ -438,3 +438,12 @@ func TestAppVariablesReferenceDatabases(t *testing.T) {
 		t.Errorf("overview: %s", ov)
 	}
 }
+
+func TestLinkHost(t *testing.T) {
+	if got := linkHost("10.1.2.3"); got != "10.1.2.3" {
+		t.Errorf("host específico deve ser mantido: %q", got)
+	}
+	if got := linkHost(""); got == "" || got == "0.0.0.0" {
+		t.Errorf("sem host específico deve descobrir um IP ou usar o texto padrão: %q", got)
+	}
+}

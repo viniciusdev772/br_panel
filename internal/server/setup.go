@@ -25,8 +25,8 @@ func (s *Server) announceSetup() {
 	if err := os.WriteFile(file, []byte(s.setupToken+"\n"), 0o600); err != nil {
 		log.Fatal(err)
 	}
-	_, port, _ := net.SplitHostPort(s.cfg.Addr)
-	log.Printf("PRIMEIRO INÍCIO: abra o link http://<IP-do-servidor>:%s/setup?code=%s", port, s.setupToken)
+	host, port, _ := net.SplitHostPort(s.cfg.Addr)
+	log.Printf("PRIMEIRO INÍCIO: abra o link http://%s/setup?code=%s", net.JoinHostPort(linkHost(host), port), s.setupToken)
 	log.Printf("(o token também está em %s e é removido ao concluir)", file)
 }
 
@@ -36,6 +36,21 @@ func (s *Server) validCode(code string) string {
 		return code
 	}
 	return ""
+}
+
+// linkHost picks the address to print in the setup link: the listen host when it is specific,
+// otherwise the IP this machine uses to reach the internet (a UDP "connect" sends no packet).
+func linkHost(listen string) string {
+	if listen != "" && listen != "0.0.0.0" && listen != "::" {
+		return listen
+	}
+	if c, err := net.Dial("udp4", "8.8.8.8:80"); err == nil {
+		defer c.Close()
+		if a, ok := c.LocalAddr().(*net.UDPAddr); ok && !a.IP.IsUnspecified() {
+			return a.IP.String()
+		}
+	}
+	return "<IP-do-servidor>"
 }
 
 func (s *Server) handleSetupForm(w http.ResponseWriter, r *http.Request) {
