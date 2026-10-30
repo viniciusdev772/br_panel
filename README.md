@@ -13,9 +13,9 @@ Requer Go 1.26+ para compilar (sem CGO; o SQLite é o driver puro-Go `modernc.or
 `git` e systemd (e opcionalmente `nginx`, `certbot`).
 
 ```sh
-go build -o brpanel .
-sudo install -m 0755 brpanel /usr/local/bin/brpanel
-sudo install -m 0644 deploy/brpanel.service /etc/systemd/system/
+make build                                   # gera bin/brpanel
+sudo install -m 0755 bin/brpanel /usr/local/bin/brpanel
+sudo install -m 0644 deployments/systemd/brpanel.service /etc/systemd/system/
 sudo systemctl enable --now brpanel
 sudo journalctl -u brpanel | grep "PRIMEIRO INÍCIO"   # mostra o token de instalação
 ```
@@ -112,8 +112,14 @@ nova execução ao final.
 - Comandos de build/início são definidos pelo admin e rodam via `sh -c`: proteja o acesso ao painel e use o
   usuário das aplicações. As units usam `NoNewPrivileges`, `PrivateTmp` e `ProtectSystem=full`.
 
-## Testes
+## Desenvolvimento
 
 ```sh
-go test ./...
+make help     # lista os alvos
+make check    # formatação + vet + testes com -race (o mesmo que o CI)
+make run      # executa localmente
 ```
+
+Estrutura (layout padrão Go): `cmd/brpanel` (entrada), `internal/*` (um pacote por responsabilidade), `web/` (templates e
+estáticos embutidos), `deployments/` (unit systemd), `docs/` (arquitetura, segurança e ADRs), `scripts/` (capturas de tela),
+`.claude/` (regras, comandos, agentes e hooks do Claude Code). Veja [`docs/`](docs/README.md) e [`CONTRIBUTING.md`](CONTRIBUTING.md).
