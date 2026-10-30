@@ -32,10 +32,10 @@ vet: ## go vet
 	$(GO) vet $(PKG)
 
 fmt: ## Formata o código
-	gofmt -w cmd internal web
+	gofmt -w cmd internal web tools
 
 fmt-check: ## Falha se algo não estiver formatado
-	@test -z "$$(gofmt -l cmd internal web)" || { echo "arquivos fora do padrão:"; gofmt -l cmd internal web; exit 1; }
+	@test -z "$$(gofmt -l cmd internal web tools)" || { echo "arquivos fora do padrão:"; gofmt -l cmd internal web tools; exit 1; }
 
 check: fmt-check vet race ## Tudo que o CI roda
 

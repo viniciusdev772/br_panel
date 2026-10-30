@@ -21,6 +21,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/validate` | Validadores de entrada (nome, repositório, branch, domínio, env…) |
 | `internal/execx` | Execução de comandos do host com log |
 | `web` | Templates e estáticos embutidos (`go:embed`) |
+| `tools/claudehook` | Hooks do Claude Code (Go, multiplataforma): guard, format, verify, session-start |
 
 ### Dependências permitidas
 

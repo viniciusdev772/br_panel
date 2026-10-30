@@ -18,6 +18,12 @@
 
 Um teste isolado: `go test -run TestDetectNode ./internal/detect`.
 
+## Windows
+- O painel **só compila para Linux** (systemd, cgroups, `syscall`). No Windows, desenvolva no **WSL2** (recomendado) ou verifique a compilação com `GOOS=linux go build ./... && GOOS=linux go vet ./...`; os testes precisam rodar no Linux/WSL.
+- Os hooks do Claude Code (`tools/claudehook`) rodam nativamente no Windows e já compilam com `GOOS=linux`.
+- `make` e `scripts/screenshots/run.sh` exigem WSL ou Git Bash. Sem `make`, use os comandos Go equivalentes: `gofmt -l cmd internal web tools`, `go vet ./...`, `go test -race ./...`, `go build -o bin/brpanel ./cmd/brpanel`.
+- `.gitattributes` força final de linha LF nos scripts.
+
 ## Rodando localmente
 ```sh
 make run          # o primeiro início imprime o token de instalação
@@ -34,4 +40,4 @@ Não exigem root, systemd, nginx, certbot nem rede (veja `.claude/rules/testing.
 - Nova linguagem na detecção: novo `detectXxx` em `internal/detect`, com testes, entrada em `requireHints` e linha na tabela do README.
 
 ## Claude Code
-`.claude/rules/` guarda as regras do projeto (algumas carregam só ao tocar em arquivos de certos caminhos) e `.claude/settings.json` define permissões e hooks (gofmt automático, bloqueio de edição de `go.sum`/dados, verificação de build ao concluir). Preferências pessoais: `.claude/settings.local.json` e `CLAUDE.local.md` (ignorados pelo Git).
+`.claude/rules/` guarda as regras do projeto (algumas carregam só ao tocar em arquivos de certos caminhos) e `.claude/settings.json` define permissões e hooks (gofmt automático, bloqueio de edição de `go.sum`/dados, verificação de build ao concluir). Os hooks são um programa Go (`tools/claudehook`), então funcionam igual em Windows, macOS e Linux, sem bash nem python. Preferências pessoais: `.claude/settings.local.json` e `CLAUDE.local.md` (ignorados pelo Git).
