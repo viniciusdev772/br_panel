@@ -79,8 +79,8 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 	if err := s.loadTemplates(); err != nil {
 		return nil, err
 	}
-	_ = os.RemoveAll(filepath.Join(cfg.DataDir, "tmp")) // leftovers of interrupted detections
-	_ = os.MkdirAll(filepath.Join(cfg.DataDir, "tmp"), 0o750)
+	_ = os.RemoveAll(filepath.Join(cfg.DataDir, "tmp"))       // leftovers of interrupted detections
+	_ = os.MkdirAll(filepath.Join(cfg.DataDir, "tmp"), 0o711) // traversable by the app user, see cmd/brpanel
 	return s, nil
 }
 

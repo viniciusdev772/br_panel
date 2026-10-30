@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Corrigido
+- "Detectar automaticamente" e o primeiro deploy de qualquer aplicação falhavam com `chown: exit status 1` quando o usuário das aplicações estava configurado (o padrão do primeiro início): o `chown` rodava como esse usuário, sem privilégio. Agora roda como o painel, e o erro mostra a mensagem do comando. A pasta `tmp` (clones de detecção) passou de 0750 para 0711 para o usuário das aplicações conseguir entrar na subpasta dele.
+
 ### Alterado
 - Emissão do SSL mais confiável: antes de chamar o certbot o painel espera o DNS do domínio aparecer nos resolvedores públicos (até 2 min) e repete o certbot até 3 vezes, em vez de falhar na primeira consulta com `NXDOMAIN` logo após criar o registro. Vale para o painel e para as aplicações.
 - A página GitHub mostra o motivo real quando o SSL do painel não é emitido e tem o botão **Tentar de novo**, que repete a publicação (antes só recarregava a página). Enquanto publica, ela atualiza sozinha.

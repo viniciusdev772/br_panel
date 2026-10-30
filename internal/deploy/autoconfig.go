@@ -137,7 +137,7 @@ func (d *Deployer) DetectRepo(ctx context.Context, repo, branch string) (*detect
 	env := []string{"PATH=" + execPath(), "HOME=" + tmp, "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=https:ssh",
 		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"}
 	if u := d.Settings().AppUser; u != "" {
-		if err := d.run(ctx, io.Discard, "/", env, "chown", u+":", tmp); err != nil {
+		if err := chownTo(ctx, u, tmp); err != nil {
 			return nil, nil, err
 		}
 	}

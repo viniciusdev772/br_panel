@@ -201,7 +201,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		return err
 	}
 	if d.Settings().AppUser != "" {
-		if err := d.run(ctx, log, "/", env, "chown", d.Settings().AppUser+":", appDir); err != nil {
+		if err := chownTo(ctx, d.Settings().AppUser, appDir); err != nil {
 			return err
 		}
 	}
@@ -292,6 +292,17 @@ func (d *Deployer) envFileContent(a store.App) string {
 		b.WriteString(systemd.EnvFileLine(p[0], p[1]))
 	}
 	return b.String()
+}
+
+// chownTo hands path to the app user. It runs as the panel (root) on purpose: Deployer.run
+// drops privileges to the app user, and an unprivileged chown always fails with "Operation
+// not permitted". The command's own message is kept in the error.
+func chownTo(ctx context.Context, user, path string) error {
+	out, err := exec.CommandContext(ctx, "chown", user+":", path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("chown %s para %s: %w: %s", path, user, err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func writeFile(path, content string, mode os.FileMode) error {
