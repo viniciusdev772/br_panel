@@ -17,11 +17,11 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Formatação
-        run: test -z "$(gofmt -l cmd internal web tools)"
+        run: test -z "$(gofmt -l cmd internal web)"
       - name: Vet
         run: go vet ./...
       - name: Testes (com detector de corrida)
-        run: go test -race -coverprofile=coverage.out ./internal/... ./tools/...
+        run: go test -race -coverprofile=coverage.out ./internal/...
       - name: Build
         run: go build -trimpath -o bin/brpanel ./cmd/brpanel
 

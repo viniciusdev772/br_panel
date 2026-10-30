@@ -12,7 +12,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 - Monitoramento de CPU e RAM por aplicação (cgroup v2, 24 h) e resumo do servidor no dashboard.
 - Página de logs (journal e deploy) com filtro, acompanhamento e download.
 - Detecção automática de Node.js, Go, Rust, Python, Ruby, PHP e sites estáticos; suporte a `Procfile` e `brpanel.json`.
-- Regras e hooks do Claude Code (`.claude/`; hooks em Go, multiplataforma), Makefile, CI, documentação e ADRs.
+- Regras do Claude Code (`.claude/rules/`), Makefile, CI, documentação e ADRs.
 
 ### Alterado
 - Código reorganizado no layout padrão Go (`cmd/`, `internal/`, `web/`, `deployments/`).

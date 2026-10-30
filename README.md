@@ -122,4 +122,4 @@ make run      # executa localmente
 
 Estrutura (layout padrão Go): `cmd/brpanel` (entrada), `internal/*` (um pacote por responsabilidade), `web/` (templates e
 estáticos embutidos), `deployments/` (unit systemd), `docs/` (arquitetura, segurança e ADRs), `scripts/` (capturas de tela),
-`.claude/` (regras e hooks do Claude Code). Veja [`docs/`](docs/README.md) e [`CONTRIBUTING.md`](CONTRIBUTING.md).
+`.claude/` (regras do Claude Code). Veja [`docs/`](docs/README.md) e [`CONTRIBUTING.md`](CONTRIBUTING.md).

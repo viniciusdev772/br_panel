@@ -37,4 +37,4 @@ Architecture & dependency direction, Go style, security, testing, database, fron
 
 ## Claude Code setup in this repo
 
-Only rules (`.claude/rules/`) plus a small `.claude/settings.json` with permissions and hooks. The hooks are a Go program (`tools/claudehook`, run with `go run`) so they work on Windows, macOS and Linux with no bash/python: gofmt after edits, block edits to `go.sum`/data/keys, a `go build`+`vet` check (GOOS=linux) before finishing, Go module warm-up at session start. Hook decisions are returned as JSON with exit 0 because `go run` turns any non-zero exit into 1. No custom agents, skills or slash commands — do not add any. Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).
+Only rules (`.claude/rules/`). No custom agents, skills, slash commands, hooks or `settings.json` — do not add any. Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).
