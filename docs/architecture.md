@@ -83,6 +83,7 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
+| `GET /api/github/repos` | sessão | Repositórios que o GitHub App enxerga (token de instalação só com `metadata:read`), para o seletor da nova aplicação |
 | `GET /databases/new`, `POST /databases`, `POST /databases/install` | sessão (+CSRF) | Criar/instalar banco |
 | `GET /databases/{name}` | sessão | Página do banco (Conectar, Dados, Backups, Métricas, Logs, Configurações) |
 | `GET /databases/{name}/{log\|metrics\|data}` | sessão | Logs, métricas e navegador de dados |

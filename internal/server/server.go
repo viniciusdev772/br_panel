@@ -207,6 +207,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/logs", s.protected(s.handleLogs))
 	mux.HandleFunc("GET /apps/{name}/metrics", s.protected(s.handleMetrics))
 	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
+	mux.HandleFunc("GET /api/github/repos", s.protected(s.handleGitHubRepos))
 	mux.HandleFunc("POST /apps/detect", s.protected(s.handleDetect))
 	mux.HandleFunc("POST /apps/{name}/env", s.protected(s.handleEnvSave))
 	mux.HandleFunc("GET /databases/new", s.protected(s.handleDBNew))

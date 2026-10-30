@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -85,6 +86,9 @@ func Parse(appID string, keyPEM []byte) (*Client, error) {
 	}
 	return &Client{AppID: appID, key: key, client: &http.Client{Timeout: 15 * time.Second}, api: githubAPI}, nil
 }
+
+// UseAPI points the client at another API base URL (tests only).
+func (g *Client) UseAPI(base string) { g.api = base }
 
 func b64url(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
@@ -152,6 +156,60 @@ func (g *Client) InstallationToken(ctx context.Context, owner, repo string) (str
 	_, err = g.call(ctx, http.MethodPost, fmt.Sprintf("/app/installations/%d/access_tokens", inst.ID), jwt,
 		map[string]any{"repositories": []string{repo}, "permissions": map[string]string{"contents": "read"}}, &tok)
 	return tok.Token, err
+}
+
+// Repo is a repository the GitHub App can see, as offered in the "new application" form.
+type Repo struct {
+	FullName      string `json:"full_name"`
+	CloneURL      string `json:"clone_url"`
+	DefaultBranch string `json:"default_branch"`
+	Private       bool   `json:"private"`
+}
+
+const (
+	repoPageSize     = 100
+	maxRepoPages     = 5 // per installation
+	maxInstallations = 20
+)
+
+// Repositories lists the repositories of every installation of the App, sorted by name.
+// The per-installation token asks for metadata:read only (enough to list) and is used
+// here and dropped: it never reaches git, builds or the app (see AuthEnv for cloning).
+func (g *Client) Repositories(ctx context.Context) ([]Repo, error) {
+	jwt, err := g.jwt(time.Now())
+	if err != nil {
+		return nil, err
+	}
+	var insts []struct {
+		ID int64 `json:"id"`
+	}
+	if _, err := g.call(ctx, http.MethodGet, fmt.Sprintf("/app/installations?per_page=%d", maxInstallations), jwt, nil, &insts); err != nil {
+		return nil, err
+	}
+	var all []Repo
+	for _, in := range insts {
+		var tok struct {
+			Token string `json:"token"`
+		}
+		if _, err := g.call(ctx, http.MethodPost, fmt.Sprintf("/app/installations/%d/access_tokens", in.ID), jwt,
+			map[string]any{"permissions": map[string]string{"metadata": "read"}}, &tok); err != nil {
+			return nil, err
+		}
+		for page := 1; page <= maxRepoPages; page++ {
+			var res struct {
+				Repositories []Repo `json:"repositories"`
+			}
+			if _, err := g.call(ctx, http.MethodGet, fmt.Sprintf("/installation/repositories?per_page=%d&page=%d", repoPageSize, page), tok.Token, nil, &res); err != nil {
+				return nil, err
+			}
+			all = append(all, res.Repositories...)
+			if len(res.Repositories) < repoPageSize {
+				break
+			}
+		}
+	}
+	sort.Slice(all, func(i, j int) bool { return strings.ToLower(all[i].FullName) < strings.ToLower(all[j].FullName) })
+	return all, nil
 }
 
 // AuthEnv returns env plus, for private GitHub repos reachable through the GitHub App,

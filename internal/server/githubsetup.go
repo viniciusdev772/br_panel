@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
@@ -64,6 +65,33 @@ func (s *Server) githubPage(w http.ResponseWriter, r *http.Request, code int, er
 		w.WriteHeader(code)
 	}
 	s.render(w, r, "github", page{Title: "GitHub", GH: st, Error: errMsg})
+}
+
+// handleGitHubRepos lists the repositories the GitHub App can access, for the "new
+// application" form. Read-only; the response carries no credentials.
+func (s *Server) handleGitHubRepos(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	reply := func(code int, v any) {
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(v)
+	}
+	gh := s.githubApp()
+	if gh == nil {
+		reply(http.StatusNotFound, map[string]string{"error": "O GitHub App não está configurado."})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	repos, err := gh.Repositories(ctx)
+	if err != nil {
+		reply(http.StatusBadGateway, map[string]string{"error": "Não foi possível listar os repositórios do GitHub App: " + err.Error()})
+		return
+	}
+	if repos == nil {
+		repos = []githubapp.Repo{}
+	}
+	reply(http.StatusOK, map[string]any{"repos": repos})
 }
 
 // handleGitHubDomain creates the panel's DNS record on Cloudflare, saves the panel domain

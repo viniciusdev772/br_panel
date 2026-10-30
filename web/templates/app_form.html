@@ -3,6 +3,13 @@
 <div class="mdc-card"><form method="post" class="card-body" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   {{template "field" dict "name" "name" "label" "Nome (vazio = nome do repositório)" "value" .App.Name "required" .Editing "readonly" .Editing}}
+  {{if and .HasKey (not .Editing)}}
+  <div class="repo-picker">
+    <input class="repo-search" id="repo-search" type="text" list="repo-list" autocomplete="off" disabled placeholder="Escolher um repositório do GitHub App (digite para filtrar)" aria-label="Repositórios do GitHub App">
+    <datalist id="repo-list"></datalist>
+    <span class="muted" id="repo-status">Carregando repositórios…</span>
+  </div>
+  {{end}}
   {{template "field" dict "name" "repo" "label" "Repositório Git (https:// ou git@host:org/repo)" "value" .App.Repo "required" true}}
   {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch}}
   <div class="detect-row">

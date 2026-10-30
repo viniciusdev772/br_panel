@@ -39,6 +39,10 @@ Tudo é salvo no banco SQLite `/var/lib/brpanel/brpanel.db` (modo 0600) e pode s
 
 Quem já usava a versão anterior: o `apps.json` é importado automaticamente (e renomeado para `.migrated`).
 
+## Escolher o repositório na lista do GitHub App
+
+Com o GitHub App configurado, a tela **Nova aplicação** mostra um campo para buscar entre os repositórios em que o App está instalado (públicos e privados, de todas as instalações). Ao escolher um, o painel preenche a URL e a branch padrão e detecta o projeto. Se o App ainda não está instalado em nenhum repositório, a tela avisa; você também pode digitar a URL na mão. A lista usa um token de instalação com a permissão mínima (*Metadata: read*), usado só para listar.
+
 ## Configuração automática do projeto
 
 Informe só o repositório: o painel dá nome à aplicação, escolhe uma porta livre e descobre como

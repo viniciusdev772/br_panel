@@ -471,6 +471,39 @@
       }).catch(function () { detectBtn.disabled = false; box.className = 'detect-result bad'; box.textContent = 'Falha ao detectar.'; });
     };
     detectBtn.addEventListener('click', detect);
+
+    // Repositories visible to the GitHub App: pick one to fill repository and branch.
+    var picker = $('#repo-search');
+    if (picker) {
+      var status = $('#repo-status'), byName = {}, picked = '';
+      fetch('/api/github/repos', { credentials: 'same-origin' }).then(function (r) {
+        return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+      }).then(function (x) {
+        if (!x.ok) { status.textContent = x.d.error || 'Não foi possível listar os repositórios.'; return; }
+        var list = $('#repo-list');
+        x.d.repos.forEach(function (r) {
+          byName[r.full_name] = r;
+          var o = document.createElement('option');
+          o.value = r.full_name;
+          if (r.private) { o.label = 'privado'; }
+          list.appendChild(o);
+        });
+        picker.disabled = !x.d.repos.length;
+        status.textContent = x.d.repos.length
+          ? x.d.repos.length + ' repositório(s) disponíveis. Ou digite a URL abaixo.'
+          : 'O GitHub App ainda não está instalado em nenhum repositório. Instale-o na página GitHub.';
+      }).catch(function () { status.textContent = 'Não foi possível listar os repositórios.'; });
+      var pick = function () {
+        var r = byName[picker.value.trim()];
+        if (!r || picked === r.full_name) { return; }
+        picked = r.full_name;
+        fields.repo.value = r.clone_url;
+        fields.branch.value = r.default_branch || 'main';
+        $('input[name=repo]').dispatchEvent(new Event('change')); // detects the project when the commands are empty
+      };
+      picker.addEventListener('input', pick);
+      picker.addEventListener('change', pick);
+    }
     $('input[name=repo]').addEventListener('change', function () {
       if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
     });

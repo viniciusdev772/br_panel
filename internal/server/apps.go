@@ -23,7 +23,7 @@ func (s *Server) handleApps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleNewForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, "app_form", page{Title: "Nova aplicação", App: store.App{Branch: "main"}})
+	s.render(w, r, "app_form", page{Title: "Nova aplicação", App: store.App{Branch: "main"}, HasKey: s.githubApp() != nil})
 }
 
 func appFromForm(r *http.Request, name string) (store.App, error) {
@@ -88,7 +88,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		s.render(w, r, "app_form", page{Title: "Nova aplicação", App: a, Error: err.Error()})
+		s.render(w, r, "app_form", page{Title: "Nova aplicação", App: a, Error: err.Error(), HasKey: s.githubApp() != nil})
 		return
 	}
 	if a.Port == 0 {

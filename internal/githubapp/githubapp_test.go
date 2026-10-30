@@ -152,3 +152,63 @@ func TestManifestAndConvert(t *testing.T) {
 		}
 	}
 }
+
+func TestRepositories(t *testing.T) {
+	var key *rsa.PrivateKey
+	repo := func(name string) map[string]any {
+		return map[string]any{"full_name": name, "clone_url": "https://github.com/" + name + ".git", "default_branch": "main", "private": true}
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/app/installations":
+			verifyJWT(t, auth, &key.PublicKey)
+			_, _ = w.Write([]byte(`[{"id":1},{"id":2}]`))
+		case strings.HasPrefix(r.URL.Path, "/app/installations/") && strings.HasSuffix(r.URL.Path, "/access_tokens"):
+			verifyJWT(t, auth, &key.PublicKey)
+			var b struct {
+				Repositories []string          `json:"repositories"`
+				Permissions  map[string]string `json:"permissions"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&b)
+			if len(b.Repositories) != 0 || len(b.Permissions) != 1 || b.Permissions["metadata"] != "read" {
+				t.Errorf("o token de listagem deve pedir só metadata:read: %+v", b)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"ghs_inst` + strings.Split(r.URL.Path, "/")[3] + `"}`))
+		case r.URL.Path == "/installation/repositories":
+			page := r.URL.Query().Get("page")
+			var repos []map[string]any
+			switch {
+			case auth == "ghs_inst1" && page == "1": // a full page forces a second request
+				for i := 0; i < repoPageSize; i++ {
+					repos = append(repos, repo("octo/r"+strings.Repeat("a", i%5)+string(rune('a'+i%26))+strings.Repeat("z", i/26)))
+				}
+			case auth == "ghs_inst1" && page == "2":
+				repos = []map[string]any{repo("octo/ultimo")}
+			case auth == "ghs_inst2" && page == "1":
+				repos = []map[string]any{repo("Acme/Primeiro")}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"repositories": repos})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	g, k := testApp(t, srv.URL)
+	key = k
+	repos, err := g.Repositories(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != repoPageSize+2 {
+		t.Fatalf("repositórios = %d", len(repos))
+	}
+	if repos[0].FullName != "Acme/Primeiro" || repos[0].CloneURL != "https://github.com/Acme/Primeiro.git" || repos[0].DefaultBranch != "main" || !repos[0].Private {
+		t.Errorf("primeiro = %+v (ordenação sem diferenciar maiúsculas)", repos[0])
+	}
+	if last := repos[len(repos)-1]; last.FullName != "octo/ultimo" {
+		t.Errorf("último = %+v", last)
+	}
+}
