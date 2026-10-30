@@ -23,6 +23,8 @@ type App struct {
 	BuildCmd   string    `json:"build_cmd"`
 	StartCmd   string    `json:"start_cmd"`
 	Port       int       `json:"port"`
+	Domain     string    `json:"domain"`
+	AutoDeploy bool      `json:"auto_deploy"`
 	Env        string    `json:"env"`
 	Status     string    `json:"status"`
 	LastDeploy time.Time `json:"last_deploy"`

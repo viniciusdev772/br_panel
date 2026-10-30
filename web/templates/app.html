@@ -18,6 +18,9 @@
     <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
     <dt>Início</dt><dd><code>{{.App.StartCmd}}</code></dd>
     {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}</dd>{{end}}
+    {{if .App.Domain}}<dt>Domínio</dt><dd><a href="{{if .SSL}}https{{else}}http{{end}}://{{.App.Domain}}" target="_blank" rel="noopener noreferrer">{{.App.Domain}}</a>
+      <span class="chip {{if .SSL}}chip--active{{end}}">{{if .SSL}}SSL ativo{{else}}sem SSL{{end}}</span></dd>{{end}}
+    <dt>Deploy automático</dt><dd>{{if .App.AutoDeploy}}ativado (push em <code>{{.App.Branch}}</code>){{else}}desativado{{end}}</dd>
     {{if not .App.LastDeploy.IsZero}}<dt>Último deploy</dt><dd>{{.App.LastDeploy.Format "02/01/2006 15:04:05"}}</dd>{{end}}
   </dl>
   <div class="actions actions--start">

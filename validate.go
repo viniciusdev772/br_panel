@@ -12,6 +12,7 @@ var (
 	nameRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
 	branchRe  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
 	envKeyRe  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	domainRe  = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	scpRepoRe = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+$`)
 )
 
@@ -96,4 +97,15 @@ func parseEnv(text string) ([][2]string, error) {
 		return nil, errors.New("máximo de 100 variáveis de ambiente")
 	}
 	return out, nil
+}
+
+// validateDomain accepts a lowercase DNS hostname (no IPs, wildcards or ports).
+func validateDomain(d string) error {
+	if d == "" {
+		return nil
+	}
+	if len(d) > 253 || !domainRe.MatchString(d) {
+		return errors.New("domínio inválido (ex.: app.exemplo.com.br)")
+	}
+	return nil
 }

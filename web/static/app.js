@@ -2,6 +2,11 @@
   'use strict';
   document.querySelectorAll('.mdc-text-field').forEach(function (el) { new mdc.textField.MDCTextField(el); });
   document.querySelectorAll('.mdc-button').forEach(function (el) { new mdc.ripple.MDCRipple(el); });
+  document.querySelectorAll('.mdc-form-field').forEach(function (el) {
+    var box = new mdc.checkbox.MDCCheckbox(el.querySelector('.mdc-checkbox'));
+    var ff = new mdc.formField.MDCFormField(el);
+    ff.input = box;
+  });
   var bar = document.querySelector('.mdc-top-app-bar');
   if (bar) { new mdc.topAppBar.MDCTopAppBar(bar); }
 

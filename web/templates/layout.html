@@ -18,6 +18,7 @@
       </section>
       {{if .Authed}}
       <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
+        <a class="mdc-button topbar-btn" href="/github"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">hub</i><span class="mdc-button__label">GitHub</span></a>
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
           <button class="mdc-button topbar-btn" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">logout</i><span class="mdc-button__label">Sair</span></button>

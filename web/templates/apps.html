@@ -10,6 +10,7 @@
       <thead><tr class="mdc-data-table__header-row">
         <th class="mdc-data-table__header-cell" scope="col">Nome</th>
         <th class="mdc-data-table__header-cell" scope="col">Repositório</th>
+        <th class="mdc-data-table__header-cell" scope="col">Domínio</th>
         <th class="mdc-data-table__header-cell" scope="col">Serviço</th>
         <th class="mdc-data-table__header-cell" scope="col">Deploy</th>
       </tr></thead>
@@ -18,6 +19,7 @@
         <tr class="mdc-data-table__row">
           <td class="mdc-data-table__cell"><a href="/apps/{{.Name}}">{{.Name}}</a></td>
           <td class="mdc-data-table__cell">{{.Repo}} <span class="muted">({{.Branch}})</span></td>
+          <td class="mdc-data-table__cell">{{or .Domain "—"}}</td>
           <td class="mdc-data-table__cell"><span class="chip chip--{{index $.States .Name}}">{{index $.States .Name}}</span></td>
           <td class="mdc-data-table__cell"><span class="chip chip--{{.Status}}">{{.Status}}</span></td>
         </tr>

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -73,12 +74,18 @@ func (s *Server) buildEnv(a App) ([]string, error) {
 }
 
 // startDeploy launches a deploy in the background; false if one is already running.
-func (s *Server) startDeploy(name string) bool {
+func (s *Server) startDeploy(name, reason string) bool {
 	a, ok := s.store.BeginDeploy(name)
 	if !ok {
 		return false
 	}
 	go func() {
+		// A push that arrived during this deploy triggers one more run afterwards.
+		defer func() {
+			if s.takePending(name) {
+				s.startDeploy(name, "push recebido durante o deploy anterior")
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), deployTimeout)
 		defer cancel()
 		lf, err := os.OpenFile(s.paths.LogFile(name), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
@@ -87,7 +94,7 @@ func (s *Server) startDeploy(name string) bool {
 			return
 		}
 		defer lf.Close()
-		fmt.Fprintf(lf, "== deploy de %s iniciado em %s ==\n", name, time.Now().Format(time.RFC3339))
+		fmt.Fprintf(lf, "== deploy de %s iniciado em %s (%s) ==\n", name, time.Now().Format(time.RFC3339), reason)
 		if err := s.deploy(ctx, a, lf); err != nil {
 			fmt.Fprintf(lf, "\n== FALHOU: %v ==\n", err)
 			s.store.FinishDeploy(name, false)
@@ -105,6 +112,14 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 		return err
 	}
 	appDir, src := s.paths.AppDir(a.Name), s.paths.SrcDir(a.Name)
+	// The GitHub token is only visible to git, never to the build or the app.
+	gitEnv := append([]string(nil), env...)
+	if tok := s.githubToken(ctx, a, log); tok != "" {
+		basic := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + tok))
+		gitEnv = append(gitEnv, "GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.https://github.com/.extraHeader",
+			"GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
+	}
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		return err
 	}
@@ -116,7 +131,7 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 
 	// Reuse the existing checkout only if it points at the same repository.
 	if _, err := os.Stat(filepath.Join(src, ".git")); err == nil {
-		if url, _ := s.capture(ctx, src, env, "git", "config", "--get", "remote.origin.url"); url != a.Repo {
+		if url, _ := s.capture(ctx, src, gitEnv, "git", "config", "--get", "remote.origin.url"); url != a.Repo {
 			fmt.Fprintln(log, "repositório mudou; clonando novamente")
 			if err := os.RemoveAll(src); err != nil {
 				return err
@@ -127,14 +142,14 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 	}
 
 	if _, err := os.Stat(src); os.IsNotExist(err) {
-		if err := s.run(ctx, log, appDir, env, "git", "clone", "--depth", "1", "--branch", a.Branch, "--", a.Repo, src); err != nil {
+		if err := s.run(ctx, log, appDir, gitEnv, "git", "clone", "--depth", "1", "--branch", a.Branch, "--", a.Repo, src); err != nil {
 			return err
 		}
 	} else {
-		if err := s.run(ctx, log, src, env, "git", "fetch", "--depth", "1", "origin", a.Branch); err != nil {
+		if err := s.run(ctx, log, src, gitEnv, "git", "fetch", "--depth", "1", "origin", a.Branch); err != nil {
 			return err
 		}
-		if err := s.run(ctx, log, src, env, "git", "reset", "--hard", "FETCH_HEAD"); err != nil {
+		if err := s.run(ctx, log, src, gitEnv, "git", "reset", "--hard", "FETCH_HEAD"); err != nil {
 			return err
 		}
 	}
@@ -153,16 +168,24 @@ func (s *Server) deploy(ctx context.Context, a App, log io.Writer) error {
 	if err := writeFile(s.paths.UnitFile(a.Name), unit, 0o644); err != nil {
 		return err
 	}
-	sys := os.Environ()
 	for _, args := range [][]string{{"daemon-reload"}, {"enable", unitName(a.Name)}, {"restart", unitName(a.Name)}} {
-		c := exec.CommandContext(ctx, "systemctl", args...)
-		fmt.Fprintf(log, "$ systemctl %s\n", strings.Join(args, " "))
-		c.Env, c.Stdout, c.Stderr = sys, log, log
-		if err := c.Run(); err != nil {
+		if err := sysRun(ctx, log, "systemctl", args...); err != nil {
 			return fmt.Errorf("systemctl %s: %w", args[0], err)
 		}
 	}
-	return nil
+
+	if a.Domain == "" {
+		return s.removeSite(ctx, log, a.Name)
+	}
+	return s.ensureSite(ctx, log, Site{Key: a.Name, Domain: a.Domain, Upstream: fmt.Sprintf("127.0.0.1:%d", a.Port)})
+}
+
+// sysRun runs a host command (systemctl, nginx, certbot) as the panel user, logging its output.
+func sysRun(ctx context.Context, log io.Writer, name string, args ...string) error {
+	fmt.Fprintf(log, "$ %s %s\n", name, strings.Join(args, " "))
+	c := exec.CommandContext(ctx, name, args...)
+	c.Env, c.Stdout, c.Stderr = os.Environ(), log, log
+	return c.Run()
 }
 
 func (s *Server) envFileContent(a App) string {
@@ -209,6 +232,7 @@ func (s *Server) removeApp(name string) error {
 		}
 	}
 	_, _ = systemctl("daemon-reload")
+	_ = s.removeSite(context.Background(), io.Discard, name)
 	if err := os.RemoveAll(s.paths.AppDir(name)); err != nil {
 		return err
 	}

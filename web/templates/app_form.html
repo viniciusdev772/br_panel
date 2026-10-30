@@ -18,6 +18,7 @@
   {{template "field" dict "name" "build_cmd" "label" "Comando de build (opcional) ex.: npm ci && npm run build" "value" .App.BuildCmd}}
   {{template "field" dict "name" "start_cmd" "label" "Comando de início ex.: node server.js" "value" .App.StartCmd "required" true}}
   {{template "field" dict "name" "port" "label" "Porta (exportada como $PORT, 0 = nenhuma)" "value" .App.Port "type" "number"}}
+  {{template "field" dict "name" "domain" "label" "Domínio (opcional) ex.: app.exemplo.com.br — Nginx + SSL automático" "value" .App.Domain}}
   <label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
     <span class="mdc-notched-outline">
       <span class="mdc-notched-outline__leading"></span>
@@ -26,6 +27,17 @@
     </span>
     <span class="mdc-text-field__resizer"><textarea class="mdc-text-field__input" rows="6" name="env" aria-labelledby="lbl-env">{{.App.Env}}</textarea></span>
   </label>
+  <div class="mdc-form-field">
+    <div class="mdc-checkbox">
+      <input type="checkbox" class="mdc-checkbox__native-control" id="auto_deploy" name="auto_deploy" {{if .App.AutoDeploy}}checked{{end}}>
+      <div class="mdc-checkbox__background">
+        <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
+        <div class="mdc-checkbox__mixedmark"></div>
+      </div>
+      <div class="mdc-checkbox__ripple"></div>
+    </div>
+    <label for="auto_deploy">Deploy automático a cada push na branch (GitHub App/webhook)</label>
+  </div>
   <div class="actions">
     <a class="mdc-button" href="{{if .Editing}}/apps/{{.App.Name}}{{else}}/{{end}}"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Cancelar</span></a>
     <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Editing}}Salvar{{else}}Criar e fazer deploy{{end}}</span></button>

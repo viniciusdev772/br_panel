@@ -54,10 +54,17 @@ func NewAuth(password string, secure bool) *Auth {
 	return &Auth{password: password, secure: secure, sessions: map[string]session{}, fails: map[string]*failState{}}
 }
 
+// clientIP returns the peer address. X-Real-IP (set by our nginx vhost) is
+// honoured only when the connection comes from loopback, so it cannot be spoofed remotely.
 func clientIP(r *http.Request) string {
 	h, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
+	}
+	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
+		if real := net.ParseIP(r.Header.Get("X-Real-IP")); real != nil {
+			return real.String()
+		}
 	}
 	return h
 }

@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">Integração com GitHub</h1></div>
+<div class="mdc-card"><div class="card-body">
+  <dl class="meta">
+    <dt>Webhook (deploy automático)</dt><dd><span class="chip {{if .GH.WebhookEnabled}}chip--active{{end}}">{{if .GH.WebhookEnabled}}ativo{{else}}desativado{{end}}</span></dd>
+    <dt>GitHub App (repositórios privados)</dt><dd><span class="chip {{if .GH.AppEnabled}}chip--active{{end}}">{{if .GH.AppEnabled}}configurado{{else}}não configurado{{end}}</span></dd>
+    <dt>URL do webhook</dt><dd><code>{{.GH.WebhookURL}}</code></dd>
+  </dl>
+</div></div>
+
+<h2 class="mdc-typography--subtitle1 section-title">Como configurar</h2>
+<div class="mdc-card"><div class="card-body steps">
+  <ol>
+    <li>No GitHub: <b>Settings → Developer settings → GitHub Apps → New GitHub App</b>.</li>
+    <li><b>Webhook URL:</b> <code>{{.GH.WebhookURL}}</code> (precisa ser HTTPS público; defina <code>PANEL_DOMAIN</code> para o painel ganhar Nginx + SSL). <b>Content type:</b> <code>application/json</code>.</li>
+    <li>Defina um <b>Webhook secret</b> e exporte o mesmo valor em <code>PANEL_GITHUB_WEBHOOK_SECRET</code>.</li>
+    <li><b>Permissions → Repository:</b> <i>Contents: Read-only</i> (Metadata é incluída automaticamente). <b>Subscribe to events:</b> <i>Push</i>.</li>
+    <li>Gere uma <b>private key</b> (.pem), salve no servidor e informe <code>PANEL_GITHUB_APP_ID</code> e <code>PANEL_GITHUB_KEY_FILE</code> — usado para clonar repositórios privados com um token de 1 hora, somente leitura.</li>
+    <li><b>Install App</b> nos repositórios desejados e marque <i>Deploy automático</i> na aplicação.</li>
+  </ol>
+  <p class="muted">Cada push na branch configurada dispara um deploy; pushes recebidos durante um deploy geram uma nova execução ao final.</p>
+</div></div>
+{{end}}
