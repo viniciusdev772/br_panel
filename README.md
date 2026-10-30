@@ -98,6 +98,33 @@ Validação: PostgreSQL, MariaDB e Redis foram exercitados de ponta a ponta cont
 dados, backup, restauração, senha, acesso externo); MongoDB só tem testes das linhas de comando geradas, pois não
 foi possível instalá-lo no ambiente de desenvolvimento.
 
+### Apps com banco ou porta fixos no código
+
+Alguns projetos escrevem `host: "localhost"` (porta 3306) e a própria porta HTTP no código, sem ler variáveis de ambiente. Sem mexer no código:
+
+- **Porta HTTP fixa** (ex.: `const port = 3090`): em **Editar** a aplicação, informe essa porta em **Porta**; o painel a usa no Nginx e no `PORT`.
+- **Banco em `localhost:3306`**: como cada banco do painel usa a própria porta (3307, 3308…), crie um repasse do systemd, que persiste no boot e vale para qualquer linguagem. Exemplo para o MariaDB do painel na 3307 (unit `brpaneldb-mysql`):
+
+```ini
+# /etc/systemd/system/brpanelfwd-3306.socket
+[Socket]
+ListenStream=127.0.0.1:3306
+ListenStream=[::1]:3306
+[Install]
+WantedBy=sockets.target
+
+# /etc/systemd/system/brpanelfwd-3306.service
+[Unit]
+Requires=brpaneldb-mysql.service
+After=brpaneldb-mysql.service
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd 127.0.0.1:3307
+PrivateTmp=yes
+DynamicUser=yes
+```
+
+Depois `systemctl daemon-reload && systemctl enable --now brpanelfwd-3306.socket`. Crie no banco do painel o mesmo banco, usuário e senha que o código usa, restritos a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`). O repasse é manual: se o banco mudar de porta, atualize o `ExecStart`.
+
 ## Monitoramento e logs
 
 - **CPU e RAM por aplicação:** a cada 15 s o painel lê o cgroup v2 do serviço
