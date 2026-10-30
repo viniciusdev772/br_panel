@@ -90,7 +90,10 @@ func LastLines(s string, n int) string {
 // unless the caller explicitly asks for `sh -c`.
 func (d *Deployer) command(ctx context.Context, dir string, env []string, name string, args ...string) *exec.Cmd {
 	if d.Settings().AppUser != "" {
-		args = append([]string{"-u", d.Settings().AppUser, "--", name}, args...)
+		// -m keeps the given environment. Without it runuser replaces HOME with the account's
+		// home (/home/<user>, which does not exist for a --no-create-home system user), and
+		// npm, pip, cargo... fail with EACCES creating their cache there.
+		args = append([]string{"-u", d.Settings().AppUser, "-m", "--", name}, args...)
 		name = "runuser"
 	}
 	c := exec.CommandContext(ctx, name, args...)
