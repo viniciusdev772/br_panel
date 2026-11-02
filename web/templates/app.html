@@ -84,15 +84,15 @@
   </section>
 
   <section class="panel" id="tab-armazenamento" data-panel="armazenamento" hidden>
-    <div class="banner"><i class="material-icons">info</i><div>Todas as instâncias usam a mesma pasta: os arquivos gravados por uma aparecem nas outras.</div></div>
+    <div class="banner"><i class="material-icons">info</i><div>Tudo que a aplicação grava aqui continua depois de cada deploy. Com mais de uma instância, todas veem os mesmos arquivos.</div></div>
     <h2 class="panel-title">Pastas e arquivos</h2>
     <div class="mdc-card">
       {{range .Mounts}}
       <div class="backup-row">
         <div>
           <strong>{{.Name}}</strong>
-          <span class="muted">· {{if eq .Kind "volume"}}pasta do painel{{else if eq .Kind "bind"}}pasta do servidor{{else}}arquivo somente leitura{{end}}
-            · {{if .Source}}<code>{{.Source}}</code> em {{end}}<code>{{.Target}}</code></span>
+          <span class="muted">· {{if eq .Kind "volume"}}arquivos da aplicação{{else if eq .Kind "bind"}}pasta do servidor{{else}}arquivo de configuração{{end}}
+            · aparece em <code>{{.Target}}</code></span>
         </div>
         <div class="actions">
           {{template "action" dict "name" $.App.Name "action" "mount-delete" "csrf" $.CSRF "icon" "delete" "label" "Remover" "danger" true "id" .ID "confirm" "Remover esta montagem? A pasta e os arquivos continuam no servidor."}}
@@ -107,17 +107,21 @@
       <summary>Adicionar armazenamento</summary>
       <form method="post" action="/apps/{{.App.Name}}/mount-add" class="mdc-card"><div class="card-body">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        {{template "field" dict "name" "mount_name" "label" "Nome" "required" true "autocomplete" "off" "hint" "Letras minúsculas, números e hífen. No serviço vira a variável VOLUME_<NOME>."}}
-        <label class="select-label">Tipo
-          <select name="mount_kind">
-            <option value="volume">Pasta do painel (guardada entre deploys)</option>
-            <option value="bind">Pasta que já existe no servidor</option>
-            <option value="file">Arquivo de texto, somente leitura</option>
+        <label class="select-label">O que você quer guardar?
+          <select name="mount_kind" id="mount-kind">
+            <option value="volume">Arquivos da aplicação (fotos, uploads…)</option>
+            <option value="bind">Uma pasta que já existe no servidor</option>
+            <option value="file">Um arquivo de configuração</option>
           </select>
         </label>
-        {{template "field" dict "name" "mount_target" "label" "Caminho no projeto" "required" true "autocomplete" "off" "hint" "Ex.: storage/uploads. Sem barra no início, fica dentro da pasta do projeto."}}
-        {{template "field" dict "name" "mount_source" "label" "Pasta no servidor" "autocomplete" "off" "hint" "Só para pasta que já existe, como /srv/midia. O painel não cria nem apaga essa pasta."}}
-        {{template "area" dict "name" "mount_content" "label" "Conteúdo do arquivo" "rows" 4 "value" "" "hint" "Só para arquivo de texto. Até 256 KB."}}
+        {{template "field" dict "name" "mount_name" "label" "Nome" "required" true "autocomplete" "off" "hint" "Só para você identificar. Ex.: uploads"}}
+        {{template "field" dict "name" "mount_target" "label" "Onde aparece na aplicação" "required" true "autocomplete" "off" "hint" "Ex.: storage/uploads"}}
+        <div id="mount-src-box" hidden>
+          {{template "field" dict "name" "mount_source" "label" "Pasta no servidor" "autocomplete" "off" "hint" "Ex.: /srv/midia. O painel não cria nem apaga essa pasta."}}
+        </div>
+        <div id="mount-content-box" hidden>
+          {{template "area" dict "name" "mount_content" "label" "Conteúdo do arquivo" "rows" 4 "value" "" "hint" "A aplicação só consegue ler este arquivo."}}
+        </div>
         <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Adicionar</span></button></div>
       </div></form>
     </details>

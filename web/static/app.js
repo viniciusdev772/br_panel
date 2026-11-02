@@ -490,6 +490,18 @@
     }
   }
 
+  // ---- storage tab: show only the fields the chosen kind needs ----
+  var mountKind = $('#mount-kind');
+  if (mountKind) {
+    var srcBox = $('#mount-src-box'), contentBox = $('#mount-content-box');
+    var syncMount = function () {
+      srcBox.hidden = mountKind.value !== 'bind';
+      contentBox.hidden = mountKind.value !== 'file';
+    };
+    mountKind.addEventListener('change', syncMount);
+    syncMount();
+  }
+
   // ---- new app form: auto detection ----
   var detectBtn = $('#detect-btn');
   if (detectBtn) {
