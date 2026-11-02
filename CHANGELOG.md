@@ -1,8 +1,10 @@
 # Changelog
 
-Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Ainda não há versões numeradas.
+Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). Versões numeradas seguem o [SemVer](https://semver.org/lang/pt-BR/); veja `.claude/rules/releases.md`.
 
 ## [Não lançado]
+
+## [0.1.0] - 2026-11-02
 
 ### Adicionado
 - Script de instalação `scripts/install.sh` (uma linha com `curl | sudo sh`; instala e atualiza) e workflow de release que publica os binários linux amd64/arm64 com soma SHA-256 a cada tag `v*`.

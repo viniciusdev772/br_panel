@@ -1,0 +1,43 @@
+---
+paths:
+  - "scripts/install.sh"
+  - ".github/workflows/**"
+  - "CHANGELOG.md"
+  - "Makefile"
+---
+
+# Versionamento e liberação (releases e assets)
+
+## Versões
+
+- [SemVer](https://semver.org/lang/pt-BR/) com prefixo `v`: `vMAJOR.MINOR.PATCH` (primeira release: `v0.1.0`). Antes da 1.0, `MINOR` para funcionalidade nova ou mudança visível e `PATCH` para correção.
+- Tag só em commit que está na `main` e passou em `make check`. **Nunca mova nem apague uma tag publicada**: o `install.sh` e quem já instalou dependem dela. Corrigiu algo? Libere uma versão nova.
+- Tags anotadas: `git tag -a vX.Y.Z -m "vX.Y.Z"`, depois `git push origin vX.Y.Z`.
+
+## Changelog
+
+- Ao liberar, renomeie `## [Não lançado]` para `## [X.Y.Z] - AAAA-MM-DD`, crie de novo a seção vazia `## [Não lançado]` acima dela e atualize a frase de abertura (hoje diz que não há versões numeradas).
+- O texto da release no GitHub é a seção dessa versão do `CHANGELOG.md`, sem reescrever.
+
+## Assets
+
+- Cada release leva exatamente estes arquivos, por arquitetura (`amd64`, `arm64`):
+  - `brpanel-linux-<arch>`: binário estático, `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-<arch> ./cmd/brpanel`
+  - `brpanel-linux-<arch>.sha256`: saída de `sha256sum` do binário, rodada dentro de `dist/` (nome de arquivo sem caminho).
+- `scripts/install.sh` baixa `releases/latest/download/<nome>` e confere o `.sha256`. **Renomear ou trocar o formato de um asset exige mudar o `install.sh` no mesmo commit**, e uma release com assets faltando quebra a instalação de todo mundo.
+- `dist/` e binários nunca entram no Git (veja `git-workflow.md`); eles vivem só na release.
+- Nada de segredo, banco de dados, chave ou dado de servidor nos assets ou nas notas da release: as releases são públicas.
+
+## Como liberar
+
+1. `make check` verde, `CHANGELOG.md` ajustado, commit e push na `main`.
+2. Crie e envie a tag. O workflow `.github/workflows/release.yml` compila, gera os `.sha256` e publica.
+3. Se o GitHub Actions estiver indisponível (a conta chegou a ser bloqueada por cobrança), faça o mesmo à mão: compile os dois binários e os `.sha256` em `dist/` e rode `gh release create vX.Y.Z dist/* --title vX.Y.Z --notes-file <trecho do changelog>`.
+4. Confira a release: quatro assets, tamanhos plausíveis e `sha256sum -c` passando.
+5. Teste o `scripts/install.sh` a partir da URL pública num servidor com o painel já instalado (caminho de atualização) antes de dizer que está pronta.
+
+## `scripts/install.sh`
+
+- POSIX `sh` (roda em dash via `curl | sh`), fim de linha LF (`.gitattributes`) e `sh -n scripts/install.sh` limpo antes de commitar. Sem dependências além de `curl`/`wget` e `git`.
+- Confere o SHA-256 **antes** de instalar. Só cria a unit systemd na primeira vez: quem editou o `-addr` depois do SSL não pode perder a mudança. Guarda o binário anterior em `brpanel.bak` ao atualizar.
+- Qualquer mudança no `-addr`/`-data` padrão ou na unit em `deployments/systemd/` também vai para o heredoc da unit dentro do script (é uma cópia).
