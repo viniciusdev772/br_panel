@@ -28,6 +28,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/store"
 	"github.com/viniciusdev772/br_panel/internal/sysinfo"
 	"github.com/viniciusdev772/br_panel/internal/systemd"
+	"github.com/viniciusdev772/br_panel/internal/volume"
 	"github.com/viniciusdev772/br_panel/web"
 )
 
@@ -95,6 +96,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go monitor.Run(ctx, s.store)
 	go autoscale.Run(ctx, s.store, s.dep)
 	go s.dbm.RunScheduler(ctx)
+	go s.dep.RunVolumeScheduler(ctx)
 	if s.configured.Load() {
 		if s.settings().PanelDomain != "" {
 			go s.publishPanel()
@@ -213,6 +215,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/log", s.protected(s.handleLog))
 	mux.HandleFunc("GET /apps/{name}/logs", s.protected(s.handleLogs))
 	mux.HandleFunc("GET /apps/{name}/metrics", s.protected(s.handleMetrics))
+	mux.HandleFunc("GET /apps/{name}/volume-backups/{file}", s.protected(s.handleVolumeDownload))
 	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
 	mux.HandleFunc("GET /api/github/repos", s.protected(s.handleGitHubRepos))
 	mux.HandleFunc("POST /tools/node/install", s.protected(s.handleNodeInstall))
@@ -291,6 +294,11 @@ type page struct {
 	Busy           string
 	UsedBy         []string
 	VarGroups      []varGroup
+
+	Mounts         []store.Mount
+	VolumeBackups  []volume.Info
+	VolumeSchedule string
+	VolumeBusy     string
 
 	SetupCode      string // setup only: code already known from the install link
 	AppUserDefault string // setup only: system user submitted silently with the form

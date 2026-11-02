@@ -11,6 +11,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/deploy` | Pipeline de deploy: git → detecção → build → unit → Nginx/SSL; layout em disco; escolha de porta |
 | `internal/detect` | Detecta Node, Go, Rust, Python, Ruby, PHP e estáticos; lê `Procfile` e `brpanel.json` |
 | `internal/dbengine` | Bancos de dados: motores (Postgres, MySQL/MariaDB, MongoDB, Redis), provisionamento, backups, dados, referências `${{db.VAR}}` |
+| `internal/volume` | Volumes das aplicações: `tar.gz` (criar e extrair) e arquivos de backup, sem programa externo |
 | `internal/nginx` | Vhosts reverse-proxy, `nginx -t` com rollback, certbot (webroot) |
 | `internal/systemd` | Renderiza units; `systemctl`, `journalctl`; status do serviço |
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
@@ -31,11 +32,12 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 graph LR
   cmd[cmd/brpanel] --> server
   cmd --> store
-  server --> cloudflare & nodeenv & dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & web
-  deploy --> cloudflare & nodeenv & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine
+  server --> cloudflare & nodeenv & dbengine & deploy & monitor & auth & settings & store & githubapp & nginx & detect & systemd & sysinfo & validate & volume & web
+  deploy --> cloudflare & nodeenv & detect & nginx & githubapp & settings & store & systemd & validate & execx & dbengine & volume
   dbengine --> settings & store & systemd & validate & execx
   monitor --> store & sysinfo & systemd
   nginx --> settings & execx
+  volume --> stdlib[Biblioteca padrão]
   store --> settings
   settings --> cloudflare & githubapp & validate
   systemd --> sysinfo
@@ -65,6 +67,14 @@ usuário (`postStart`) → `ready`. Segredos nunca vão em argv (variáveis de a
 temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `configure`, `execStart`, `postStart`, `url`, `backup`,
 `restore`, `setPassword`, `tables`, `preview`).
 
+### Armazenamento das aplicações (`deploy.prepareMounts`)
+
+Na aba **Armazenamento** da aplicação: o tipo `volume` é uma pasta gerenciada pelo painel em `<data>/volumes/<app>/<nome>` (dono: usuário das apps), `bind` aponta para uma pasta que já existe no servidor e `file` guarda um texto no banco e o grava em arquivo montado **somente leitura** (`<data>/files/<app>/<id>`, 0600). Tudo valida em `internal/validate` (nome; destino relativo ou absoluto; caminhos proibidos no destino e no `bind`: `/etc`, `/proc`, `/sys`, `/dev`, `/boot`, `/root`, `/run`, o diretório de dados e, no destino, `/usr` e outros).
+
+Antes de escrever as units, `prepareMounts` valida as linhas de novo, cria as pastas de cada volume, grava os arquivos do tipo `file` e cria o destino de cada montagem (dentro do projeto quando relativo). Cada instância recebe as mesmas linhas `BindPaths=`/`BindReadOnlyPaths=` e a variável `VOLUME_<NOME>` com o caminho real; as instâncias compartilham a mesma pasta; `Scale` refaz a preparação antes de subir instâncias novas. Remover a montagem não apaga a pasta; excluir a aplicação apaga volumes, arquivos e backups, com confirmação na tela.
+
+Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/diário/semanal, goroutine `RunVolumeScheduler` no `server.Run`) escrevem `<data>/backups/volumes/<app>/<volume>-AAAA-MM-DD-hhmmss.tar.gz` — os 7 mais recentes de cada volume permanecem. Uma `restauração` descompacta em uma pasta temporária, recusa entradas que tentam sair da pasta (`../`, caminhos absolutos, links duros, dispositivos e um link plantado pelo próprio app), para as instâncias, troca a pasta e as inicia de novo.
+
 ### Monitoramento
 `monitor.Run` lê a cada 15 s `cpu.stat` e `memory.current` (menos `inactive_file`) de `/sys/fs/cgroup/system.slice/brpanel-<app>.service` e grava em `metrics` (24 h). A UI consulta `/apps/{name}/metrics` e `/api/overview`.
 
@@ -80,6 +90,8 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 | `GET /apps/{name}` | sessão | Detalhe, monitoramento |
 | `GET/POST /apps/{name}/edit` | sessão (+CSRF) | Editar |
 | `POST /apps/{name}/{deploy\|start\|stop\|restart\|delete}` | sessão+CSRF | Ações |
+| `POST /apps/{name}/{mount-add\|mount-delete\|volume-backup\|volume-restore\|volume-delete\|volume-schedule}` | sessão+CSRF | Aba Armazenamento: montagens e backups dos volumes |
+| `GET /apps/{name}/volume-backups/{file}` | sessão | Download de backup de volume (nome validado) |
 | `GET /apps/{name}/logs` | sessão | Página de logs |
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
@@ -109,8 +121,12 @@ temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `co
 brpanel.db (+ -wal, -shm)   banco SQLite, modo 0600
 setup_token                 só até concluir o primeiro início
 apps/<app>/src/             checkout do repositório
+volumes/<app>/<nome>/       pastas dos volumes das aplicações: dono = usuário das apps
+files/<app>/<id>            conteúdo dos arquivos montados somente leitura: dono = usuário das apps
+backups/volumes/<app>/      backups dos volumes em .tar.gz (os 7 mais recentes de cada um)
 env/<app>.env               variáveis do serviço, modo 0600
 logs/<app>.log              log do último deploy
+logs/volume-<app>.log       backups e restaurações dos volumes
 logs/db-<nome>.log          provisionamento e backups de um banco
 databases/<nome>/           data/ run/ backups/ (+ redis.conf, init.sql): dono = usuário dos bancos
 tmp/                        clones temporários da detecção

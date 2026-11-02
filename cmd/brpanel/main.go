@@ -26,7 +26,7 @@ func main() {
 	// lead to their files must be traversable (0711) without being listable. Everything else
 	// (database file, env files, logs, backups) stays private to root. tmp holds the throw-away
 	// clones of "Detectar automaticamente", made by the app user inside a private subdirectory.
-	for d, mode := range map[string]os.FileMode{"": 0o711, "apps": 0o711, "databases": 0o711, "logs": 0o750, "env": 0o750, "tmp": 0o711} {
+	for d, mode := range map[string]os.FileMode{"": 0o711, "apps": 0o711, "databases": 0o711, "volumes": 0o711, "files": 0o711, "backups": 0o750, "logs": 0o750, "env": 0o750, "tmp": 0o711} {
 		p := filepath.Join(cfg.DataDir, d)
 		if err := os.MkdirAll(p, mode); err != nil {
 			log.Fatal(err)

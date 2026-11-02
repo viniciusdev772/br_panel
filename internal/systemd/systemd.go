@@ -88,6 +88,11 @@ type Unit struct {
 	MemoryMB   int // MemoryMax; MemoryHigh is set to 90% of it so the kernel throttles before it kills
 	CPUPercent int // CPUQuota, relative to one CPU (200 = two CPUs)
 	NoFile     int // LimitNOFILE
+
+	// Mounts as "source:target" absolute pairs, one BindPaths=/BindReadOnlyPaths= line each. The
+	// caller validates them (validate.Mount): no spaces, ":" or "%" can reach the unit.
+	BindPaths         []string
+	BindReadOnlyPaths []string
 }
 
 // Render returns the unit file contents.
@@ -119,6 +124,12 @@ func (u Unit) Render() string {
 	}
 	if u.NoFile > 0 {
 		fmt.Fprintf(&b, "LimitNOFILE=%d\n", u.NoFile)
+	}
+	for _, p := range u.BindPaths {
+		fmt.Fprintf(&b, "BindPaths=%s\n", p)
+	}
+	for _, p := range u.BindReadOnlyPaths {
+		fmt.Fprintf(&b, "BindReadOnlyPaths=%s\n", p)
 	}
 	b.WriteString("CPUAccounting=yes\nMemoryAccounting=yes\n")
 	b.WriteString("NoNewPrivileges=true\nPrivateTmp=true\nProtectSystem=full\n\n")

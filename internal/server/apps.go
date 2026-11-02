@@ -3,6 +3,7 @@ package server
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -137,7 +138,9 @@ func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (store.App, bool
 func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
 		s.render(w, r, "app", page{Title: a.Name, App: a, State: systemd.StateUnits(systemd.ReplicaUnits(a.Name, a.Replicas)), Info: systemd.InfoAll(systemd.ReplicaUnits(a.Name, a.Replicas)),
-			SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain), VarGroups: s.varGroups(), Bdg: appBadge(a.Kind)})
+			SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain), VarGroups: s.varGroups(), Bdg: appBadge(a.Kind),
+			Mounts: s.store.ListMounts(a.Name), VolumeBackups: s.dep.VolumeBackups(a.Name),
+			VolumeSchedule: s.store.VolumeBackup(a.Name), VolumeBusy: s.dep.VolumeBusy(a.Name)})
 	}
 }
 
@@ -212,11 +215,31 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(deploy.LastLines(deploy.TailFile(s.dep.Paths.LogFile(a.Name), 512<<10), lines)))
 }
 
+// handleVolumeDownload serves one volume backup file, after validating its name.
+func (s *Server) handleVolumeDownload(w http.ResponseWriter, r *http.Request) {
+	a, ok := s.appFor(w, r)
+	if !ok {
+		return
+	}
+	path, ok := s.dep.VolumeBackupPath(a.Name, r.PathValue("file"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="`+a.Name+"-"+r.PathValue("file")+`"`)
+	http.ServeFile(w, r, path)
+}
+
 func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	a, ok := s.appFor(w, r)
 	if !ok {
 		return
 	}
+	// Storage actions return to the tab they came from; the others keep the plain redirect.
+	tabFlash := func(msg, tab string) {
+		http.Redirect(w, r, "/apps/"+a.Name+"?msg="+url.QueryEscape(msg)+"#"+tab, http.StatusSeeOther)
+	}
+	tabFail := func(err error, tab string) { tabFlash("Falha: "+err.Error(), tab) }
 	msg := ""
 	switch action := r.PathValue("action"); action {
 	case "deploy":
@@ -236,6 +259,70 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		} else {
 			msg = "Ação executada: " + action
 		}
+	case "mount-add":
+		mo := store.Mount{App: a.Name, Name: strings.TrimSpace(r.PostFormValue("mount_name")), Kind: r.PostFormValue("mount_kind"),
+			Source: strings.TrimSpace(r.PostFormValue("mount_source")), Target: strings.TrimSpace(r.PostFormValue("mount_target")),
+			Content: strings.ReplaceAll(r.PostFormValue("mount_content"), "\r\n", "\n")}
+		err := validate.Mount(mo.Kind, mo.Name, mo.Source, mo.Target, mo.Content, s.dep.DataDir)
+		if err == nil && len(s.store.ListMounts(a.Name)) >= validate.MaxMounts {
+			err = fmt.Errorf("o limite é de %d armazenamentos por aplicação", validate.MaxMounts)
+		}
+		if err == nil {
+			if _, err = s.store.AddMount(mo); errors.Is(err, store.ErrExists) {
+				err = errors.New("já existe um armazenamento com esse nome ou esse destino")
+			}
+		}
+		if err != nil {
+			tabFlash("Não salvo: "+err.Error(), "armazenamento")
+			return
+		}
+		tabFlash("Armazenamento adicionado. Faça um novo deploy para aplicar.", "armazenamento")
+		return
+	case "mount-delete":
+		id, err := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
+		if err != nil {
+			tabFail(errors.New("armazenamento inválido"), "armazenamento")
+			return
+		}
+		if err := s.store.DeleteMount(a.Name, id); err != nil {
+			tabFail(err, "armazenamento")
+			return
+		}
+		tabFlash("Montagem removida. A pasta e os arquivos continuam no servidor.", "armazenamento")
+		return
+	case "volume-backup":
+		if err := s.dep.BackupVolumes(a.Name, "manual"); err != nil {
+			tabFail(err, "armazenamento")
+			return
+		}
+		tabFlash("Backup iniciado. Ele aparece na lista em alguns instantes.", "armazenamento")
+		return
+	case "volume-restore":
+		if err := s.dep.RestoreVolume(a.Name, r.PostFormValue("file")); err != nil {
+			tabFail(err, "armazenamento")
+			return
+		}
+		tabFlash("Restauração iniciada: as instâncias param e voltam com os arquivos do backup.", "armazenamento")
+		return
+	case "volume-delete":
+		if err := s.dep.DeleteVolumeBackup(a.Name, r.PostFormValue("file")); err != nil {
+			tabFail(err, "armazenamento")
+			return
+		}
+		tabFlash("Backup removido.", "armazenamento")
+		return
+	case "volume-schedule":
+		v := r.PostFormValue("schedule")
+		if v != "off" && v != "daily" && v != "weekly" {
+			tabFail(errors.New("agendamento inválido"), "armazenamento")
+			return
+		}
+		if err := s.store.SetVolumeBackup(a.Name, v); err != nil {
+			tabFail(err, "armazenamento")
+			return
+		}
+		tabFlash("Agendamento salvo.", "armazenamento")
+		return
 	case "delete":
 		if a.Deploying() {
 			msg = "Aguarde o deploy terminar antes de excluir."

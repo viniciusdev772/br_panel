@@ -116,7 +116,7 @@ func TestEnvPairsResolveDatabaseReferences(t *testing.T) {
 	if kv[0][1] != "postgresql://postgres:pw@127.0.0.1:5433/app" || kv[1][1] != "1" || kv[2][1] != "${{nope.URL}}" {
 		t.Errorf("%v", kv)
 	}
-	content := d.envFileContent(store.App{Name: "web", Port: 3001, Env: "U=${{pg.URL}}"}, 3001)
+	content := d.envFileContent(store.App{Name: "web", Port: 3001, Env: "U=${{pg.URL}}"}, 3001, mountSetup{})
 	if !strings.Contains(content, `U="postgresql://postgres:pw@127.0.0.1:5433/app"`) {
 		t.Errorf("o arquivo de ambiente deve ter a referência resolvida:\n%s", content)
 	}
@@ -167,7 +167,7 @@ func TestPortConflict(t *testing.T) {
 func TestEnvFileContentUsesTheInstancePort(t *testing.T) {
 	d := &Deployer{Store: openTestStore(t)}
 	a := store.App{Name: "api", Port: 3100, Replicas: 3}
-	if !strings.Contains(d.envFileContent(a, 3102), `PORT="3102"`) || strings.Contains(d.envFileContent(a, 3102), "3100") {
+	if !strings.Contains(d.envFileContent(a, 3102, mountSetup{}), `PORT="3102"`) || strings.Contains(d.envFileContent(a, 3102, mountSetup{}), "3100") {
 		t.Error("cada instância recebe a própria PORT")
 	}
 	p := Paths{Data: "/d"}

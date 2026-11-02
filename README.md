@@ -117,6 +117,18 @@ Uma instância nova só entra no Nginx depois de aceitar conexões. Uma instânc
 
 O projeto precisa aguentar várias instâncias: nada de sessão, cache ou arquivos gravados só na memória ou no disco de um processo (use um banco ou o Redis). O painel continua sendo um servidor só; distribuir entre máquinas fica fora do escopo.
 
+## Armazenamento (pastas e arquivos que sobrevivem ao deploy)
+
+A aba **Armazenamento** da aplicação guarda o que não pode ser perdido a cada deploy. Cada montagem tem um nome, que vira a variável `VOLUME_<NOME>` com o caminho real, e um caminho dentro do projeto (`storage/uploads`) ou absoluto (`/srv/dados`):
+
+- **Pasta do painel (`volume`):** criada em `<data>/volumes/<app>/<nome>`, pertence ao usuário das aplicações e é a mesma para todas as instâncias. É a opção para uploads, bancos de arquivo e qualquer coisa que não pode sumir no próximo deploy.
+- **Pasta que já existe no servidor (`bind`):** liga uma pasta do servidor (por exemplo `/srv/midia`) na aplicação. O painel exige que ela exista, não cria nem apaga, e recusa `/etc`, `/proc`, `/sys`, `/dev`, `/boot`, `/root`, `/run` e o próprio diretório de dados.
+- **Arquivo de texto (`file`):** o conteúdo fica no banco (até 256 KB), é gravado em `<data>/files/<app>/<id>` e montado **somente leitura**. Serve para uma configuração que o projeto lê de um arquivo e não altera.
+
+Antes de subir, o painel cria o destino dentro da pasta do projeto e passa `BindPaths=`/`BindReadOnlyPaths=` em todas as instâncias (`ProtectSystem=full` não impede essas montagens). Mudar uma montagem vale no próximo deploy. Remover uma montagem não apaga a pasta; excluir a aplicação apaga volumes, arquivos e backups.
+
+**Backups:** manual ou agendado (diário/semanal), um `.tar.gz` por volume em `<data>/backups/volumes/<app>/` (os 7 mais recentes), com download, restauração e exclusão. Restaurar para as instâncias, troca a pasta do volume e as inicia de novo.
+
 ## Bancos de dados (PostgreSQL, MySQL/MariaDB, MongoDB, Redis)
 
 Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** por banco, como serviço systemd

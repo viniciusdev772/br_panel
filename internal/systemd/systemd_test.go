@@ -108,6 +108,26 @@ func TestRenderResourceLimits(t *testing.T) {
 	}
 }
 
+func TestRenderBindPaths(t *testing.T) {
+	u := Unit{App: "w", StartCmd: "x",
+		BindPaths:         []string{"/d/volumes/w/up:/d/apps/w/src/up", "/srv/m:/srv/m"},
+		BindReadOnlyPaths: []string{"/d/files/w/3:/d/apps/w/src/app.json"}}.Render()
+	for _, want := range []string{
+		"BindPaths=/d/volumes/w/up:/d/apps/w/src/up\n", "BindPaths=/srv/m:/srv/m\n",
+		"BindReadOnlyPaths=/d/files/w/3:/d/apps/w/src/app.json\n"} {
+		if !strings.Contains(u, want) {
+			t.Errorf("faltou %q em:\n%s", want, u)
+		}
+	}
+	service := u[strings.Index(u, "[Service]"):strings.Index(u, "[Install]")]
+	if !strings.Contains(service, "BindPaths=") || strings.Contains(u[:strings.Index(u, "[Service]")], "BindPaths") {
+		t.Error("as montagens pertencem a [Service]")
+	}
+	if plain := (Unit{App: "w", StartCmd: "x"}).Render(); strings.Contains(plain, "Bind") {
+		t.Errorf("sem montagens não deve haver Bind:\n%s", plain)
+	}
+}
+
 func TestReplicaUnitNames(t *testing.T) {
 	if ReplicaUnitName("web", 0) != UnitName("web") || ReplicaUnitName("web", 2) != "brpanelr2-web.service" {
 		t.Error("nomes das instâncias")

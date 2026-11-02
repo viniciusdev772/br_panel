@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -39,6 +40,32 @@ func (p Paths) SrcDir(n string) string  { return filepath.Join(p.AppDir(n), "src
 func (p Paths) LogFile(n string) string { return filepath.Join(p.Data, "logs", n+".log") }
 func (p Paths) EnvFile(n string) string { return filepath.Join(p.Data, "env", n+".env") }
 
+// VolumesDir holds the volume mounts of an app; each subfolder is one volume, owned by the app
+// user and shared by every instance.
+func (p Paths) VolumesDir(n string) string { return filepath.Join(p.Data, "volumes", n) }
+
+// VolumeDir is the folder of one volume mount of an app.
+func (p Paths) VolumeDir(n, name string) string { return filepath.Join(p.VolumesDir(n), name) }
+
+// FilesDir holds the contents of the "file" mounts of an app, one file per mount id.
+func (p Paths) FilesDir(n string) string { return filepath.Join(p.Data, "files", n) }
+
+// FileMount is the file written for a "file" mount, mounted read-only into the service.
+func (p Paths) FileMount(n string, id int64) string {
+	return filepath.Join(p.FilesDir(n), strconv.FormatInt(id, 10))
+}
+
+// VolumeBackupDir keeps the .tar.gz backups of an app's volumes, outside them (a backup inside a
+// volume would copy the previous backups too).
+func (p Paths) VolumeBackupDir(n string) string {
+	return filepath.Join(p.Data, "backups", "volumes", n)
+}
+
+// VolumeLogFile is the log of the volume backups and restores of an app.
+func (p Paths) VolumeLogFile(n string) string {
+	return filepath.Join(p.Data, "logs", "volume-"+n+".log")
+}
+
 // EnvFileN is the environment file of instance k (instance 0 uses EnvFile). Each instance has its
 // own file because PORT differs, and systemd lets EnvironmentFile override Environment=.
 func (p Paths) EnvFileN(n string, k int) string {
@@ -59,11 +86,15 @@ type Deployer struct {
 
 	pendMu  sync.Mutex
 	pending map[string]bool
+
+	volMu   sync.Mutex // guards the volume backup/restore running on each app
+	volBusy map[string]string
 }
 
 // New returns a Deployer rooted at dataDir.
 func New(st *store.Store, dataDir string, set func() settings.Settings, gh func() *githubapp.Client) *Deployer {
-	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh, pending: map[string]bool{}}
+	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh,
+		pending: map[string]bool{}, volBusy: map[string]string{}}
 }
 
 func (d *Deployer) unitFile(app string, k int) string {
@@ -266,8 +297,12 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 	if msg := d.PortConflict(a); msg != "" {
 		return errors.New(msg)
 	}
+	mounts, err := d.prepareMounts(ctx, a)
+	if err != nil {
+		return err
+	}
 	for k := 0; k < a.Replicas; k++ {
-		if err := d.writeInstance(a, k); err != nil {
+		if err := d.writeInstance(a, k, mounts); err != nil {
 			return err
 		}
 	}
@@ -292,13 +327,15 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 	return d.nginx().Ensure(ctx, log, siteFor(a))
 }
 
-// writeInstance writes the environment file and the unit of instance k.
-func (d *Deployer) writeInstance(a store.App, k int) error {
-	if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k), 0o600); err != nil {
+// writeInstance writes the environment file and the unit of instance k. Every instance mounts the
+// same storage: the volume is shared, not one copy per instance.
+func (d *Deployer) writeInstance(a store.App, k int, m mountSetup) error {
+	if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k, m), 0o600); err != nil {
 		return err
 	}
 	unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
-		MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536}
+		MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536,
+		BindPaths: m.Bind, BindReadOnlyPaths: m.ReadOnly}
 	if k > 0 {
 		unit.Desc = fmt.Sprintf("BR Panel app %s (instância %d)", a.Name, k)
 	}
@@ -336,9 +373,13 @@ func (d *Deployer) Scale(ctx context.Context, a store.App, n int, log io.Writer)
 		return errors.New(msg)
 	}
 	if n > old {
+		mounts, err := d.prepareMounts(ctx, grown)
+		if err != nil {
+			return err
+		}
 		var fresh []string
 		for k := old; k < n; k++ {
-			if err := d.writeInstance(grown, k); err != nil {
+			if err := d.writeInstance(grown, k, mounts); err != nil {
 				return err
 			}
 			fresh = append(fresh, systemd.ReplicaUnitName(a.Name, k))
@@ -449,7 +490,7 @@ func (d *Deployer) ensureDNS(ctx context.Context, log io.Writer, domain string) 
 }
 
 // envFileContent renders the environment of one instance; port is that instance's own PORT.
-func (d *Deployer) envFileContent(a store.App, port int) string {
+func (d *Deployer) envFileContent(a store.App, port int, m mountSetup) string {
 	var b strings.Builder
 	if port > 0 {
 		b.WriteString(systemd.EnvFileLine("PORT", fmt.Sprint(port)))
@@ -457,6 +498,11 @@ func (d *Deployer) envFileContent(a store.App, port int) string {
 	b.WriteString(systemd.EnvFileLine("HOST", ListenHost(a)))
 	kv, _ := d.envPairs(a) // validated on save
 	for _, p := range kv {
+		b.WriteString(systemd.EnvFileLine(p[0], p[1]))
+	}
+	// After the app's own variables: a VOLUME_ name the admin typed by hand must not hide the
+	// real path.
+	for _, p := range m.Env {
 		b.WriteString(systemd.EnvFileLine(p[0], p[1]))
 	}
 	return b.String()
@@ -480,9 +526,10 @@ func writeFile(path, content string, mode os.FileMode) error {
 	return os.WriteFile(path, []byte(content), mode)
 }
 
-// Remove stops the service and deletes the app, its files, unit and vhost.
+// Remove stops the service and deletes the app, its files, unit and vhost. The volumes and the
+// stored files go too; the screen asks for confirmation before calling this.
 func (d *Deployer) Remove(name string) error {
-	paths := []string{d.Paths.LogFile(name)}
+	paths := []string{d.Paths.LogFile(name), d.Paths.VolumeLogFile(name)}
 	for k := 0; k < validate.MaxReplicas; k++ { // every instance that may exist, whatever the saved count says
 		_, _ = systemd.Ctl("disable", "--now", systemd.ReplicaUnitName(name, k))
 		paths = append(paths, d.unitFile(name, k), d.Paths.EnvFileN(name, k))
@@ -494,8 +541,10 @@ func (d *Deployer) Remove(name string) error {
 	}
 	_, _ = systemd.Ctl("daemon-reload")
 	_ = d.nginx().Remove(context.Background(), io.Discard, name)
-	if err := os.RemoveAll(d.Paths.AppDir(name)); err != nil {
-		return err
+	for _, dir := range []string{d.Paths.AppDir(name), d.Paths.VolumesDir(name), d.Paths.FilesDir(name), d.Paths.VolumeBackupDir(name)} {
+		if err := os.RemoveAll(dir); err != nil {
+			return err
+		}
 	}
 	return d.Store.Delete(name)
 }

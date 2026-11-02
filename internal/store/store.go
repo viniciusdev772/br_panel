@@ -180,6 +180,19 @@ ALTER TABLE apps ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT 0;
 `, `
 ALTER TABLE apps ADD COLUMN autoscale TEXT NOT NULL DEFAULT '';
 ALTER TABLE apps ADD COLUMN scale_at INTEGER NOT NULL DEFAULT 0;
+`, `
+CREATE TABLE mounts (
+	id      INTEGER PRIMARY KEY AUTOINCREMENT,
+	app     TEXT NOT NULL,
+	name    TEXT NOT NULL,
+	kind    TEXT NOT NULL,
+	source  TEXT NOT NULL DEFAULT '',
+	target  TEXT NOT NULL,
+	content TEXT NOT NULL DEFAULT '',
+	UNIQUE (app, name),
+	UNIQUE (app, target)
+);
+ALTER TABLE apps ADD COLUMN volume_backup TEXT NOT NULL DEFAULT 'off';
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -340,6 +353,9 @@ func (s *Store) Delete(name string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`DELETE FROM metrics WHERE app = ?`, name); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM mounts WHERE app = ?`, name); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM apps WHERE name = ?`, name); err != nil {
