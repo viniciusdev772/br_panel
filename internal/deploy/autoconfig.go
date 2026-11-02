@@ -41,7 +41,7 @@ func (d *Deployer) PickPort(except string) int { return d.PickPortRange(except, 
 func (d *Deployer) PickPortRange(except string, n int) int {
 	used := d.Store.UsedPorts()
 	if self, ok := d.Store.Get(except); ok { // its own ports are free to reuse
-		for k := 0; k < max(self.Replicas, 1); k++ {
+		for k := 0; k < self.Slots(); k++ {
 			delete(used, self.Port+k)
 		}
 	}
@@ -74,13 +74,13 @@ func (d *Deployer) PortConflict(a store.App) string {
 	if a.Port == 0 {
 		return ""
 	}
-	last := a.Port + max(a.Replicas, 1) - 1
+	last := a.Port + a.Slots() - 1
 	if last > 65535 {
-		return fmt.Sprintf("as %d instâncias não cabem a partir da porta %d (o limite é 65535)", a.Replicas, a.Port)
+		return fmt.Sprintf("as %d instâncias não cabem a partir da porta %d (o limite é 65535)", a.Slots(), a.Port)
 	}
 	for _, o := range d.Store.List() {
-		if o.Name != a.Name && o.Port <= last && a.Port <= o.Port+max(o.Replicas, 1)-1 {
-			return fmt.Sprintf("as portas %d a %d colidem com as da aplicação %q (%d a %d)", a.Port, last, o.Name, o.Port, o.Port+max(o.Replicas, 1)-1)
+		if o.Name != a.Name && o.Port <= last && a.Port <= o.Port+o.Slots()-1 {
+			return fmt.Sprintf("as portas %d a %d colidem com as da aplicação %q (%d a %d)", a.Port, last, o.Name, o.Port, o.Port+o.Slots()-1)
 		}
 	}
 	for _, db := range d.Store.ListDatabases() {
@@ -125,7 +125,7 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 		a.BuildCmd = det.Build
 	}
 	if a.Port == 0 {
-		a.Port = d.PickPortRange(a.Name, a.Replicas)
+		a.Port = d.PickPortRange(a.Name, a.Slots())
 	}
 	fmt.Fprintf(log, "  build:  %s\n  início: %s\n  porta:  %d\n", orDash(a.BuildCmd), a.StartCmd, a.Port)
 	if err := d.Store.UpdateConfig(a); err != nil {

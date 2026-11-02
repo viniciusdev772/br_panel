@@ -36,13 +36,70 @@ type App struct {
 	Domain     string
 	AutoDeploy bool
 	Env        string
-	Replicas   int    // instances of the app, 1..validate.MaxReplicas
-	MemoryMB   int    // memory limit per instance, 0 = none
-	CPUPercent int    // CPU limit per instance (100 = one CPU), 0 = none
-	RateLimit  int    // requests per second per client IP at nginx, 0 = off
-	Kind       string // detected project type, e.g. "Node.js (npm)"; informational
+	Replicas   int // running instances of the app (the desired capacity), 1..validate.MaxReplicas
+	MemoryMB   int // memory limit per instance, 0 = none
+	CPUPercent int // CPU limit per instance (100 = one CPU), 0 = none
+	RateLimit  int // requests per second per client IP at nginx, 0 = off
+
+	AutoScale  AutoScale // keeps Replicas between AutoScale.Min and .Max by itself
+	ScaledAt   time.Time // when the instance count last changed (deploys do not count); drives the cooldowns
+	Kind       string    // detected project type, e.g. "Node.js (npm)"; informational
 	Status     string
 	LastDeploy time.Time
+}
+
+// AutoScale is the target tracking configuration of an app, modeled on AWS Application Auto
+// Scaling (the engine behind ECS service auto scaling): a minimum and a maximum capacity and a
+// target for the average utilization of the running instances.
+type AutoScale struct {
+	Enabled     bool `json:"enabled"`
+	Min         int  `json:"min"`
+	Max         int  `json:"max"`
+	TargetCPU   int  `json:"cpu"`    // average CPU utilization to hold, % of each instance's CPU capacity
+	TargetMem   int  `json:"mem"`    // same for memory, % of MemoryMB; 0 = ignore memory
+	OutCooldown int  `json:"out_cd"` // seconds to wait after a change before scaling out again; 0 = default
+	InCooldown  int  `json:"in_cd"`  // seconds to wait after a change before scaling in; 0 = default
+}
+
+// Default cooldowns, in seconds. AWS uses 300 for both on ECS; instances here are processes that
+// start in seconds, so scaling out waits less, while scaling in stays conservative.
+const (
+	DefaultOutCooldown = 60
+	DefaultInCooldown  = 300
+)
+
+// OutCD is the scale-out cooldown with the default applied.
+func (s AutoScale) OutCD() time.Duration {
+	if s.OutCooldown <= 0 {
+		return DefaultOutCooldown * time.Second
+	}
+	return time.Duration(s.OutCooldown) * time.Second
+}
+
+// InCD is the scale-in cooldown with the default applied.
+func (s AutoScale) InCD() time.Duration {
+	if s.InCooldown <= 0 {
+		return DefaultInCooldown * time.Second
+	}
+	return time.Duration(s.InCooldown) * time.Second
+}
+
+// Slots is how many consecutive ports the app reserves: its running instances, or the autoscale
+// maximum when that is larger, so growing never runs into another app's port.
+func (a App) Slots() int {
+	n := max(a.Replicas, 1)
+	if a.AutoScale.Enabled {
+		n = max(n, a.AutoScale.Max)
+	}
+	return n
+}
+
+func (a App) autoscaleJSON() string {
+	if a.AutoScale == (AutoScale{}) {
+		return ""
+	}
+	b, _ := json.Marshal(a.AutoScale)
+	return string(b)
 }
 
 // LastPort is the port of the last instance (Port when there is a single one).
@@ -120,6 +177,9 @@ ALTER TABLE apps ADD COLUMN replicas INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE apps ADD COLUMN memory_mb INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE apps ADD COLUMN cpu_percent INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE apps ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT 0;
+`, `
+ALTER TABLE apps ADD COLUMN autoscale TEXT NOT NULL DEFAULT '';
+ALTER TABLE apps ADD COLUMN scale_at INTEGER NOT NULL DEFAULT 0;
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -189,15 +249,22 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit`
+const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit, autoscale, scale_at`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanApp(r rowScanner) (App, error) {
 	var a App
-	var auto, last int64
-	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit)
+	var auto, last, scaled int64
+	var as string
+	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit, &as, &scaled)
 	a.AutoDeploy = auto != 0
+	if as != "" {
+		_ = json.Unmarshal([]byte(as), &a.AutoScale) // a damaged value just means autoscaling off
+	}
+	if scaled > 0 {
+		a.ScaledAt = time.Unix(scaled, 0)
+	}
 	if a.Replicas < 1 {
 		a.Replicas = 1
 	}
@@ -240,9 +307,9 @@ func (s *Store) Create(a App) error {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM databases WHERE name = ?`, a.Name).Scan(&taken); err == nil && taken > 0 {
 		return ErrExists // apps and databases share one namespace (variable references use the name)
 	}
-	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, replicas, memory_mb, cpu_percent, rate_limit, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, StatusIdle, time.Now().Unix())
+	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, replicas, memory_mb, cpu_percent, rate_limit, autoscale, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), StatusIdle, time.Now().Unix())
 	if isConstraint(err) {
 		return ErrExists
 	}
@@ -251,11 +318,18 @@ func (s *Store) Create(a App) error {
 
 // UpdateConfig changes an app's settings without touching its deploy status.
 func (s *Store) UpdateConfig(a App) error {
-	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=?, replicas=?, memory_mb=?, cpu_percent=?, rate_limit=? WHERE name=?`,
-		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.Name)
+	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=?, replicas=?, memory_mb=?, cpu_percent=?, rate_limit=?, autoscale=? WHERE name=?`,
+		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), a.Name)
 	if isConstraint(err) {
 		return ErrExists
 	}
+	return err
+}
+
+// SetScaled records a change of the instance count made by the autoscaler (or an attempt at one,
+// which also starts the cooldown). UpdateConfig never touches the timestamp.
+func (s *Store) SetScaled(name string, replicas int, at time.Time) error {
+	_, err := s.db.Exec(`UPDATE apps SET replicas = ?, scale_at = ? WHERE name = ?`, max(replicas, 1), at.Unix(), name)
 	return err
 }
 
@@ -569,23 +643,24 @@ func (s *Store) DeleteDatabase(name string) error {
 	return tx.Commit()
 }
 
-// UsedPorts returns every port assigned to an app (all its instances) or a database.
+// UsedPorts returns every port reserved by an app (all its instance slots) or a database.
 func (s *Store) UsedPorts() map[int]bool {
 	used := map[int]bool{}
-	for _, q := range []string{`SELECT port, replicas FROM apps`, `SELECT port, 1 FROM databases`} {
-		rows, err := s.db.Query(q)
-		if err != nil {
-			continue
+	for _, a := range s.List() {
+		for k := 0; k < a.Slots(); k++ {
+			used[a.Port+k] = true
 		}
-		for rows.Next() {
-			var p, n int
-			if rows.Scan(&p, &n) == nil {
-				for k := 0; k < max(n, 1); k++ {
-					used[p+k] = true
-				}
-			}
+	}
+	rows, err := s.db.Query(`SELECT port FROM databases`)
+	if err != nil {
+		return used
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p int
+		if rows.Scan(&p) == nil {
+			used[p] = true
 		}
-		rows.Close()
 	}
 	return used
 }

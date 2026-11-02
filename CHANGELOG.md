@@ -5,6 +5,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 ## [Não lançado]
 
 ### Adicionado
+- Escalonamento automático por rastreamento de meta, nos moldes do Application Auto Scaling da AWS: mínimo e máximo de instâncias, meta de uso médio de CPU (e de memória, opcional), aumento proporcional depois de 3 minutos acima da meta, redução só depois de 15 minutos bem abaixo, tempos de espera, aquecimento depois de mudanças e deploys, e histórico de cada mudança. Instâncias novas só entram no Nginx depois de responder; as removidas saem antes de parar.
 - Instâncias por aplicação (1 a 16): cada uma é uma unit systemd com a própria porta (`PORT + k`); o Nginx balanceia entre elas (`least_conn`, conexões persistentes, nova tentativa em 502/503/504 e erros de conexão) e o deploy e o reinício trocam uma instância por vez, sem tirar o site do ar. As portas das instâncias ficam reservadas.
 - Limites por instância de memória (`MemoryMax`, com `MemoryHigh` em 90%) e CPU (`CPUQuota`), `LimitNOFILE=65536` nas apps, limite de requisições por visitante (`limit_req`, erro 429) e compressão gzip nos vhosts das aplicações. CPU e memória do monitor somam as instâncias; logs mostram todas.
 

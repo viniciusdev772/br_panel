@@ -267,15 +267,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		return errors.New(msg)
 	}
 	for k := 0; k < a.Replicas; k++ {
-		if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k), 0o600); err != nil {
-			return err
-		}
-		unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
-			MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536}
-		if k > 0 {
-			unit.Desc = fmt.Sprintf("BR Panel app %s (instância %d)", a.Name, k)
-		}
-		if err := writeFile(d.unitFile(a.Name, k), unit.Render(), 0o644); err != nil {
+		if err := d.writeInstance(a, k); err != nil {
 			return err
 		}
 	}
@@ -297,11 +289,89 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		return d.nginx().Remove(ctx, log, a.Name)
 	}
 	d.ensureDNS(ctx, log, a.Domain)
+	return d.nginx().Ensure(ctx, log, siteFor(a))
+}
+
+// writeInstance writes the environment file and the unit of instance k.
+func (d *Deployer) writeInstance(a store.App, k int) error {
+	if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k), 0o600); err != nil {
+		return err
+	}
+	unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
+		MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536}
+	if k > 0 {
+		unit.Desc = fmt.Sprintf("BR Panel app %s (instância %d)", a.Name, k)
+	}
+	return writeFile(d.unitFile(a.Name, k), unit.Render(), 0o644)
+}
+
+// siteFor is the nginx vhost of an app with its current instances.
+func siteFor(a store.App) nginx.Site {
 	site := nginx.Site{Key: a.Name, Domain: a.Domain, Upstream: fmt.Sprintf("127.0.0.1:%d", a.Port), RateLimit: a.RateLimit, Gzip: true}
-	for k := 0; k < a.Replicas; k++ {
+	for k := 0; k < max(a.Replicas, 1); k++ {
 		site.Upstreams = append(site.Upstreams, fmt.Sprintf("127.0.0.1:%d", a.Port+k))
 	}
-	return d.nginx().Ensure(ctx, log, site)
+	return site
+}
+
+// drainDelay is how long a removed instance keeps running after nginx stopped sending it new
+// requests, so the requests already in flight can finish.
+const drainDelay = 5 * time.Second
+
+// Scale changes the number of running instances of an already deployed app to n, without a deploy.
+// New instances are started and must accept connections before nginx learns about them; removed
+// ones leave nginx first and are stopped after drainDelay. On success the new count and the time
+// are saved (the time starts the autoscaler's cooldown).
+func (d *Deployer) Scale(ctx context.Context, a store.App, n int, log io.Writer) error {
+	old, n := max(a.Replicas, 1), max(n, 1)
+	if n == old {
+		return nil
+	}
+	if _, err := os.Stat(d.unitFile(a.Name, 0)); err != nil {
+		return errors.New("a aplicação ainda não foi publicada")
+	}
+	grown := a
+	grown.Replicas = n
+	if msg := d.PortConflict(grown); msg != "" {
+		return errors.New(msg)
+	}
+	if n > old {
+		var fresh []string
+		for k := old; k < n; k++ {
+			if err := d.writeInstance(grown, k); err != nil {
+				return err
+			}
+			fresh = append(fresh, systemd.ReplicaUnitName(a.Name, k))
+		}
+		for _, args := range [][]string{{"daemon-reload"}, append([]string{"enable", "--now"}, fresh...)} {
+			if err := execx.Run(ctx, log, "systemctl", args...); err != nil {
+				d.removeSurplusInstances(ctx, log, a) // put things back as they were
+				return fmt.Errorf("systemctl %s: %w", args[0], err)
+			}
+		}
+		for k := old; k < n; k++ {
+			if !waitListening(ctx, a.Port+k, instanceReadyTimeout) {
+				d.removeSurplusInstances(ctx, log, a)
+				return fmt.Errorf("a instância %d não respondeu na porta %d em %s", k, a.Port+k, instanceReadyTimeout)
+			}
+		}
+	}
+	if a.Domain != "" {
+		if err := d.nginx().Reload(ctx, log, siteFor(grown)); err != nil {
+			if n > old {
+				d.removeSurplusInstances(ctx, log, a)
+			}
+			return err
+		}
+	}
+	if n < old {
+		select {
+		case <-ctx.Done():
+		case <-time.After(drainDelay):
+		}
+		d.removeSurplusInstances(ctx, log, grown)
+	}
+	return d.Store.SetScaled(a.Name, n, time.Now())
 }
 
 // instanceReadyTimeout is how long a rolling restart waits for an instance to accept connections.

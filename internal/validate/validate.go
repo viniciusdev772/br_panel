@@ -101,6 +101,27 @@ func Scale(replicas, memoryMB, cpuPercent, rateLimit int) error {
 	return nil
 }
 
+// AutoScale checks the autoscaling settings of an app. memoryMB is the app's memory limit per
+// instance: a memory target needs it, because utilization is measured against that limit.
+func AutoScale(enabled bool, min, max, targetCPU, targetMem, outCooldown, inCooldown, memoryMB int) error {
+	if !enabled {
+		return nil
+	}
+	switch {
+	case min < 1 || max < min || max > MaxReplicas:
+		return fmt.Errorf("escalonamento automático: o mínimo deve ser de 1 até o máximo, e o máximo no máximo %d", MaxReplicas)
+	case targetCPU < 10 || targetCPU > 95:
+		return errors.New("escalonamento automático: a meta de CPU deve ficar entre 10% e 95%")
+	case targetMem != 0 && (targetMem < 10 || targetMem > 95):
+		return errors.New("escalonamento automático: a meta de memória deve ficar entre 10% e 95%")
+	case targetMem != 0 && memoryMB == 0:
+		return errors.New("escalonamento automático: a meta de memória exige o limite de memória por instância")
+	case outCooldown < 0 || outCooldown > 3600 || inCooldown < 0 || inCooldown > 3600:
+		return errors.New("escalonamento automático: os tempos de espera vão de 0 a 3600 segundos")
+	}
+	return nil
+}
+
 // ParseEnv parses KEY=VALUE lines (blank lines and # comments allowed).
 func ParseEnv(text string) ([][2]string, error) {
 	var out [][2]string

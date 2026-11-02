@@ -44,6 +44,29 @@
     <h2 class="step-title">Quanto tráfego o projeto recebe?</h2>
     <p class="step-lead">Se um processo só dá conta, deixe como está. Para atender mais visitas, ou para publicar sem tirar o site do ar, rode várias cópias do projeto e coloque limites de uso.</p>
     {{template "field" dict "name" "replicas" "label" "Instâncias (cópias do projeto)" "value" (or .App.Replicas 1) "type" "number" "hint" "De 1 a 16. O Nginx divide as visitas entre as instâncias e, a cada deploy, troca uma por vez, então o site não cai. Cada instância usa uma porta própria, a partir da porta informada, e o projeto precisa ler a porta de $PORT. Guarde sessões e arquivos fora da memória do processo (banco de dados ou Redis). Só vale com domínio."}}
+    <h3 class="step-sub">Escalonamento automático</h3>
+    <p class="step-lead">O painel acompanha o uso de CPU e muda o número de instâncias sozinho, como o escalonamento por meta da AWS: mantém o uso médio perto da meta que você definir. Sobe rápido, quando a CPU passa da meta por 3 minutos seguidos, e desce devagar, só depois de 15 minutos bem abaixo dela. O número de instâncias de cima passa a ser o ponto de partida.</p>
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="autoscale" name="autoscale" {{if .App.AutoScale.Enabled}}checked{{end}}>
+        <div class="mdc-checkbox__background">
+          <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
+          <div class="mdc-checkbox__mixedmark"></div>
+        </div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="autoscale">Ligar o escalonamento automático</label>
+    </div>
+    {{template "field" dict "name" "scale_min" "label" "Mínimo de instâncias" "value" (or .App.AutoScale.Min 1) "type" "number" "hint" "Nunca fica abaixo disso."}}
+    {{template "field" dict "name" "scale_max" "label" "Máximo de instâncias" "value" (or .App.AutoScale.Max 4) "type" "number" "hint" "Nunca passa disso, no máximo 16. As portas das instâncias até o máximo ficam reservadas para esta aplicação."}}
+    {{template "field" dict "name" "scale_cpu" "label" "Meta de uso de CPU (%)" "value" (or .App.AutoScale.TargetCPU 60) "type" "number" "hint" "O uso médio que o painel tenta manter, em % da capacidade de cada instância: o limite de CPU, se você definir um, ou um núcleo. Uma meta mais alta gasta menos, uma mais baixa deixa mais folga para picos."}}
+    {{template "field" dict "name" "scale_mem" "label" "Meta de uso de memória (%, opcional)" "value" (or .App.AutoScale.TargetMem "") "type" "number" "hint" "Em % do limite de memória de cada instância, então exige o limite abaixo. Se CPU ou memória pedir mais instâncias, o painel sobe; para descer, as duas precisam estar folgadas."}}
+    <details class="advanced">
+      <summary>Tempos de espera</summary>
+      {{template "field" dict "name" "scale_out_cd" "label" "Depois de aumentar, esperar (segundos)" "value" (or .App.AutoScale.OutCooldown "") "type" "number" "hint" "Antes de aumentar de novo. Em branco, 60."}}
+      {{template "field" dict "name" "scale_in_cd" "label" "Depois de uma mudança, esperar para reduzir (segundos)" "value" (or .App.AutoScale.InCooldown "") "type" "number" "hint" "Antes de reduzir. Em branco, 300. Instâncias novas ficam 1 minuto em aquecimento e não entram na média."}}
+    </details>
+    <h3 class="step-sub">Limites de uso</h3>
     {{template "field" dict "name" "memory_mb" "label" "Memória máxima por instância (MB)" "value" (or .App.MemoryMB "") "type" "number" "hint" "Em branco, sem limite. O sistema reinicia a instância que passar do limite, sem afetar as outras aplicações."}}
     {{template "field" dict "name" "cpu_percent" "label" "CPU máxima por instância (%)" "value" (or .App.CPUPercent "") "type" "number" "hint" "100 equivale a um núcleo, 200 a dois. Em branco, sem limite."}}
     {{template "field" dict "name" "rate_limit" "label" "Limite de requisições por visitante (por segundo)" "value" (or .App.RateLimit "") "type" "number" "hint" "Em branco, desligado. Quem passar do limite recebe o erro 429. Rajadas pequenas, como o carregamento de uma página, passam. Só vale com domínio."}}

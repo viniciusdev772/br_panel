@@ -38,7 +38,8 @@
         <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
         <dt>Início</dt><dd><code>{{or .App.StartCmd "—"}}</code></dd>
         {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}{{if gt .App.Replicas 1}} a {{.App.LastPort}}{{end}}</dd>{{end}}
-        {{if gt .App.Replicas 1}}<dt>Instâncias</dt><dd>{{.App.Replicas}} <span class="muted">(deploy uma por vez)</span></dd>{{end}}
+        {{if or (gt .App.Replicas 1) .App.AutoScale.Enabled}}<dt>Instâncias</dt><dd>{{.App.Replicas}} <span class="muted">({{if .App.AutoScale.Enabled}}ajustado sozinho, {{end}}deploy uma por vez)</span></dd>{{end}}
+        {{if .App.AutoScale.Enabled}}<dt>Escalonamento automático</dt><dd>{{.App.AutoScale.Min}} a {{.App.AutoScale.Max}} instâncias, meta de CPU {{.App.AutoScale.TargetCPU}}%{{if .App.AutoScale.TargetMem}} e de memória {{.App.AutoScale.TargetMem}}%{{end}}</dd>{{end}}
         {{if or .App.MemoryMB .App.CPUPercent}}<dt>Limites por instância</dt><dd>{{if .App.MemoryMB}}{{.App.MemoryMB}} MB de memória{{end}}{{if and .App.MemoryMB .App.CPUPercent}}, {{end}}{{if .App.CPUPercent}}{{.App.CPUPercent}}% de CPU{{end}}</dd>{{end}}
         {{if .App.RateLimit}}<dt>Limite de requisições</dt><dd>{{.App.RateLimit}} por segundo por visitante</dd>{{end}}
         <dt>Deploy automático</dt><dd>{{if .App.AutoDeploy}}ativado (push em <code>{{.App.Branch}}</code>){{else}}desativado{{end}}</dd>

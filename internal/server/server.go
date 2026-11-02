@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/viniciusdev772/br_panel/internal/auth"
+	"github.com/viniciusdev772/br_panel/internal/autoscale"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/deploy"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
@@ -92,6 +93,7 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 // Run starts the background workers and serves HTTP until ctx is cancelled.
 func (s *Server) Run(ctx context.Context) error {
 	go monitor.Run(ctx, s.store)
+	go autoscale.Run(ctx, s.store, s.dep)
 	go s.dbm.RunScheduler(ctx)
 	if s.configured.Load() {
 		if s.settings().PanelDomain != "" {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"errors"
 	"net/http"
 	"net/url"
@@ -32,8 +33,17 @@ func appFromForm(r *http.Request, name string) (store.App, error) {
 	if replicas == 0 {
 		replicas = 1 // field left empty
 	}
+	as := store.AutoScale{
+		Enabled: r.PostFormValue("autoscale") == "on",
+		Min:     num("scale_min"), Max: num("scale_max"), TargetCPU: num("scale_cpu"), TargetMem: num("scale_mem"),
+		OutCooldown: num("scale_out_cd"), InCooldown: num("scale_in_cd"),
+	}
+	if as.Enabled { // empty fields mean the defaults shown in the form
+		as.Min, as.Max, as.TargetCPU = cmp.Or(as.Min, 1), cmp.Or(as.Max, 4), cmp.Or(as.TargetCPU, 60)
+		replicas = min(max(replicas, as.Min), as.Max) // the instance count always sits inside the range
+	}
 	a := store.App{
-		Replicas: replicas, MemoryMB: num("memory_mb"), CPUPercent: num("cpu_percent"), RateLimit: num("rate_limit"),
+		Replicas: replicas, MemoryMB: num("memory_mb"), CPUPercent: num("cpu_percent"), RateLimit: num("rate_limit"), AutoScale: as,
 		Name:       name,
 		Repo:       strings.TrimSpace(r.PostFormValue("repo")),
 		Branch:     strings.TrimSpace(r.PostFormValue("branch")),
@@ -53,6 +63,7 @@ func appFromForm(r *http.Request, name string) (store.App, error) {
 		validate.Command("Comando de início", a.StartCmd, false),
 		validate.Port(a.Port), validate.Domain(a.Domain),
 		validate.Scale(a.Replicas, a.MemoryMB, a.CPUPercent, a.RateLimit),
+		validate.AutoScale(as.Enabled, as.Min, as.Max, as.TargetCPU, as.TargetMem, as.OutCooldown, as.InCooldown, a.MemoryMB),
 	} {
 		if err != nil {
 			return a, err

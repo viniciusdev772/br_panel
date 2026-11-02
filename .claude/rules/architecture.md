@@ -6,10 +6,11 @@ Direção das dependências (só para a direita/baixo; nunca o contrário):
 
 ```
 cmd/brpanel → server, store
-server      → auth, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
+server      → auth, autoscale, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, web
 deploy      → cloudflare, nodeenv, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate
 dbengine    → execx, settings, store, systemd, validate
 monitor     → store, sysinfo, systemd
+autoscale   → store
 nginx       → execx, settings          store → settings → cloudflare, githubapp, validate
 systemd     → sysinfo                  detect → validate
 folhas      : auth, cloudflare, nodeenv, execx, githubapp, sysinfo, validate

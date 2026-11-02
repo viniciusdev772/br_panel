@@ -226,6 +226,12 @@ func (m *Manager) Ensure(ctx context.Context, log io.Writer, site Site) error {
 	return m.applyVhost(ctx, log, site, true)
 }
 
+// Reload rewrites the vhost of an already published site (for example after its instances
+// changed) and reloads nginx, without trying to obtain certificates.
+func (m *Manager) Reload(ctx context.Context, log io.Writer, site Site) error {
+	return m.applyVhost(ctx, log, site, m.HasCert(site.Domain))
+}
+
 // Remove deletes the vhost, if present, and reloads nginx.
 func (m *Manager) Remove(ctx context.Context, log io.Writer, key string) error {
 	path := m.vhostPath(key)

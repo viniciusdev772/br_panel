@@ -98,6 +98,23 @@ Na etapa **Desempenho** do formulário da aplicação:
 - **Limite de requisições por visitante:** `limit_req` do Nginx por IP, com rajada de 5 vezes o limite (mínimo 20) e erro 429 acima disso. Desligado por padrão.
 - **Compressão:** com domínio, o vhost comprime texto (HTML, CSS, JavaScript, JSON, SVG, XML).
 
+### Escalonamento automático
+
+Ligado na mesma etapa, funciona como o escalonamento por **rastreamento de meta** da AWS (Application Auto Scaling, o mesmo modelo do ECS): você define o mínimo e o máximo de instâncias e uma meta de uso médio, e o painel ajusta o número de instâncias sozinho.
+
+| Ideia na AWS | No painel |
+|---|---|
+| Capacidade mínima e máxima | Mínimo e máximo de instâncias (até 16). As portas até o máximo ficam reservadas para a aplicação. |
+| Métrica e valor-alvo | Uso médio de CPU (padrão 60%) e, opcionalmente, de memória. A CPU é medida contra o limite de CPU de cada instância, ou contra um núcleo se não houver limite; a memória, contra o limite de memória. |
+| Aumenta rápido | Com a métrica acima da meta por **3 minutos seguidos** (médias de 1 minuto), sobe de forma proporcional: `ceil(instâncias × média ÷ meta)`, até o máximo. |
+| Reduz devagar | Só depois de **15 minutos seguidos** abaixo da meta, com a média mais de 10% abaixo dela, e nunca abaixo do mínimo. |
+| Várias métricas | Sobe se qualquer uma pedir; desce só se todas permitirem. |
+| Cooldown | Depois de aumentar, espera 60 s antes de aumentar de novo; antes de reduzir, espera 300 s desde a última mudança (ajustáveis). |
+| Aquecimento | Por 1 minuto depois de uma mudança ou de um deploy, as métricas não contam, porque instâncias novas gastam mais CPU ao iniciar. |
+| Sem dados | Se faltar um minuto de métrica (app parada, por exemplo), nada muda. |
+
+Uma instância nova só entra no Nginx depois de aceitar conexões. Uma instância removida sai do Nginx primeiro e é parada 5 segundos depois, para as requisições em andamento terminarem. Cada mudança aparece no histórico de atividades. O painel não escala a aplicação durante um deploy, e escala no máximo uma vez por ciclo de 30 segundos.
+
 O projeto precisa aguentar várias instâncias: nada de sessão, cache ou arquivos gravados só na memória ou no disco de um processo (use um banco ou o Redis). O painel continua sendo um servidor só; distribuir entre máquinas fica fora do escopo.
 
 ## Bancos de dados (PostgreSQL, MySQL/MariaDB, MongoDB, Redis)
