@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.2.0] - 2026-11-02
+
 ### Adicionado
 - **CLI do BR Panel** (`brpanel apps list`, `apps deploy NOME --wait`, `apps env-set`, `dbs create`, `status`…): 40 comandos para aplicações, variáveis, domínios e manutenção, bancos e eventos, falando com o painel por um socket Unix só do root (sem senha nem token) e passando pelas mesmas validações da tela. Pensada para agentes de IA, até modelos pequenos: respostas `OK:`/`ERRO:` com `DICA:`, `USO:` e `EXEMPLO:`, sugestão do comando certo para erros de digitação, sinônimos e plural/singular, `--json`, `--wait`, `--yes` obrigatório para apagar e senhas só por entrada padrão. Nova página **CLI** no painel com todos os comandos, exemplos para copiar e o prompt pronto para agentes; o guia completo também sai por `brpanel guide` e `/cli/guide.txt`. Novas rotas JSON de leitura: `/api/apps`, `/api/apps/{name}`, `/api/databases`.
 - **CLI remota**: controle o painel de qualquer computador (Linux, macOS, Windows). Instalação por `curl … install-cli.sh | sh` ou `irm … install-cli.ps1 | iex` (binário só da CLI, com SHA-256 conferido, sem administrador), `brpanel login ENDEREÇO` com um token, `whoami`, `logout` e `tokens list|create|revoke`. Tokens de acesso (`brp_…`) criados na aba **CLI** do painel ou pelo comando: só o hash fica no banco (migração nova), o segredo aparece uma vez, até 20, revogação imediata e bloqueio do IP após tentativas erradas. A release passa a publicar também `brpanel-cli-<os>-<arch>` (linux, darwin, windows × amd64, arm64) com `.sha256`.
