@@ -19,6 +19,7 @@ import (
 
 	"github.com/viniciusdev772/br_panel/internal/auth"
 	"github.com/viniciusdev772/br_panel/internal/autoscale"
+	"github.com/viniciusdev772/br_panel/internal/cli"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/deploy"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
@@ -97,6 +98,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go autoscale.Run(ctx, s.store, s.dep)
 	go s.dbm.RunScheduler(ctx)
 	go s.dep.RunVolumeScheduler(ctx)
+	go s.serveCLI(ctx)
 	if s.configured.Load() {
 		if s.settings().PanelDomain != "" {
 			go s.publishPanel()
@@ -179,7 +181,7 @@ func (s *Server) loadTemplates() error {
 		"join":  strings.Join,
 		"split": strings.Split,
 	}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new", "cli"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {
 			return err
@@ -218,6 +220,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /apps/{name}/volume-backups/{file}", s.protected(s.handleVolumeDownload))
 	mux.HandleFunc("POST /apps/{name}/site/{action}", s.protected(s.handleSite))
 	mux.HandleFunc("GET /api/overview", s.protected(s.handleOverview))
+	mux.HandleFunc("GET /api/apps", s.protected(s.handleAPIApps))
+	mux.HandleFunc("GET /api/apps/{name}", s.protected(s.handleAPIApp))
+	mux.HandleFunc("GET /api/databases", s.protected(s.handleAPIDatabases))
+	mux.HandleFunc("GET /cli", s.protected(s.handleCLIPage))
+	mux.HandleFunc("GET /cli/guide.txt", s.protected(s.handleCLIGuide))
 	mux.HandleFunc("GET /api/github/repos", s.protected(s.handleGitHubRepos))
 	mux.HandleFunc("POST /tools/node/install", s.protected(s.handleNodeInstall))
 	mux.HandleFunc("GET /tools/node/status", s.protected(s.handleNodeStatus))
@@ -234,7 +241,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /databases/{name}/backups/{file}", s.protected(s.handleDBBackupDownload))
 	mux.HandleFunc("POST /databases/{name}/{action}", s.protected(s.handleDBAction))
 	mux.HandleFunc("POST /apps/{name}/{action}", s.protected(s.handleAction))
-	return securityHeaders(s.gate(mux))
+	return securityHeaders(s.gate(s.cliAuth(mux)))
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -301,6 +308,10 @@ type page struct {
 	VolumeSchedule string
 	VolumeBusy     string
 
+	CLIGroups []cli.Group
+	CLIPrompt string
+	CLICount  int
+
 	SetupCode      string // setup only: code already known from the install link
 	AppUserDefault string // setup only: system user submitted silently with the form
 	Setup          bool
@@ -331,6 +342,10 @@ type ghStatus struct {
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, p page) {
+	if viaCLI(r) { // the CLI wants the outcome, not the page
+		writeJSON(w, map[string]string{"error": p.Error, "flash": p.Flash})
+		return
+	}
 	p.CSRF, p.Authed = s.auth.Session(r)
 	if p.Nav == "" {
 		switch name {

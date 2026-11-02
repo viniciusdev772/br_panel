@@ -10,17 +10,26 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
+	"github.com/viniciusdev772/br_panel/internal/cli"
 	"github.com/viniciusdev772/br_panel/internal/server"
 	"github.com/viniciusdev772/br_panel/internal/store"
 )
 
 func main() {
+	// `brpanel apps list` is the CLI; the server only ever takes flags.
+	if cli.IsCommand(os.Args[1:]) {
+		os.Exit(cli.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	}
 	var cfg server.Config
 	flag.StringVar(&cfg.Addr, "addr", ":8080", "endereço de escuta do painel (ex.: 127.0.0.1:8080 após configurar o SSL)")
-	flag.StringVar(&cfg.DataDir, "data", "/var/lib/brpanel", "diretório de dados (banco SQLite, logs e apps)")
+	flag.StringVar(&cfg.DataDir, "data", cli.DefaultData, "diretório de dados (banco SQLite, logs e apps)")
 	flag.Parse()
+	if flag.NArg() > 0 { // e.g. `brpanel -data /x apps list`: never start a server by accident
+		log.Fatalf("argumentos inesperados %q: para usar a CLI, escreva o comando primeiro (ex.: brpanel %s --data PASTA); para iniciar o painel, use só -addr e -data", flag.Args(), strings.Join(flag.Args(), " "))
+	}
 
 	// Apps and databases run as unprivileged users: the data directory and the directories that
 	// lead to their files must be traversable (0711) without being listable. Everything else

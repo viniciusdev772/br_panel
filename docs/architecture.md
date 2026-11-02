@@ -84,6 +84,10 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 ### Monitoramento
 `monitor.Run` lê a cada 15 s `cpu.stat` e `memory.current` (menos `inactive_file`) de `/sys/fs/cgroup/system.slice/brpanel-<app>.service` e grava em `metrics` (24 h). A UI consulta `/apps/{name}/metrics` e `/api/overview`.
 
+### CLI
+
+`brpanel <comando>` (qualquer primeiro argumento sem `-`) executa `cli.Run` em vez de subir o servidor. O cliente fala HTTP sobre o socket Unix `<data>/brpanel.sock` (modo 0600, criado por `Server.serveCLI`). O handler do socket é o mesmo `routes()` com a requisição marcada no contexto (`viaCLI`, só `cliHandler` marca); `cliAuth` então chama `auth.Grant`, que abre uma sessão descartável de 1 minuto e coloca cookie e campo `csrf` na requisição. Assim as rotas `protected()` e os handlers são os da interface web, sem uma segunda API para manter; `render` devolve só `{error, flash}` em JSON para a CLI, que lê o resultado das ações no `?msg=` do redirecionamento. As leituras estruturadas são `/api/apps`, `/api/apps/{name}` e `/api/databases` (tipos em `cli/wire.go`). `cli/catalog.go` é a fonte única dos comandos: gera `--help`, `brpanel guide`, `/cli` e `/cli/guide.txt`, e `cli_test.go` garante que cada exemplo documentado é aceito pelo parser.
+
 ## Rotas HTTP
 
 | Método e caminho | Autenticação | Descrição |
@@ -103,6 +107,8 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
+| `GET /api/apps`, `GET /api/apps/{name}`, `GET /api/databases` | sessão | JSON das aplicações e bancos (sem senhas de banco nem hashes); usados pela CLI |
+| `GET /cli`, `GET /cli/guide.txt` | sessão | Página da CLI e guia em texto puro para agentes de IA |
 | `POST /tools/node/install` | sessão + CSRF | Instala o Node.js com o nvm em segundo plano |
 | `POST /databases/{name}/forward-on` · `forward-off` | sessão + CSRF | Liga/desliga o repasse da porta padrão (3306, 5432…) em `127.0.0.1` para a porta do banco (socket + `systemd-socket-proxyd`) |
 | `GET /tools/node/status` | sessão | Andamento da instalação (log, erro, node/npm disponíveis) |

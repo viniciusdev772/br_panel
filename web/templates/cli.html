@@ -1,0 +1,49 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">CLI do BR Panel</h1></div>
+
+<div class="mdc-card"><div class="card-body">
+  <p>Tudo o que o painel faz pode ser feito no terminal do servidor com o comando <code>brpanel</code>: publicar apps, ver logs, mudar variáveis, domínios, bancos de dados e backups. São <b>{{.CLICount}} comandos</b>, com respostas curtas e iguais em todos eles, pensados para pessoas e para agentes de IA.</p>
+  <pre class="codeblock">sudo brpanel status
+sudo brpanel apps list
+sudo brpanel apps deploy minha-app --wait</pre>
+  <p class="muted">O comando fala com o painel por um socket local (<code>/var/lib/brpanel/brpanel.sock</code>) que só o root abre. Não há senha, token nem variável de ambiente para configurar, e nada fica exposto na rede. Se a pasta de dados não for a padrão, use <code>--data PASTA</code>.</p>
+</div></div>
+
+<h2 class="mdc-typography--subtitle1 section-title">Para agentes de IA</h2>
+<div class="mdc-card"><div class="card-body">
+  <p>Cole este bloco no prompt do sistema de qualquer agente. Ele funciona até com modelos pequenos (4B): são poucas regras, e cada resposta do comando começa com <code>OK:</code> ou <code>ERRO:</code> e traz linhas <code>DICA:</code> com o próximo passo. Erros de digitação sugerem o comando certo (<i>você quis dizer…</i>).</p>
+  <pre class="codeblock">{{.CLIPrompt}}</pre>
+  <div class="actions">
+    <button class="mdc-button mdc-button--raised" type="button" data-copy-text="{{.CLIPrompt}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">content_copy</i><span class="mdc-button__label">Copiar o prompt</span></button>
+    <a class="mdc-button" href="/cli/guide.txt" target="_blank" rel="noopener"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">article</i><span class="mdc-button__label">Ver o guia completo</span></a>
+    <a class="mdc-button" href="/cli/guide.txt?download=1"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar o guia (.txt)</span></a>
+  </div>
+  <p class="muted">O guia completo (<code>brpanel guide</code>) traz receitas passo a passo e uma tabela de erros. Para um agente que lê arquivos, salve-o como <code>AGENTS.md</code> ou <code>CLAUDE.md</code> do projeto.</p>
+</div></div>
+
+<h2 class="mdc-typography--subtitle1 section-title">Como as respostas funcionam</h2>
+<div class="mdc-card"><div class="card-body">
+  <dl class="meta">
+    <dt><code>OK: …</code></dt><dd>deu certo (código de saída 0)</dd>
+    <dt><code>ERRO: …</code></dt><dd>falhou: código 1 se o painel recusou, 2 se o comando foi escrito errado</dd>
+    <dt><code>DICA: …</code></dt><dd>o próximo passo; <code>USO:</code> e <code>EXEMPLO:</code> mostram a forma certa</dd>
+    <dt><code>--json</code></dt><dd>qualquer comando responde em JSON</dd>
+    <dt><code>--yes</code></dt><dd>obrigatório nos comandos que apagam dados; sem ele nada é apagado</dd>
+    <dt><code>--wait</code></dt><dd>o deploy roda em segundo plano; com <code>--wait</code> o comando espera e diz se deu certo</dd>
+  </dl>
+</div></div>
+
+{{range .CLIGroups}}
+<h2 class="mdc-typography--subtitle1 section-title">{{.Name}}</h2>
+{{range .Cmds}}
+<div class="mdc-card"><div class="card-body cli-cmd">
+  <div class="cli-head"><code class="cli-usage">{{.Usage}}</code><button class="icon-btn" type="button" data-copy-text="{{index .Examples 0}}" aria-label="Copiar o exemplo" title="Copiar o exemplo"><i class="material-icons">content_copy</i></button></div>
+  <p>{{.Summary}}{{if .Danger}} <span class="chip">pede --yes</span>{{end}}</p>
+  {{if .Aliases}}<p class="muted">Também funciona: {{range $i, $a := .Aliases}}{{if $i}}, {{end}}<code>brpanel {{$a}}</code>{{end}}</p>{{end}}
+  {{if .Flags}}<dl class="meta">{{range .Flags}}<dt><code>--{{.Name}}{{if .Value}} {{.Value}}{{end}}</code></dt><dd>{{.Desc}}</dd>{{end}}</dl>{{end}}
+  {{if .Examples}}<pre class="codeblock">{{range $i, $e := .Examples}}{{if $i}}
+{{end}}{{$e}}{{end}}</pre>{{end}}
+</div></div>
+{{end}}
+{{end}}
+{{end}}

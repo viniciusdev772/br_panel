@@ -139,6 +139,26 @@ func (a *Auth) Start(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Grant authenticates r as a throw-away one-minute session, for the local CLI socket whose file
+// permissions (root only) are the authentication. It adds the session cookie and the CSRF field to r
+// so the normal protected() routes accept it; call release when the request is done.
+func (a *Auth) Grant(r *http.Request) (release func()) {
+	id, csrf := RandomToken(32), RandomToken(16)
+	h := idHash(id)
+	a.mu.Lock()
+	a.sessions[h] = session{csrf: csrf, exp: time.Now().Add(time.Minute)}
+	a.mu.Unlock()
+	r.AddCookie(&http.Cookie{Name: sessionCookie, Value: id})
+	if r.ParseForm() == nil { // a bad body just fails the CSRF check below
+		r.PostForm.Set("csrf", csrf)
+	}
+	return func() {
+		a.mu.Lock()
+		delete(a.sessions, h) // never persisted, so no store call
+		a.mu.Unlock()
+	}
+}
+
 // IsHTTPS is true for direct TLS or when our own nginx (loopback) says the client used HTTPS.
 func IsHTTPS(r *http.Request) bool {
 	if r.TLS != nil {

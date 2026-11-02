@@ -173,6 +173,14 @@ Alguns projetos escrevem `host: "localhost"` (porta 3306) e a própria porta HTT
 
 Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limitados a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`): o painel gera credenciais próprias, e o código usa as dele.
 
+## CLI e agentes de IA
+
+O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpanel apps deploy loja --wait`, `sudo brpanel dbs create --kind postgres --name pg`… São 34 comandos (aplicações, variáveis, site/Nginx, bancos, status, eventos), listados na página **CLI** do painel e em `brpanel help`. Sem argumentos de comando, `brpanel` continua iniciando o servidor.
+
+- **Sem senha nem token.** A CLI fala com o painel em execução por um socket Unix (`<data>/brpanel.sock`, modo 0600, só root), e cada pedido passa pelas mesmas rotas e validações da interface web. Se a pasta de dados não for a padrão, use `--data PASTA`.
+- **Feita para agentes de IA, até os pequenos (4B).** Toda resposta começa com `OK:` ou `ERRO:` e traz linhas `DICA:`, `USO:` e `EXEMPLO:` com o próximo passo; códigos de saída 0 (certo), 1 (o painel recusou) e 2 (comando mal escrito). Erros de digitação sugerem o comando certo, plural/singular e sinônimos funcionam (`app ls`, `apps rm`, `apps env set`), opções desconhecidas listam as válidas e o que apaga dados exige `--yes`. Senhas nunca vão na linha de comando (`--password-stdin`). `--json` em qualquer comando; `--wait` espera o deploy e diz se deu certo.
+- **Um catálogo só.** `internal/cli/catalog.go` gera o `--help`, a página `/cli` e o guia para agentes (`brpanel guide`, também em `/cli/guide.txt`), e um teste confere que todo exemplo documentado é aceito pelo parser. Para um agente, cole o bloco da página **CLI** no prompt do sistema ou salve o guia como `AGENTS.md`/`CLAUDE.md` do projeto.
+
 ## Monitoramento e logs
 
 - **CPU e RAM por aplicação:** a cada 15 s o painel lê o cgroup v2 do serviço
@@ -237,6 +245,8 @@ nova execução ao final.
   Login com tempo equivalente para usuário inexistente, bloqueio por IP após 5 falhas.
 - Sessão por cookie `HttpOnly` + `SameSite=Strict` (`Secure` automático sob HTTPS), CSRF em todo POST,
   sessões encerradas ao trocar a senha. As sessões ficam no SQLite (só o hash do id) e sobrevivem a reinícios do painel. Até a configuração inicial, só `/setup` responde e exige o token.
+- O socket da CLI (`brpanel.sock`) é 0600 e do root: quem consegue abri-lo já é root no servidor, então ele
+  substitui a senha. Só ele marca uma requisição como vinda da CLI; o listener HTTP nunca faz isso.
 - Banco e diretório de dados só para root (0600/0750). Segredos (chave do GitHub App, segredo do webhook)
   ficam em texto no banco: proteja backups e acesso ao servidor.
 - URLs de repositório validadas (https/ssh, sem credenciais); `git`, `systemctl`, `nginx` e `certbot` são
