@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- A tela de criar e editar aplicação agora é feita em quatro etapas (Código, Execução, Endereço, Ajustes), com textos mais simples e os campos técnicos (build, comando de início, porta) recolhidos em "Ajustar à mão". Sem JavaScript, todas as etapas aparecem juntas.
+
 ## [0.1.0] - 2026-11-02
 
 ### Adicionado

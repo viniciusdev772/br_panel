@@ -132,8 +132,9 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await shot('22-app-metricas');
   await page.goto(B + '/apps/new'); await idle();
   await page.fill('[name=repo]', 'https://github.com/heroku/node-js-getting-started.git');
+  await page.click('#wz-next'); // step 2 holds the detection
   await page.click('#detect-btn');
-  await page.waitForFunction(() => !document.querySelector('#detect-btn').disabled && document.querySelector('#detect-result').textContent.includes('Detectado'), null, { timeout: 90000 });
+  await page.waitForFunction(() => !document.querySelector('#detect-btn').disabled && document.querySelector('#detect-result').textContent.includes('Encontrei'), null, { timeout: 90000 });
   await shot('23-nova-app-detectada');
   await page.goto(B + '/github'); await idle();
   await shot('24-github');

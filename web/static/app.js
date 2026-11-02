@@ -438,6 +438,50 @@
     if (inst.dataset.running === 'true') { poll(); }
   }
 
+  // ---- app form: one step at a time (without JS every step is visible) ----
+  var wiz = $('#app-wizard');
+  if (wiz) {
+    var steps = $$('.step', wiz), stepper = $('#stepper'), backBtn = $('#wz-back'), nextBtn = $('#wz-next'), submitBtn = $('#wz-submit');
+    var editing = wiz.dataset.editing === 'true', cur = 0, stepBtns = [], last = steps.length - 1;
+    wiz.classList.add('wizard-on');
+    [stepper, backBtn, nextBtn].forEach(function (el) { el.hidden = false; });
+    var show = function (i) {
+      cur = i;
+      steps.forEach(function (s, j) { s.classList.toggle('is-active', j === i); });
+      stepBtns.forEach(function (b, j) {
+        b.classList.toggle('is-active', j === i);
+        b.classList.toggle('is-done', j < i);
+        if (j === i) { b.setAttribute('aria-current', 'step'); } else { b.removeAttribute('aria-current'); }
+      });
+      backBtn.hidden = i === 0;
+      nextBtn.hidden = i === last;
+      submitBtn.hidden = !editing && i !== last; // creating: only the final step can submit
+      Object.keys(fields).forEach(function (k) { fields[k].layout(); }); // labels of fields shown just now need their notch measured
+    };
+    // Going forward stops at the first step with an empty required field and points at it.
+    var go = function (i) {
+      for (var j = cur; j < i; j++) {
+        var bad = $$('input[required], textarea[required]', steps[j]).filter(function (el) { return !el.checkValidity(); })[0];
+        if (bad) { show(j); bad.reportValidity(); return; }
+      }
+      show(i);
+    };
+    steps.forEach(function (s, i) {
+      var li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = '<span class="dot">' + (i + 1) + '</span><span class="label"></span>';
+      $('.label', b).textContent = s.dataset.title;
+      b.addEventListener('click', function () { go(i); });
+      li.appendChild(b); stepper.appendChild(li); stepBtns.push(b);
+    });
+    backBtn.addEventListener('click', function () { go(cur - 1); });
+    nextBtn.addEventListener('click', function () { go(cur + 1); });
+    wiz.addEventListener('keydown', function (e) { // Enter in a text box moves on instead of submitting half a form
+      if (e.key === 'Enter' && !editing && cur !== last && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') { e.preventDefault(); go(cur + 1); }
+    });
+    show(0);
+  }
+
   // ---- new app form: auto detection ----
   var detectBtn = $('#detect-btn');
   if (detectBtn) {
@@ -472,22 +516,25 @@
       var repo = fields.repo.value.trim();
       if (!repo) { fields.repo.valid = false; return; }
       detectBtn.disabled = true;
-      box.hidden = false; box.className = 'detect-result'; box.textContent = 'Clonando e analisando o projeto…';
+      box.hidden = false; box.className = 'detect-result'; box.textContent = 'Baixando e analisando o projeto…';
       var body = new URLSearchParams({ csrf: csrf, repo: repo, branch: fields.branch.value.trim() });
       fetch('/apps/detect', { method: 'POST', credentials: 'same-origin', body: body }).then(function (r) { return r.json(); }).then(function (d) {
         detectBtn.disabled = false;
         setField('name', d.name, true);
         if (d.error && !d.kind) { box.className = 'detect-result bad'; box.textContent = d.error; return; }
         setField('build_cmd', d.build); setField('start_cmd', d.start);
-        var html = '<b>Detectado: ' + esc(d.kind) + '</b>';
-        if (d.start) { html += '<br>Início: <code>' + esc(d.start) + '</code>'; }
-        if (d.build) { html += '<br>Build: <code>' + esc(d.build) + '</code>'; }
-        (d.notes || []).forEach(function (n) { html += '<br>• ' + esc(n); });
+        var man = $('#manual');
+        if (man) { man.open = true; } // show what was filled in
+        var html = 'Encontrei um projeto ' + esc(d.kind) + '.';
+        if (d.build) { html += '<br>Para preparar: <code>' + esc(d.build) + '</code>'; }
+        if (d.start) { html += '<br>Para iniciar: <code>' + esc(d.start) + '</code>'; }
+        else { html += '<br>Não achei o comando de início. Preencha em "Ajustar à mão" ou deixe em branco para o painel tentar no primeiro deploy.'; }
+        (d.notes || []).forEach(function (n) { html += '<br>' + esc(n); });
         var warn = false;
         var needsNode = false;
         if (d.missing && d.missing.length) {
           warn = true;
-          html += '<br><b>Faltam no servidor:</b> ' + d.missing.map(esc).join(', ');
+          html += '<br>Falta instalar no servidor: ' + d.missing.map(esc).join(', ') + '.';
           needsNode = d.missing.some(function (m) { return /^(node|npm|npx|pnpm|yarn) /.test(m); });
           if (needsNode) {
             html += '<br><button type="button" class="mdc-button mdc-button--raised" id="node-install">Instalar Node.js com nvm</button><pre class="detect-log" id="node-log" hidden></pre>';
@@ -496,7 +543,7 @@
         box.className = 'detect-result' + (warn || !d.start ? ' warn' : '');
         box.innerHTML = html;
         if (needsNode) { wireNodeInstall(); }
-      }).catch(function () { detectBtn.disabled = false; box.className = 'detect-result bad'; box.textContent = 'Falha ao detectar.'; });
+      }).catch(function () { detectBtn.disabled = false; box.className = 'detect-result bad'; box.textContent = 'Não consegui analisar o projeto. Confira o endereço do repositório e tente de novo.'; });
     };
     detectBtn.addEventListener('click', detect);
 

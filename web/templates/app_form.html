@@ -1,48 +1,68 @@
 {{define "content"}}
 <div class="page-head"><h1 class="mdc-typography--headline5">{{.Title}}</h1></div>
-<div class="mdc-card"><form method="post" class="card-body" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
+<div class="mdc-card"><form method="post" class="card-body" id="app-wizard" data-editing="{{.Editing}}" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  {{template "field" dict "name" "name" "label" "Nome (vazio = nome do repositório)" "value" .App.Name "required" .Editing "readonly" .Editing}}
-  {{if and .HasKey (not .Editing)}}
-  <div class="repo-picker">
-    <input class="repo-search" id="repo-search" type="text" list="repo-list" autocomplete="off" disabled placeholder="Escolher um repositório do GitHub App (digite para filtrar)" aria-label="Repositórios do GitHub App">
-    <datalist id="repo-list"></datalist>
-    <span class="muted" id="repo-status">Carregando repositórios…</span>
-  </div>
-  {{end}}
-  {{template "field" dict "name" "repo" "label" "Repositório Git (https:// ou git@host:org/repo)" "value" .App.Repo "required" true}}
-  {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch}}
-  <div class="detect-row">
-    <button class="mdc-button mdc-button--outlined" type="button" id="detect-btn"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">auto_fix_high</i><span class="mdc-button__label">Detectar automaticamente</span></button>
-    <span class="muted">Lê package.json, go.mod, requirements.txt, Procfile… e preenche os comandos abaixo.</span>
-  </div>
-  <div class="detect-result" id="detect-result" hidden></div>
-  {{template "field" dict "name" "build_cmd" "label" "Comando de build (vazio = automático)" "value" .App.BuildCmd "hint" "Ex.: npm ci && npm run build"}}
-  {{template "field" dict "name" "start_cmd" "label" "Comando de início (vazio = detectar no deploy)" "value" .App.StartCmd "hint" "Use $PORT e $HOST no comando. Ex.: node server.js"}}
-  {{template "field" dict "name" "port" "label" "Porta (vazio = escolher automaticamente)" "value" .App.PortField "type" "number" "hint" "Exportada para a aplicação como $PORT."}}
-  {{template "field" dict "name" "domain" "label" "Domínio (opcional) ex.: app.exemplo.com.br — Nginx + SSL automático" "value" .App.Domain}}
-  <label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
-    <span class="mdc-notched-outline">
-      <span class="mdc-notched-outline__leading"></span>
-      <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-env">Variáveis de ambiente (CHAVE=valor, uma por linha)</span></span>
-      <span class="mdc-notched-outline__trailing"></span>
-    </span>
-    <span class="mdc-text-field__resizer"><textarea class="mdc-text-field__input" rows="6" name="env" aria-labelledby="lbl-env">{{.App.Env}}</textarea></span>
-  </label>
-  <div class="mdc-form-field">
-    <div class="mdc-checkbox">
-      <input type="checkbox" class="mdc-checkbox__native-control" id="auto_deploy" name="auto_deploy" {{if .App.AutoDeploy}}checked{{end}}>
-      <div class="mdc-checkbox__background">
-        <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
-        <div class="mdc-checkbox__mixedmark"></div>
-      </div>
-      <div class="mdc-checkbox__ripple"></div>
+  <ol class="stepper" id="stepper" aria-label="Etapas" hidden></ol>
+
+  <section class="step" data-title="Código">
+    <h2 class="step-title">Qual projeto você quer publicar?</h2>
+    <p class="step-lead">Diga onde está o código. O painel baixa o projeto do Git e cuida do resto.</p>
+    {{if and .HasKey (not .Editing)}}
+    <div class="repo-picker">
+      <input class="repo-search" id="repo-search" type="text" list="repo-list" autocomplete="off" disabled placeholder="Escolher um repositório do GitHub App (digite para filtrar)" aria-label="Repositórios do GitHub App">
+      <datalist id="repo-list"></datalist>
+      <span class="muted" id="repo-status">Carregando repositórios…</span>
     </div>
-    <label for="auto_deploy">Deploy automático a cada push na branch (GitHub App/webhook)</label>
-  </div>
-  <div class="actions">
+    {{end}}
+    {{template "field" dict "name" "repo" "label" "Endereço do repositório" "value" .App.Repo "required" true "hint" "Cole o link do GitHub, como https://github.com/voce/projeto.git. Endereços no formato git@servidor:org/repo também funcionam."}}
+    {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch "hint" "A versão do código que será publicada. Quase sempre é main."}}
+    {{template "field" dict "name" "name" "label" "Nome da aplicação" "value" .App.Name "required" .Editing "readonly" .Editing "hint" (or (and .Editing "O nome não pode ser alterado.") "Opcional. Se ficar em branco, usamos o nome do repositório.")}}
+  </section>
+
+  <section class="step" data-title="Execução">
+    <h2 class="step-title">Como o projeto roda?</h2>
+    <p class="step-lead">O painel olha os arquivos do projeto e descobre sozinho como prepará-lo e iniciá-lo. Se ele errar, você corrige à mão.</p>
+    <div class="detect-row">
+      <button class="mdc-button mdc-button--outlined" type="button" id="detect-btn"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">auto_fix_high</i><span class="mdc-button__label">Descobrir automaticamente</span></button>
+    </div>
+    <div class="detect-result" id="detect-result" hidden></div>
+    <details class="advanced" id="manual" {{if or .Editing .App.BuildCmd .App.StartCmd .App.PortField}}open{{end}}>
+      <summary>Ajustar à mão</summary>
+      {{template "field" dict "name" "build_cmd" "label" "Comando de preparação (build)" "value" .App.BuildCmd "hint" "Roda uma vez antes de iniciar, por exemplo npm ci && npm run build. Em branco, o painel escolhe."}}
+      {{template "field" dict "name" "start_cmd" "label" "Comando para iniciar" "value" .App.StartCmd "hint" "Use $PORT para a porta, por exemplo node server.js. Em branco, o painel descobre no primeiro deploy."}}
+      {{template "field" dict "name" "port" "label" "Porta" "value" .App.PortField "type" "number" "hint" "Em branco, o painel escolhe uma porta livre. A aplicação a recebe na variável $PORT."}}
+    </details>
+  </section>
+
+  <section class="step" data-title="Endereço">
+    <h2 class="step-title">Onde as pessoas vão acessar?</h2>
+    <p class="step-lead">Com um domínio, o painel configura o Nginx e emite o certificado SSL. Sem domínio, a aplicação fica disponível só pela porta do servidor.</p>
+    {{template "field" dict "name" "domain" "label" "Domínio (opcional)" "value" .App.Domain "hint" "Por exemplo app.exemplo.com.br. O DNS do domínio precisa apontar para este servidor."}}
+  </section>
+
+  <section class="step" data-title="Ajustes">
+    <h2 class="step-title">Últimos ajustes</h2>
+    <p class="step-lead">Tudo aqui é opcional e pode ser mudado depois.</p>
+    {{template "area" dict "name" "env" "label" "Variáveis de ambiente" "value" .App.Env "rows" 6 "hint" "Uma por linha, no formato CHAVE=valor. Para usar um banco criado no painel, escreva ${{nome-do-banco.DATABASE_URL}}."}}
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="auto_deploy" name="auto_deploy" {{if .App.AutoDeploy}}checked{{end}}>
+        <div class="mdc-checkbox__background">
+          <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
+          <div class="mdc-checkbox__mixedmark"></div>
+        </div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="auto_deploy">Publicar de novo a cada push nesta branch</label>
+    </div>
+    <p class="hint">Precisa do GitHub App configurado, para o painel receber o aviso de cada push.</p>
+  </section>
+
+  <div class="actions wizard-nav">
     <a class="mdc-button" href="{{if .Editing}}/apps/{{.App.Name}}{{else}}/{{end}}"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Cancelar</span></a>
-    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Editing}}Salvar{{else}}Criar e fazer deploy{{end}}</span></button>
+    <button class="mdc-button" type="button" id="wz-back" hidden><span class="mdc-button__ripple"></span><span class="mdc-button__label">Voltar</span></button>
+    <button class="mdc-button mdc-button--raised" type="button" id="wz-next" hidden><span class="mdc-button__ripple"></span><span class="mdc-button__label">Continuar</span></button>
+    <button class="mdc-button mdc-button--raised" type="submit" id="wz-submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Editing}}Salvar{{else}}Criar e fazer deploy{{end}}</span></button>
   </div>
 </form></div>
 {{end}}

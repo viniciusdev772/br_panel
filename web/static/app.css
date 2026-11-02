@@ -311,6 +311,21 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .repo-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .repo-search:disabled { opacity: .6; }
 .detect-log { max-height: 220px; overflow: auto; margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--code-bg); color: #e6e4f2; font-size: .8rem; line-height: 1.45; white-space: pre-wrap; word-break: break-all; }
+/* new/edit app form as steps; without JS every step stays visible */
+.step { display: flex; flex-direction: column; gap: 16px; }
+.step-title { margin: 0; font-size: 20px; font-weight: 500; }
+.step-lead { margin: -8px 0 0; color: var(--muted); line-height: 1.5; }
+.wizard-on .step:not(.is-active) { display: none; }
+.stepper { display: flex; gap: 4px; list-style: none; margin: 0 0 8px; padding: 0; }
+.stepper[hidden] { display: none; }
+.stepper button { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 10px 6px 4px; border-radius: 20px; cursor: pointer; color: var(--muted); font: inherit; font-size: 14px; }
+.stepper button:hover { background: var(--surface-2); }
+.stepper .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--surface-2); }
+.stepper .is-active { color: var(--text); font-weight: 500; }
+.stepper .is-active .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stepper .is-done .dot { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.wizard-on .wizard-nav { justify-content: flex-end; }
+@media (max-width: 600px) { .stepper .label { display: none; } .stepper .is-active .label { display: inline; } }
 .detect-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .detect-result { background: rgba(52, 211, 153, .1); border: 1px solid rgba(52, 211, 153, .35); color: var(--ok); padding: 10px 14px; border-radius: 10px; line-height: 1.6; }
 .detect-result.warn { background: rgba(245, 185, 66, .1); border-color: rgba(245, 185, 66, .35); color: var(--warn); }
