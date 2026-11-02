@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- Aba **Dados** do banco permite criar: tabela (PostgreSQL/MySQL, colunas por tipo), coleção (MongoDB, com documento JSON opcional) ou chave de texto (Redis). Itens existentes não são sobrescritos.
+
 ### Alterado
 - Configurações: os caminhos do sistema (Nginx, ACME, certificados, units) e o usuário dos bancos ficam recolhidos em "Avançado"; os padrões já servem para Ubuntu/Debian.
 

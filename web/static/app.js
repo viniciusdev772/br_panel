@@ -402,7 +402,7 @@
             b.classList.add('is-active'); active = b;
             showErr(viewBox, 'Carregando…');
             getJSON(browser.dataset.url + '?item=' + encodeURIComponent(it)).then(function (p) {
-              var html = '<div class="dbmeta">' + esc(it) + (p.total >= 0 ? ' · ' + p.total + ' registro(s)' : '') + ' · mostrando até 50 · somente leitura</div><table><thead><tr>' +
+              var html = '<div class="dbmeta">' + esc(it) + (p.total >= 0 ? ' · ' + p.total + ' registro(s)' : '') + ' · mostrando até 50</div><table><thead><tr>' +
                 (p.columns || []).map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
                 (p.rows || []).map(function (r) { return '<tr>' + r.map(function (c) { return c === 'NULL' ? '<td class="null">NULL</td>' : '<td title="' + esc(c) + '">' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
               viewBox.innerHTML = (p.rows && p.rows.length) ? html : '<div class="dbmeta">' + esc(it) + '</div><div class="dbempty">Sem registros.</div>';

@@ -88,7 +88,7 @@ Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** 
 - **Variáveis de referência:** em *Variáveis* da aplicação, `${{postgres.DATABASE_URL}}` é resolvido no deploy
   (`DATABASE_URL`/`MONGO_URL`/`REDIS_URL`, `URL`, `HOST`, `PORT`, `USER`, `PASSWORD`, `DATABASE`). Trocar a senha do banco
   não exige editar a aplicação, só um novo deploy. As referências aparecem como **setas** no canvas.
-- **Dados:** navegador somente leitura (tabelas/coleções/chaves, até 50 linhas por item).
+- **Dados:** navegador de tabelas/coleções/chaves (até 50 linhas por item) e criação de uma nova tabela (colunas por tipo), coleção (com documento JSON opcional) ou chave Redis.
 - **Backups:** manual ou agendado (diário/semanal), os 14 mais recentes, download e **restauração**
   (`pg_dump -Fc`, `mariadb-dump`, `mongodump --archive`, `redis-cli --rdb`).
 - **Acesso externo:** opcional (liga em `0.0.0.0`, ajusta o `pg_hba.conf` no PostgreSQL); libere a porta no firewall.

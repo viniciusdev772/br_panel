@@ -258,6 +258,14 @@ func (s *Server) handleDBAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		flash("Ação executada: "+action, "configuracoes")
+	case "create-item":
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		if err := s.dbm.CreateItem(ctx, d.Name, r.PostFormValue("item"), r.PostFormValue("value")); err != nil {
+			fail(err, "dados")
+			return
+		}
+		flash("Item criado.", "dados")
 	case "backup":
 		if err := s.dbm.Backup(d.Name, "manual"); err != nil {
 			fail(err, "backups")

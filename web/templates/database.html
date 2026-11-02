@@ -69,9 +69,30 @@
   </section>
 
   <section class="panel" id="tab-dados" data-panel="dados" hidden>
+    {{if eq .DB.Status "ready"}}
+    <div class="mdc-card"><div class="card-body">
+      <details class="advanced">
+        <summary>{{if eq .DB.Kind "mongodb"}}Nova coleção{{else if eq .DB.Kind "redis"}}Nova chave{{else}}Nova tabela{{end}}</summary>
+        <form method="post" action="/databases/{{.DB.Name}}/create-item">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          {{if eq .DB.Kind "redis"}}
+          {{template "field" dict "name" "item" "label" "Nome da chave" "required" true "autocomplete" "off"}}
+          {{template "area" dict "name" "value" "label" "Valor (texto)" "rows" 3 "value" ""}}
+          {{else if eq .DB.Kind "mongodb"}}
+          {{template "field" dict "name" "item" "label" "Nome da coleção" "required" true "autocomplete" "off"}}
+          {{template "area" dict "name" "value" "label" "Primeiro documento (JSON, opcional)" "rows" 3 "value" "" "hint" "Ex.: {\"nome\": \"Ana\"}. Em branco cria a coleção vazia."}}
+          {{else}}
+          {{template "field" dict "name" "item" "label" "Nome da tabela" "required" true "autocomplete" "off" "hint" (or (and (eq .DB.Kind "postgres") "Use esquema.tabela ou só o nome (esquema public).") "Letras, números e _.")}}
+          {{template "area" dict "name" "value" "label" "Colunas (uma por linha: nome tipo)" "rows" 4 "value" "" "hint" "Tipos: texto, inteiro, decimal, booleano, data, data_hora, json, id (chave primária automática). Em branco cria só a coluna id."}}
+          {{end}}
+          <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Criar</span></button></div>
+        </form>
+      </details>
+    </div></div>
+    {{end}}
     <div class="databrowser" id="databrowser" data-url="/databases/{{.DB.Name}}/data" data-kind="{{.DB.Kind}}">
       <div class="dblist" id="dblist"><div class="dbempty">Carregando…</div></div>
-      <div class="dbview" id="dbview"><div class="dbempty">Selecione {{if eq .DB.Kind "mongodb"}}uma coleção{{else if eq .DB.Kind "redis"}}uma chave{{else}}uma tabela{{end}} para ver o conteúdo (somente leitura, até 50 linhas).</div></div>
+      <div class="dbview" id="dbview"><div class="dbempty">Selecione {{if eq .DB.Kind "mongodb"}}uma coleção{{else if eq .DB.Kind "redis"}}uma chave{{else}}uma tabela{{end}} para ver o conteúdo (até 50 linhas).</div></div>
     </div>
   </section>
 

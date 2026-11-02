@@ -121,6 +121,8 @@ type engine interface {
 	setPassword(ctx context.Context, r runner, inst Instance, b any, newPassword string) error
 	tables(ctx context.Context, r runner, inst Instance, b any) ([]string, error)
 	preview(ctx context.Context, r runner, inst Instance, b any, name string) (Preview, error)
+	// create adds a table / collection / key from the "Dados" tab (see Manager.Create).
+	create(ctx context.Context, r runner, inst Instance, b any, item, value string) error
 	backupExt() string
 }
 
