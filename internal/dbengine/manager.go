@@ -120,6 +120,7 @@ func (m *Manager) Version(k Kind) string {
 var defaultUnits = map[Kind][]string{
 	Postgres: {"postgresql"},
 	MySQL:    {"mariadb", "mysql"},
+	MongoDB:  {"mongod"},
 	Redis:    {"redis-server", "redis"},
 }
 
@@ -181,6 +182,11 @@ func (m *Manager) runInstall(k Kind, sp Spec) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	fmt.Fprintf(lf, "== instalando %s ==\n", sp.Label)
+	if k == MongoDB { // not in the distro archives: add the vendor repository first
+		if err := prepareMongoRepo(ctx, lf); err != nil {
+			return err
+		}
+	}
 	if err := execx.Run(ctx, lf, "apt-get", "update"); err != nil {
 		return err
 	}

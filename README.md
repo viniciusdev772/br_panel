@@ -82,7 +82,7 @@ Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** 
 
 - **Instalação:** se o motor não está instalado, a página de criação mostra o que falta e, em Debian/Ubuntu, instala
   com `apt-get` (`postgresql`, `mariadb-server`, `redis-server`) e desativa a instância padrão da distribuição.
-  O MongoDB não está nos repositórios padrão: instale `mongodb-org` + `mongosh` e o painel detecta sozinho.
+  O MongoDB não está nos repositórios padrão: o botão **Instalar** adiciona o repositório oficial (Ubuntu/Debian) e instala a última versão principal (X.0) que existe para a sua distribuição; exige CPU com AVX.
 - **Conectar:** URL privada, host, porta, usuário, banco e senha (mascarada, com copiar/mostrar), linha de comando
   pronta (`psql`, `mongosh`, `redis-cli`, `mariadb`) e **regenerar senha**.
 - **Variáveis de referência:** em *Variáveis* da aplicação, `${{postgres.DATABASE_URL}}` é resolvido no deploy

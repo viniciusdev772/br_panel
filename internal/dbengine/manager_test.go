@@ -115,7 +115,7 @@ func TestKindsReportsMissing(t *testing.T) {
 		}
 	}
 	if err := m.Install(MongoDB); err == nil {
-		t.Error("MongoDB não tem instalação automática")
+		t.Error("sem apt-get a instalação automática deve falhar")
 	}
 }
 
