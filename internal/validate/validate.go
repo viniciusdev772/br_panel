@@ -77,6 +77,30 @@ func Port(p int) error {
 	return nil
 }
 
+// Scale limits for an app's instances and resources (see store.App).
+const (
+	MaxReplicas = 16
+	MaxMemoryMB = 1 << 20 // 1 TiB, only a sanity bound
+	MaxCPUPct   = 6400    // 64 CPUs
+	MaxRateRPS  = 10000
+)
+
+// Scale checks the instance count and the optional limits. Zero means "no limit" for the limits
+// and is not allowed for replicas.
+func Scale(replicas, memoryMB, cpuPercent, rateLimit int) error {
+	switch {
+	case replicas < 1 || replicas > MaxReplicas:
+		return fmt.Errorf("instâncias deve ficar entre 1 e %d", MaxReplicas)
+	case memoryMB != 0 && (memoryMB < 32 || memoryMB > MaxMemoryMB):
+		return fmt.Errorf("memória máxima deve ser 0 (sem limite) ou entre 32 e %d MB", MaxMemoryMB)
+	case cpuPercent != 0 && (cpuPercent < 5 || cpuPercent > MaxCPUPct):
+		return fmt.Errorf("CPU máxima deve ser 0 (sem limite) ou entre 5%% e %d%%", MaxCPUPct)
+	case rateLimit < 0 || rateLimit > MaxRateRPS:
+		return fmt.Errorf("limite de requisições deve ser 0 (desligado) ou até %d por segundo", MaxRateRPS)
+	}
+	return nil
+}
+
 // ParseEnv parses KEY=VALUE lines (blank lines and # comments allowed).
 func ParseEnv(text string) ([][2]string, error) {
 	var out [][2]string

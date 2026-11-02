@@ -20,6 +20,12 @@ type Site struct {
 	Domain   string
 	Upstream string // host:port
 	MaxBody  string // client_max_body_size, optional
+
+	// Upstreams lists the instances of an app (host:port each). With two or more, the vhost gets
+	// an upstream group that balances between them and retries another one when an instance fails.
+	Upstreams []string
+	RateLimit int  // requests per second per client IP; 0 = no limit
+	Gzip      bool // compress text responses
 }
 
 // The map lives in one shared file; the variable is prefixed to avoid clashing with user configs.
@@ -27,6 +33,11 @@ const commonConf = `# Gerado pelo BR Panel — não edite.
 map $http_upgrade $brpanel_connection_upgrade {
     default upgrade;
     ''      close;
+}
+# Same idea for upstream groups: an empty Connection lets nginx keep connections to the instances.
+map $http_upgrade $brpanel_connection_keepalive {
+    default upgrade;
+    ''      "";
 }
 `
 
@@ -65,10 +76,72 @@ const proxyBlock = `    location / {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $brpanel_connection_upgrade;
-        proxy_read_timeout 300s;
+        proxy_set_header Connection %s;
+%s        proxy_read_timeout 300s;
     }
 `
+
+// Retry on another instance only for errors and 502/503/504 (an instance restarting during a
+// rolling deploy); POST/PATCH are never retried, which is nginx's default and avoids double writes.
+const retryDirectives = `        proxy_connect_timeout 5s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        proxy_next_upstream_timeout 15s;
+`
+
+func (s Site) balanced() bool { return len(s.Upstreams) > 1 }
+
+func (s Site) group() string { return "brpanel_" + s.Key }
+
+// proxyLocation is the location block that forwards to the app.
+func proxyLocation(s Site) string {
+	if s.balanced() {
+		return fmt.Sprintf(proxyBlock, s.group(), "$brpanel_connection_keepalive", retryDirectives)
+	}
+	return fmt.Sprintf(proxyBlock, s.Upstream, "$brpanel_connection_upgrade", "")
+}
+
+// prelude holds what must live outside the server blocks (http context): the upstream group and
+// the rate-limit zone. Both are named after the app, so vhosts never share them.
+func prelude(s Site) string {
+	var b strings.Builder
+	if s.balanced() {
+		fmt.Fprintf(&b, "upstream %s {\n    least_conn;\n", s.group())
+		for _, u := range s.Upstreams {
+			fmt.Fprintf(&b, "    server %s max_fails=3 fail_timeout=10s;\n", u)
+		}
+		b.WriteString("    keepalive 16;\n}\n\n")
+	}
+	if s.RateLimit > 0 {
+		// 10 MB hold about 80,000 client addresses; the least recently used are evicted beyond that.
+		fmt.Fprintf(&b, "limit_req_zone $binary_remote_addr zone=%s:10m rate=%dr/s;\n\n", s.group(), s.RateLimit)
+	}
+	return b.String()
+}
+
+const gzipBlock = `    gzip on;
+    gzip_vary on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/xml application/rss+xml image/svg+xml;
+
+`
+
+// serverExtras are the per-vhost directives of the server block that proxies to the app.
+func serverExtras(s Site) string {
+	var b strings.Builder
+	if s.MaxBody != "" {
+		fmt.Fprintf(&b, "    client_max_body_size %s;\n", s.MaxBody)
+	}
+	if s.Gzip {
+		b.WriteString(gzipBlock)
+	}
+	if s.RateLimit > 0 {
+		// A page load fires many requests at once, so the burst is generous; beyond it, 429.
+		fmt.Fprintf(&b, "    limit_req zone=%s burst=%d nodelay;\n    limit_req_status 429;\n\n", s.group(), max(s.RateLimit*5, 20))
+	}
+	return b.String()
+}
 
 // renderVhost builds the server block(s). With tls, port 80 only serves ACME
 // challenges and redirects to HTTPS.
@@ -78,23 +151,20 @@ func renderVhost(site Site, acmeRoot, fullchain, privkey string, tls bool) strin
         root %s;
     }
 `, acmeRoot)
-	body := ""
-	if site.MaxBody != "" {
-		body = fmt.Sprintf("    client_max_body_size %s;\n", site.MaxBody)
-	}
-	fmt.Fprintf(&b, "# Gerado pelo BR Panel para %s — não edite.\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name %s;\n\n%s\n", site.Domain, site.Domain, acme)
+	body := serverExtras(site)
+	fmt.Fprintf(&b, "# Gerado pelo BR Panel para %s — não edite.\n%sserver {\n    listen 80;\n    listen [::]:80;\n    server_name %s;\n\n%s\n", site.Domain, prelude(site), site.Domain, acme)
 	if tls {
 		b.WriteString("    location / {\n        return 301 https://$host$request_uri;\n    }\n}\n\n")
 		fmt.Fprintf(&b, "server {\n    listen 443 ssl;\n    listen [::]:443 ssl;\n    server_name %s;\n\n", site.Domain)
 		fmt.Fprintf(&b, "    ssl_certificate %s;\n    ssl_certificate_key %s;\n", fullchain, privkey)
 		b.WriteString("    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_session_cache shared:brpanel_ssl:10m;\n    ssl_session_timeout 1d;\n\n")
 		b.WriteString(body)
-		fmt.Fprintf(&b, proxyBlock, site.Upstream)
+		b.WriteString(proxyLocation(site))
 		b.WriteString("}\n")
 		return b.String()
 	}
 	b.WriteString(body)
-	fmt.Fprintf(&b, proxyBlock, site.Upstream)
+	b.WriteString(proxyLocation(site))
 	b.WriteString("}\n")
 	return b.String()
 }

@@ -27,8 +27,13 @@ func (s *Server) handleNewForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func appFromForm(r *http.Request, name string) (store.App, error) {
-	port, _ := strconv.Atoi(strings.TrimSpace(r.PostFormValue("port")))
+	num := func(k string) int { n, _ := strconv.Atoi(strings.TrimSpace(r.PostFormValue(k))); return n }
+	port, replicas := num("port"), num("replicas")
+	if replicas == 0 {
+		replicas = 1 // field left empty
+	}
 	a := store.App{
+		Replicas: replicas, MemoryMB: num("memory_mb"), CPUPercent: num("cpu_percent"), RateLimit: num("rate_limit"),
 		Name:       name,
 		Repo:       strings.TrimSpace(r.PostFormValue("repo")),
 		Branch:     strings.TrimSpace(r.PostFormValue("branch")),
@@ -47,6 +52,7 @@ func appFromForm(r *http.Request, name string) (store.App, error) {
 		validate.Command("Comando de build", a.BuildCmd, false),
 		validate.Command("Comando de início", a.StartCmd, false),
 		validate.Port(a.Port), validate.Domain(a.Domain),
+		validate.Scale(a.Replicas, a.MemoryMB, a.CPUPercent, a.RateLimit),
 	} {
 		if err != nil {
 			return a, err
@@ -82,6 +88,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("já existe uma aplicação com esse nome")
 		} else if s.domainTaken(a.Domain, a.Name) {
 			err = errors.New("domínio já usado por outra aplicação")
+		} else if msg := s.dep.PortConflict(a); msg != "" {
+			err = errors.New(msg)
 		} else {
 			err = dbengine.CheckRefs(a.Env, s.store.ListDatabases())
 		}
@@ -92,7 +100,7 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.Port == 0 {
-		a.Port = s.dep.PickPort("")
+		a.Port = s.dep.PickPortRange("", a.Replicas)
 	}
 	if err := s.store.Create(a); err != nil {
 		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
@@ -117,7 +125,7 @@ func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (store.App, bool
 
 func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
-		s.render(w, r, "app", page{Title: a.Name, App: a, State: systemd.State(a.Name), Info: systemd.Info(a.Name),
+		s.render(w, r, "app", page{Title: a.Name, App: a, State: systemd.StateUnits(systemd.ReplicaUnits(a.Name, a.Replicas)), Info: systemd.InfoAll(systemd.ReplicaUnits(a.Name, a.Replicas)),
 			SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain), VarGroups: s.varGroups(), Bdg: appBadge(a.Kind)})
 	}
 }
@@ -138,6 +146,11 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 		err = errors.New("domínio já usado por outra aplicação")
 	}
 	if err == nil {
+		if msg := s.dep.PortConflict(a); msg != "" {
+			err = errors.New(msg)
+		}
+	}
+	if err == nil {
 		err = dbengine.CheckRefs(a.Env, s.store.ListDatabases())
 	}
 	if err != nil {
@@ -146,7 +159,7 @@ func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.Port == 0 {
-		a.Port = s.dep.PickPort(a.Name)
+		a.Port = s.dep.PickPortRange(a.Name, a.Replicas)
 	}
 	if err := s.store.UpdateConfig(a); err != nil {
 		http.Error(w, "erro ao salvar", http.StatusInternalServerError)
@@ -182,7 +195,7 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", `attachment; filename="`+a.Name+"-"+kind+`.log"`)
 	}
 	if kind == "service" {
-		_, _ = w.Write([]byte(systemd.Journal(a.Name, lines)))
+		_, _ = w.Write([]byte(systemd.JournalUnits(systemd.ReplicaUnits(a.Name, a.Replicas), lines)))
 		return
 	}
 	_, _ = w.Write([]byte(deploy.LastLines(deploy.TailFile(s.dep.Paths.LogFile(a.Name), 512<<10), lines)))
@@ -199,8 +212,15 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		if !s.dep.Start(a.Name, "manual") {
 			msg = "Já existe um deploy em andamento."
 		}
-	case "start", "stop", "restart":
-		if out, err := systemd.Ctl(action, systemd.UnitName(a.Name)); err != nil {
+	case "restart":
+		if a.Replicas > 1 { // one instance at a time, in the background: it can take a while
+			go func() { _ = s.dep.Restart(a) }()
+			msg = "Reinício gradual iniciado: uma instância por vez, para o site não sair do ar."
+			break
+		}
+		fallthrough
+	case "start", "stop":
+		if out, err := systemd.Ctl(append([]string{action}, systemd.ReplicaUnits(a.Name, a.Replicas)...)...); err != nil {
 			msg = "Falha: " + out
 		} else {
 			msg = "Ação executada: " + action

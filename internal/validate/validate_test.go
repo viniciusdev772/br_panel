@@ -73,3 +73,18 @@ func TestValidateDomain(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateScale(t *testing.T) {
+	for _, tc := range []struct {
+		r, m, c, l int
+		ok         bool
+	}{
+		{1, 0, 0, 0, true}, {16, 512, 200, 100, true}, {1, 32, 5, 1, true},
+		{0, 0, 0, 0, false}, {17, 0, 0, 0, false}, {-1, 0, 0, 0, false},
+		{1, 31, 0, 0, false}, {1, 0, 4, 0, false}, {1, 0, 6401, 0, false}, {1, 0, 0, -1, false}, {1, 0, 0, 10001, false},
+	} {
+		if err := Scale(tc.r, tc.m, tc.c, tc.l); (err == nil) != tc.ok {
+			t.Errorf("Scale(%d,%d,%d,%d) = %v", tc.r, tc.m, tc.c, tc.l, err)
+		}
+	}
+}

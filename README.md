@@ -89,6 +89,17 @@ Um `Procfile` (linha `web:`) define o comando de início, e um `brpanel.json` na
 (`{"build": "...", "start": "...", "port": 8080}`) sobrescreve tudo. Se faltar algum programa no servidor
 (node, go, python3…), o painel avisa com a sugestão de instalação antes de tentar compilar.
 
+## Tráfego alto: instâncias e limites
+
+Na etapa **Desempenho** do formulário da aplicação:
+
+- **Instâncias (1 a 16):** o painel roda várias cópias do projeto como units systemd separadas (`brpanel-<app>.service`, `brpanelr1-<app>.service`…). A instância `k` escuta na porta `PORT + k`, então o projeto só precisa ler `$PORT`. O Nginx recebe um grupo `upstream` com `least_conn`, conexões persistentes e novas tentativas em outra instância quando uma falha (erro de conexão, timeout, 502, 503 ou 504; `POST` nunca é repetido). A cada deploy e a cada reinício, as instâncias são trocadas **uma por vez**, esperando cada uma aceitar conexões, então o site não sai do ar. O balanceamento só existe com domínio. As portas das instâncias ficam reservadas e não colidem com outras aplicações nem com bancos.
+- **Memória e CPU por instância:** viram `MemoryMax` (com `MemoryHigh` em 90%, que freia antes de matar) e `CPUQuota` na unit. O limite vale por instância e só atinge aquela aplicação. Toda unit de aplicação também recebe `LimitNOFILE=65536`.
+- **Limite de requisições por visitante:** `limit_req` do Nginx por IP, com rajada de 5 vezes o limite (mínimo 20) e erro 429 acima disso. Desligado por padrão.
+- **Compressão:** com domínio, o vhost comprime texto (HTML, CSS, JavaScript, JSON, SVG, XML).
+
+O projeto precisa aguentar várias instâncias: nada de sessão, cache ou arquivos gravados só na memória ou no disco de um processo (use um banco ou o Redis). O painel continua sendo um servidor só; distribuir entre máquinas fica fora do escopo.
+
 ## Bancos de dados (PostgreSQL, MySQL/MariaDB, MongoDB, Redis)
 
 Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** por banco, como serviço systemd

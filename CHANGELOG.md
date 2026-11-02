@@ -4,6 +4,10 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- Instâncias por aplicação (1 a 16): cada uma é uma unit systemd com a própria porta (`PORT + k`); o Nginx balanceia entre elas (`least_conn`, conexões persistentes, nova tentativa em 502/503/504 e erros de conexão) e o deploy e o reinício trocam uma instância por vez, sem tirar o site do ar. As portas das instâncias ficam reservadas.
+- Limites por instância de memória (`MemoryMax`, com `MemoryHigh` em 90%) e CPU (`CPUQuota`), `LimitNOFILE=65536` nas apps, limite de requisições por visitante (`limit_req`, erro 429) e compressão gzip nos vhosts das aplicações. CPU e memória do monitor somam as instâncias; logs mostram todas.
+
 ### Corrigido
 - Atualizar ou reiniciar o painel desconectava o administrador, porque as sessões viviam só na memória. Agora ficam no SQLite (com o hash do id, nunca o cookie) e continuam valendo depois do reinício; trocar a senha e sair continuam encerrando as sessões.
 

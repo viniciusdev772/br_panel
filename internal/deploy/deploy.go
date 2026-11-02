@@ -5,8 +5,10 @@ package deploy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +39,15 @@ func (p Paths) SrcDir(n string) string  { return filepath.Join(p.AppDir(n), "src
 func (p Paths) LogFile(n string) string { return filepath.Join(p.Data, "logs", n+".log") }
 func (p Paths) EnvFile(n string) string { return filepath.Join(p.Data, "env", n+".env") }
 
+// EnvFileN is the environment file of instance k (instance 0 uses EnvFile). Each instance has its
+// own file because PORT differs, and systemd lets EnvironmentFile override Environment=.
+func (p Paths) EnvFileN(n string, k int) string {
+	if k <= 0 {
+		return p.EnvFile(n)
+	}
+	return filepath.Join(p.Data, "env", fmt.Sprintf("%s.r%d.env", n, k))
+}
+
 // Deployer deploys apps. Settings and GitHub are functions so that changes made in the UI apply immediately.
 type Deployer struct {
 	Store    *store.Store
@@ -55,8 +66,8 @@ func New(st *store.Store, dataDir string, set func() settings.Settings, gh func(
 	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh, pending: map[string]bool{}}
 }
 
-func (d *Deployer) unitFile(app string) string {
-	return filepath.Join(d.Settings().UnitDir, systemd.UnitName(app))
+func (d *Deployer) unitFile(app string, k int) string {
+	return filepath.Join(d.Settings().UnitDir, systemd.ReplicaUnitName(app, k))
 }
 
 func (d *Deployer) nginx() *nginx.Manager { return nginx.FromSettings(d.Settings()) }
@@ -196,6 +207,7 @@ func (d *Deployer) Start(name, reason string) bool {
 }
 
 func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error {
+	a.Replicas = max(a.Replicas, 1)
 	env, err := d.buildEnv(a)
 	if err != nil {
 		return err
@@ -250,25 +262,105 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		}
 	}
 
-	// Service definition.
-	if err := writeFile(d.Paths.EnvFile(a.Name), d.envFileContent(a), 0o600); err != nil {
-		return err
+	// Service definition: one unit and one environment file per instance.
+	if msg := d.PortConflict(a); msg != "" {
+		return errors.New(msg)
 	}
-	unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFile(a.Name), StartCmd: a.StartCmd, User: d.Settings().AppUser}.Render()
-	if err := writeFile(d.unitFile(a.Name), unit, 0o644); err != nil {
-		return err
+	for k := 0; k < a.Replicas; k++ {
+		if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k), 0o600); err != nil {
+			return err
+		}
+		unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
+			MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536}
+		if k > 0 {
+			unit.Desc = fmt.Sprintf("BR Panel app %s (instância %d)", a.Name, k)
+		}
+		if err := writeFile(d.unitFile(a.Name, k), unit.Render(), 0o644); err != nil {
+			return err
+		}
 	}
-	for _, args := range [][]string{{"daemon-reload"}, {"enable", systemd.UnitName(a.Name)}, {"restart", systemd.UnitName(a.Name)}} {
+	d.removeSurplusInstances(ctx, log, a)
+	units := systemd.ReplicaUnits(a.Name, a.Replicas)
+	for _, args := range [][]string{{"daemon-reload"}, append([]string{"enable"}, units...)} {
 		if err := execx.Run(ctx, log, "systemctl", args...); err != nil {
 			return fmt.Errorf("systemctl %s: %w", args[0], err)
 		}
 	}
+	if err := d.restartInstances(ctx, a, log); err != nil {
+		return err
+	}
 
 	if a.Domain == "" {
+		if a.Replicas > 1 || a.RateLimit > 0 {
+			fmt.Fprintln(log, "AVISO: sem domínio não há Nginx na frente: o balanceamento entre instâncias, o limite de requisições e a compressão só valem com um domínio.")
+		}
 		return d.nginx().Remove(ctx, log, a.Name)
 	}
 	d.ensureDNS(ctx, log, a.Domain)
-	return d.nginx().Ensure(ctx, log, nginx.Site{Key: a.Name, Domain: a.Domain, Upstream: fmt.Sprintf("127.0.0.1:%d", a.Port)})
+	site := nginx.Site{Key: a.Name, Domain: a.Domain, Upstream: fmt.Sprintf("127.0.0.1:%d", a.Port), RateLimit: a.RateLimit, Gzip: true}
+	for k := 0; k < a.Replicas; k++ {
+		site.Upstreams = append(site.Upstreams, fmt.Sprintf("127.0.0.1:%d", a.Port+k))
+	}
+	return d.nginx().Ensure(ctx, log, site)
+}
+
+// instanceReadyTimeout is how long a rolling restart waits for an instance to accept connections.
+const instanceReadyTimeout = 30 * time.Second
+
+// restartInstances restarts the instances one at a time and, with more than one, waits for each to
+// accept connections before touching the next. Nginx therefore always has a live instance, and
+// the site stays up through a deploy. An instance that never listens (a worker without a port)
+// only produces a warning.
+func (d *Deployer) restartInstances(ctx context.Context, a store.App, log io.Writer) error {
+	units := systemd.ReplicaUnits(a.Name, a.Replicas)
+	for k, u := range units {
+		if err := execx.Run(ctx, log, "systemctl", "restart", u); err != nil {
+			return fmt.Errorf("systemctl restart: %w", err)
+		}
+		if len(units) > 1 && !waitListening(ctx, a.Port+k, instanceReadyTimeout) {
+			fmt.Fprintf(log, "AVISO: a instância %d não respondeu na porta %d em %s; seguindo para a próxima.\n", k, a.Port+k, instanceReadyTimeout)
+		}
+	}
+	return nil
+}
+
+// Restart restarts every instance of an app the same way a deploy does (one at a time).
+func (d *Deployer) Restart(a store.App) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(a.Replicas)*(instanceReadyTimeout+10*time.Second))
+	defer cancel()
+	return d.restartInstances(ctx, a, io.Discard)
+}
+
+// waitListening polls 127.0.0.1:port until it accepts a connection.
+func waitListening(ctx context.Context, port int, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if c, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), time.Second); err == nil {
+			c.Close()
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	return false
+}
+
+// removeSurplusInstances stops and deletes the units and env files of instances beyond a.Replicas
+// (left over after lowering the count).
+func (d *Deployer) removeSurplusInstances(ctx context.Context, log io.Writer, a store.App) {
+	for k := max(a.Replicas, 1); k < validate.MaxReplicas; k++ {
+		unitPath := d.unitFile(a.Name, k)
+		if _, err := os.Stat(unitPath); err != nil {
+			continue
+		}
+		fmt.Fprintf(log, "removendo a instância %d (o número de instâncias diminuiu)\n", k)
+		_ = execx.Run(ctx, log, "systemctl", "disable", "--now", systemd.ReplicaUnitName(a.Name, k))
+		_ = os.Remove(unitPath)
+		_ = os.Remove(d.Paths.EnvFileN(a.Name, k))
+	}
 }
 
 // ensureDNS points the domain at this server through Cloudflare, before certbot runs
@@ -286,10 +378,11 @@ func (d *Deployer) ensureDNS(ctx context.Context, log io.Writer, domain string) 
 	fmt.Fprintf(log, "AVISO: não foi possível ajustar o DNS na Cloudflare (%v). Aponte %s para este servidor manualmente.\n", err, domain)
 }
 
-func (d *Deployer) envFileContent(a store.App) string {
+// envFileContent renders the environment of one instance; port is that instance's own PORT.
+func (d *Deployer) envFileContent(a store.App, port int) string {
 	var b strings.Builder
-	if a.Port > 0 {
-		b.WriteString(systemd.EnvFileLine("PORT", fmt.Sprint(a.Port)))
+	if port > 0 {
+		b.WriteString(systemd.EnvFileLine("PORT", fmt.Sprint(port)))
 	}
 	b.WriteString(systemd.EnvFileLine("HOST", ListenHost(a)))
 	kv, _ := d.envPairs(a) // validated on save
@@ -319,9 +412,12 @@ func writeFile(path, content string, mode os.FileMode) error {
 
 // Remove stops the service and deletes the app, its files, unit and vhost.
 func (d *Deployer) Remove(name string) error {
-	unit := systemd.UnitName(name)
-	_, _ = systemd.Ctl("disable", "--now", unit)
-	for _, p := range []string{d.unitFile(name), d.Paths.EnvFile(name), d.Paths.LogFile(name)} {
+	paths := []string{d.Paths.LogFile(name)}
+	for k := 0; k < validate.MaxReplicas; k++ { // every instance that may exist, whatever the saved count says
+		_, _ = systemd.Ctl("disable", "--now", systemd.ReplicaUnitName(name, k))
+		paths = append(paths, d.unitFile(name, k), d.Paths.EnvFileN(name, k))
+	}
+	for _, p := range paths {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			return err
 		}

@@ -40,6 +40,16 @@
     {{template "field" dict "name" "domain" "label" "Domínio (opcional)" "value" .App.Domain "hint" "Por exemplo app.exemplo.com.br. O DNS do domínio precisa apontar para este servidor."}}
   </section>
 
+  <section class="step" data-title="Desempenho">
+    <h2 class="step-title">Quanto tráfego o projeto recebe?</h2>
+    <p class="step-lead">Se um processo só dá conta, deixe como está. Para atender mais visitas, ou para publicar sem tirar o site do ar, rode várias cópias do projeto e coloque limites de uso.</p>
+    {{template "field" dict "name" "replicas" "label" "Instâncias (cópias do projeto)" "value" (or .App.Replicas 1) "type" "number" "hint" "De 1 a 16. O Nginx divide as visitas entre as instâncias e, a cada deploy, troca uma por vez, então o site não cai. Cada instância usa uma porta própria, a partir da porta informada, e o projeto precisa ler a porta de $PORT. Guarde sessões e arquivos fora da memória do processo (banco de dados ou Redis). Só vale com domínio."}}
+    {{template "field" dict "name" "memory_mb" "label" "Memória máxima por instância (MB)" "value" (or .App.MemoryMB "") "type" "number" "hint" "Em branco, sem limite. O sistema reinicia a instância que passar do limite, sem afetar as outras aplicações."}}
+    {{template "field" dict "name" "cpu_percent" "label" "CPU máxima por instância (%)" "value" (or .App.CPUPercent "") "type" "number" "hint" "100 equivale a um núcleo, 200 a dois. Em branco, sem limite."}}
+    {{template "field" dict "name" "rate_limit" "label" "Limite de requisições por visitante (por segundo)" "value" (or .App.RateLimit "") "type" "number" "hint" "Em branco, desligado. Quem passar do limite recebe o erro 429. Rajadas pequenas, como o carregamento de uma página, passam. Só vale com domínio."}}
+    <p class="hint">Com domínio, o painel também comprime as respostas de texto (HTML, CSS, JavaScript e JSON).</p>
+  </section>
+
   <section class="step" data-title="Ajustes">
     <h2 class="step-title">Últimos ajustes</h2>
     <p class="step-lead">Tudo aqui é opcional e pode ser mudado depois.</p>

@@ -92,3 +92,35 @@ func TestShellLineRunsInARealShell(t *testing.T) {
 		t.Errorf("unit:\n%s", u)
 	}
 }
+
+func TestRenderResourceLimits(t *testing.T) {
+	u := Unit{App: "w", StartCmd: "x", MemoryMB: 512, CPUPercent: 150, NoFile: 65536}.Render()
+	for _, want := range []string{"MemoryMax=512M", "MemoryHigh=460M", "CPUQuota=150%", "LimitNOFILE=65536"} {
+		if !strings.Contains(u, want) {
+			t.Errorf("faltou %q em:\n%s", want, u)
+		}
+	}
+	plain := Unit{App: "w", StartCmd: "x"}.Render()
+	for _, bad := range []string{"MemoryMax", "MemoryHigh", "CPUQuota", "LimitNOFILE"} {
+		if strings.Contains(plain, bad) {
+			t.Errorf("sem limites configurados não deve haver %q", bad)
+		}
+	}
+}
+
+func TestReplicaUnitNames(t *testing.T) {
+	if ReplicaUnitName("web", 0) != UnitName("web") || ReplicaUnitName("web", 2) != "brpanelr2-web.service" {
+		t.Error("nomes das instâncias")
+	}
+	if got := ReplicaUnits("web", 3); len(got) != 3 || got[0] != UnitName("web") || got[2] != "brpanelr2-web.service" {
+		t.Errorf("%v", got)
+	}
+	if len(ReplicaUnits("web", 0)) != 1 {
+		t.Error("sem contagem há uma instância")
+	}
+	// the replica prefix never equals an app unit: those always start with "brpanel-"
+	seen := map[string]bool{UnitName("r2-web"): true, UnitName("web"): true}
+	if seen[ReplicaUnitName("web", 2)] {
+		t.Error("a unit da instância 2 de web não pode colidir com a app r2-web")
+	}
+}

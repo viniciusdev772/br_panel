@@ -33,23 +33,62 @@ const (
 )
 
 // PickPort returns a free port not used by another app and not currently listening.
-func (d *Deployer) PickPort(except string) int {
-	used := map[int]bool{}
-	for _, a := range d.Store.List() {
-		if a.Name != except {
-			used[a.Port] = true
+func (d *Deployer) PickPort(except string) int { return d.PickPortRange(except, 1) }
+
+// PickPortRange returns the first port of n consecutive free ports (instance k of an app listens
+// on first+k), or 0 when there is no such range. Ports of the other apps' instances and of
+// databases count as taken, and so does anything already listening.
+func (d *Deployer) PickPortRange(except string, n int) int {
+	used := d.Store.UsedPorts()
+	if self, ok := d.Store.Get(except); ok { // its own ports are free to reuse
+		for k := 0; k < max(self.Replicas, 1); k++ {
+			delete(used, self.Port+k)
 		}
 	}
-	for p := firstAutoPort; p <= lastAutoPort; p++ {
-		if used[p] {
-			continue
-		}
-		if l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p)); err == nil {
+	n = max(n, 1)
+	for p := firstAutoPort; p+n-1 <= lastAutoPort; p++ {
+		ok := true
+		for k := 0; k < n && ok; k++ {
+			if used[p+k] {
+				ok = false
+				continue
+			}
+			l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p+k))
+			if err != nil {
+				ok = false
+				continue
+			}
 			l.Close()
+		}
+		if ok {
 			return p
 		}
 	}
 	return 0
+}
+
+// PortConflict explains why the instance ports of a (Port .. Port+Replicas-1) cannot be used, or
+// returns "" when they are free of other apps and databases. Ports already listening are not
+// checked: they may be this app's own running instances.
+func (d *Deployer) PortConflict(a store.App) string {
+	if a.Port == 0 {
+		return ""
+	}
+	last := a.Port + max(a.Replicas, 1) - 1
+	if last > 65535 {
+		return fmt.Sprintf("as %d instâncias não cabem a partir da porta %d (o limite é 65535)", a.Replicas, a.Port)
+	}
+	for _, o := range d.Store.List() {
+		if o.Name != a.Name && o.Port <= last && a.Port <= o.Port+max(o.Replicas, 1)-1 {
+			return fmt.Sprintf("as portas %d a %d colidem com as da aplicação %q (%d a %d)", a.Port, last, o.Name, o.Port, o.Port+max(o.Replicas, 1)-1)
+		}
+	}
+	for _, db := range d.Store.ListDatabases() {
+		if db.Port >= a.Port && db.Port <= last {
+			return fmt.Sprintf("a porta %d é do banco %q e cai entre as portas das instâncias (%d a %d)", db.Port, db.Name, a.Port, last)
+		}
+	}
+	return ""
 }
 
 // autoConfigure fills in missing commands by inspecting the checkout. An empty start
@@ -86,7 +125,7 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 		a.BuildCmd = det.Build
 	}
 	if a.Port == 0 {
-		a.Port = d.PickPort(a.Name)
+		a.Port = d.PickPortRange(a.Name, a.Replicas)
 	}
 	fmt.Fprintf(log, "  build:  %s\n  início: %s\n  porta:  %d\n", orDash(a.BuildCmd), a.StartCmd, a.Port)
 	if err := d.Store.UpdateConfig(a); err != nil {

@@ -116,8 +116,62 @@ func TestEnvPairsResolveDatabaseReferences(t *testing.T) {
 	if kv[0][1] != "postgresql://postgres:pw@127.0.0.1:5433/app" || kv[1][1] != "1" || kv[2][1] != "${{nope.URL}}" {
 		t.Errorf("%v", kv)
 	}
-	content := d.envFileContent(store.App{Name: "web", Port: 3001, Env: "U=${{pg.URL}}"})
+	content := d.envFileContent(store.App{Name: "web", Port: 3001, Env: "U=${{pg.URL}}"}, 3001)
 	if !strings.Contains(content, `U="postgresql://postgres:pw@127.0.0.1:5433/app"`) {
 		t.Errorf("o arquivo de ambiente deve ter a referência resolvida:\n%s", content)
+	}
+}
+
+func TestPickPortRangeReservesEveryInstance(t *testing.T) {
+	s := openTestStore(t)
+	d := &Deployer{Store: s}
+	// "api" runs 3 instances: firstAutoPort .. firstAutoPort+2
+	_ = s.Create(store.App{Name: "api", Repo: "r", Branch: "main", StartCmd: "x", Port: firstAutoPort, Replicas: 3})
+	if p := d.PickPort(""); p != firstAutoPort+3 {
+		t.Errorf("uma app nova deve ficar depois das instâncias de api: %d", p)
+	}
+	if p := d.PickPortRange("", 2); p != firstAutoPort+3 {
+		t.Errorf("faixa de 2 portas: %d", p)
+	}
+	if p := d.PickPortRange("api", 3); p != firstAutoPort {
+		t.Errorf("a app reaproveita as próprias portas: %d", p)
+	}
+}
+
+func TestPortConflict(t *testing.T) {
+	s := openTestStore(t)
+	d := &Deployer{Store: s}
+	_ = s.Create(store.App{Name: "api", Repo: "r", Branch: "main", StartCmd: "x", Port: 3100, Replicas: 3}) // 3100-3102
+	_ = s.CreateDatabase(store.Database{Name: "pg", Kind: "postgres", Port: 3205, Username: "u", Password: "p", DBName: "d"})
+	for _, tc := range []struct {
+		name string
+		a    store.App
+		bad  bool
+	}{
+		{"mesma app, mesmas portas", store.App{Name: "api", Port: 3100, Replicas: 3}, false},
+		{"app nova depois da faixa", store.App{Name: "web", Port: 3103, Replicas: 2}, false},
+		{"começa dentro da faixa de api", store.App{Name: "web", Port: 3102, Replicas: 1}, true},
+		{"termina dentro da faixa de api", store.App{Name: "web", Port: 3099, Replicas: 2}, true},
+		{"cobre a faixa inteira de api", store.App{Name: "web", Port: 3099, Replicas: 6}, true},
+		{"api crescendo sobre outra app", store.App{Name: "api", Port: 3100, Replicas: 3}, false},
+		{"faixa passa pela porta de um banco", store.App{Name: "web", Port: 3200, Replicas: 8}, true},
+		{"passa de 65535", store.App{Name: "web", Port: 65535, Replicas: 2}, true},
+		{"porta automática", store.App{Name: "web", Port: 0, Replicas: 4}, false},
+	} {
+		if got := d.PortConflict(tc.a); (got != "") != tc.bad {
+			t.Errorf("%s: %q", tc.name, got)
+		}
+	}
+}
+
+func TestEnvFileContentUsesTheInstancePort(t *testing.T) {
+	d := &Deployer{Store: openTestStore(t)}
+	a := store.App{Name: "api", Port: 3100, Replicas: 3}
+	if !strings.Contains(d.envFileContent(a, 3102), `PORT="3102"`) || strings.Contains(d.envFileContent(a, 3102), "3100") {
+		t.Error("cada instância recebe a própria PORT")
+	}
+	p := Paths{Data: "/d"}
+	if p.EnvFileN("api", 0) != p.EnvFile("api") || p.EnvFileN("api", 2) != "/d/env/api.r2.env" {
+		t.Errorf("%s %s", p.EnvFileN("api", 0), p.EnvFileN("api", 2))
 	}
 }

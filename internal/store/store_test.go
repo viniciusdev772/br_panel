@@ -225,3 +225,31 @@ func TestSessionsRoundTrip(t *testing.T) {
 	s2.DeleteAllSessions()
 	s2.EachSession(func(string, string, time.Time) { t.Error("deveria estar vazio") })
 }
+
+func TestAppScaleFieldsAndPortRanges(t *testing.T) {
+	s, _ := newTestStore(t)
+	a := App{Name: "api", Repo: "https://github.com/x/y.git", Branch: "main", Port: 3100, Replicas: 3, MemoryMB: 512, CPUPercent: 150, RateLimit: 20}
+	if err := s.Create(a); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get("api")
+	if got.Replicas != 3 || got.MemoryMB != 512 || got.CPUPercent != 150 || got.RateLimit != 20 {
+		t.Fatalf("%+v", got)
+	}
+	used := s.UsedPorts()
+	for _, p := range []int{3100, 3101, 3102} {
+		if !used[p] {
+			t.Errorf("porta %d da instância deve estar reservada", p)
+		}
+	}
+	if used[3103] {
+		t.Error("só as portas das instâncias são reservadas")
+	}
+	got.Replicas, got.MemoryMB = 0, 0 // an unset replica count means one instance
+	if err := s.UpdateConfig(got); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := s.Get("api"); again.Replicas != 1 || again.MemoryMB != 0 {
+		t.Errorf("%+v", again)
+	}
+}

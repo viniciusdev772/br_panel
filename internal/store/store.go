@@ -32,14 +32,21 @@ type App struct {
 	Branch     string
 	BuildCmd   string
 	StartCmd   string
-	Port       int
+	Port       int // first port; instance k listens on Port+k
 	Domain     string
 	AutoDeploy bool
 	Env        string
+	Replicas   int    // instances of the app, 1..validate.MaxReplicas
+	MemoryMB   int    // memory limit per instance, 0 = none
+	CPUPercent int    // CPU limit per instance (100 = one CPU), 0 = none
+	RateLimit  int    // requests per second per client IP at nginx, 0 = off
 	Kind       string // detected project type, e.g. "Node.js (npm)"; informational
 	Status     string
 	LastDeploy time.Time
 }
+
+// LastPort is the port of the last instance (Port when there is a single one).
+func (a App) LastPort() int { return a.Port + max(a.Replicas, 1) - 1 }
 
 // PortField is the port as shown in the form: empty when automatic.
 func (a App) PortField() string {
@@ -108,6 +115,11 @@ CREATE TABLE sessions (
 	csrf    TEXT NOT NULL,
 	exp     INTEGER NOT NULL
 );
+`, `
+ALTER TABLE apps ADD COLUMN replicas INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE apps ADD COLUMN memory_mb INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE apps ADD COLUMN cpu_percent INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE apps ADD COLUMN rate_limit INTEGER NOT NULL DEFAULT 0;
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -177,15 +189,18 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy`
+const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanApp(r rowScanner) (App, error) {
 	var a App
 	var auto, last int64
-	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last)
+	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit)
 	a.AutoDeploy = auto != 0
+	if a.Replicas < 1 {
+		a.Replicas = 1
+	}
 	if last > 0 {
 		a.LastDeploy = time.Unix(last, 0)
 	}
@@ -225,9 +240,9 @@ func (s *Store) Create(a App) error {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM databases WHERE name = ?`, a.Name).Scan(&taken); err == nil && taken > 0 {
 		return ErrExists // apps and databases share one namespace (variable references use the name)
 	}
-	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, StatusIdle, time.Now().Unix())
+	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, replicas, memory_mb, cpu_percent, rate_limit, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, StatusIdle, time.Now().Unix())
 	if isConstraint(err) {
 		return ErrExists
 	}
@@ -236,8 +251,8 @@ func (s *Store) Create(a App) error {
 
 // UpdateConfig changes an app's settings without touching its deploy status.
 func (s *Store) UpdateConfig(a App) error {
-	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=? WHERE name=?`,
-		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, a.Name)
+	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=?, replicas=?, memory_mb=?, cpu_percent=?, rate_limit=? WHERE name=?`,
+		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.Name)
 	if isConstraint(err) {
 		return ErrExists
 	}
@@ -554,18 +569,20 @@ func (s *Store) DeleteDatabase(name string) error {
 	return tx.Commit()
 }
 
-// UsedPorts returns every port assigned to an app or a database.
+// UsedPorts returns every port assigned to an app (all its instances) or a database.
 func (s *Store) UsedPorts() map[int]bool {
 	used := map[int]bool{}
-	for _, q := range []string{`SELECT port FROM apps`, `SELECT port FROM databases`} {
+	for _, q := range []string{`SELECT port, replicas FROM apps`, `SELECT port, 1 FROM databases`} {
 		rows, err := s.db.Query(q)
 		if err != nil {
 			continue
 		}
 		for rows.Next() {
-			var p int
-			if rows.Scan(&p) == nil {
-				used[p] = true
+			var p, n int
+			if rows.Scan(&p, &n) == nil {
+				for k := 0; k < max(n, 1); k++ {
+					used[p+k] = true
+				}
 			}
 		}
 		rows.Close()

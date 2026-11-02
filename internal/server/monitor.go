@@ -43,7 +43,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	if pts == nil {
 		pts = []store.Point{}
 	}
-	writeJSON(w, metricsResponse{Info: systemd.Info(a.Name), Points: pts, Range: rg, From: now.Add(-d).Unix(), To: now.Unix()})
+	writeJSON(w, metricsResponse{Info: systemd.InfoAll(systemd.ReplicaUnits(a.Name, a.Replicas)), Points: pts, Range: rg, From: now.Add(-d).Unix(), To: now.Unix()})
 }
 
 // resOverview is the live state of one resource (app or database) on the canvas.
@@ -67,8 +67,8 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 func (s *Server) overview() map[string]resOverview {
 	latest := s.store.LatestMetrics(time.Now().Add(-2 * monitor.SampleEvery))
 	out := map[string]resOverview{}
-	put := func(name, typ, unit, status, metricsKey string) {
-		o := resOverview{Type: typ, State: systemd.StateUnit(unit), Status: status}
+	put := func(name, typ string, units []string, status, metricsKey string) {
+		o := resOverview{Type: typ, State: systemd.StateUnits(units), Status: status}
 		if p, ok := latest[metricsKey]; ok {
 			cpu, mem := p.CPU, p.Mem
 			o.CPU, o.Mem = &cpu, &mem
@@ -76,10 +76,10 @@ func (s *Server) overview() map[string]resOverview {
 		out[name] = o
 	}
 	for _, a := range s.store.List() {
-		put(a.Name, "app", systemd.UnitName(a.Name), a.Status, a.Name)
+		put(a.Name, "app", systemd.ReplicaUnits(a.Name, a.Replicas), a.Status, a.Name)
 	}
 	for _, d := range s.store.ListDatabases() {
-		put(d.Name, "db", systemd.DBUnitName(d.Name), d.Status, monitor.DBKey(d.Name))
+		put(d.Name, "db", []string{systemd.DBUnitName(d.Name)}, d.Status, monitor.DBKey(d.Name))
 	}
 	return out
 }

@@ -77,3 +77,61 @@ func TestRetry(t *testing.T) {
 		t.Errorf("n=%d err=%v", n, err)
 	}
 }
+
+func TestRenderVhostSingleInstanceHasNoUpstreamGroup(t *testing.T) {
+	site := Site{Key: "web", Domain: "app.exemplo.com", Upstream: "127.0.0.1:3000"}
+	out := renderVhost(site, "/acme", "/f", "/k", true)
+	for _, bad := range []string{"upstream ", "limit_req", "gzip", "$brpanel_connection_keepalive"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("app simples não deve ter %q:\n%s", bad, out)
+		}
+	}
+}
+
+func TestRenderVhostBalancesReplicas(t *testing.T) {
+	site := Site{Key: "api", Domain: "api.exemplo.com", Upstream: "127.0.0.1:3001",
+		Upstreams: []string{"127.0.0.1:3001", "127.0.0.1:3002", "127.0.0.1:3003"}}
+	out := renderVhost(site, "/acme", "/f", "/k", false)
+	for _, want := range []string{
+		"upstream brpanel_api {", "least_conn;", "server 127.0.0.1:3002 max_fails=3 fail_timeout=10s;", "keepalive 16;",
+		"proxy_pass http://brpanel_api;", "proxy_set_header Connection $brpanel_connection_keepalive;",
+		"proxy_next_upstream error timeout http_502 http_503 http_504;",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("faltou %q:\n%s", want, out)
+		}
+	}
+	// nginx < 1.29.7 needs the balancing method before keepalive
+	if strings.Index(out, "least_conn;") > strings.Index(out, "keepalive 16;") {
+		t.Error("least_conn deve vir antes de keepalive")
+	}
+	if strings.Contains(out, "non_idempotent") {
+		t.Error("POST não pode ser repetido em outra instância")
+	}
+	if strings.Index(out, "upstream brpanel_api") > strings.Index(out, "server {") {
+		t.Error("upstream deve ficar fora dos blocos server")
+	}
+}
+
+func TestRenderVhostRateLimitAndGzip(t *testing.T) {
+	site := Site{Key: "loja", Domain: "loja.exemplo.com", Upstream: "127.0.0.1:3000", RateLimit: 10, Gzip: true}
+	tls := renderVhost(site, "/acme", "/f", "/k", true)
+	for _, want := range []string{
+		"limit_req_zone $binary_remote_addr zone=brpanel_loja:10m rate=10r/s;",
+		"limit_req zone=brpanel_loja burst=50 nodelay;", "limit_req_status 429;", "gzip on;", "gzip_vary on;", "application/json",
+	} {
+		if !strings.Contains(tls, want) {
+			t.Errorf("faltou %q:\n%s", want, tls)
+		}
+	}
+	if strings.Count(tls, "limit_req zone") != 1 || strings.Count(tls, "gzip on;") != 1 {
+		t.Error("limite e gzip só no bloco 443 que serve o app")
+	}
+	if strings.Index(tls, "limit_req_zone") > strings.Index(tls, "server {") {
+		t.Error("limit_req_zone só vale no contexto http, antes dos blocos server")
+	}
+	low := renderVhost(Site{Key: "x", Domain: "x.com", Upstream: "127.0.0.1:1", RateLimit: 1}, "/a", "/f", "/k", false)
+	if !strings.Contains(low, "burst=20 ") {
+		t.Errorf("burst mínimo de 20:\n%s", low)
+	}
+}

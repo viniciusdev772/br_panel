@@ -65,7 +65,7 @@ func (s *Server) canvas() ([]card, []edge) {
 			c.StatusText, c.StatusClass = "Deploy falhou", "bad"
 		case store.StatusDeployed:
 			c.StatusText, c.StatusClass = "Deploy concluído", "ok"
-			if st := systemd.State(a.Name); st != "active" && st != "unknown" {
+			if st := systemd.StateUnits(systemd.ReplicaUnits(a.Name, a.Replicas)); st != "active" && st != "unknown" {
 				c.StatusText, c.StatusClass = "Serviço "+st, "warn"
 			}
 		default:

@@ -139,6 +139,7 @@ code { background: var(--surface-2); color: var(--text); padding: 1px 5px; borde
 .chip--active, .chip--deployed, .chip--ready { background: rgba(52, 211, 153, .12); color: var(--ok); border-color: rgba(52, 211, 153, .35); }
 .chip--failed, .chip--bad { background: rgba(248, 113, 113, .12); color: var(--bad); border-color: rgba(248, 113, 113, .35); }
 .chip--deploying, .chip--activating, .chip--provisioning, .chip--warn { background: rgba(245, 185, 66, .12); color: var(--warn); border-color: rgba(245, 185, 66, .35); }
+.chip--degraded { background: rgba(245, 185, 66, .12); color: var(--warn); border-color: rgba(245, 185, 66, .35); }
 .chip--inactive { background: var(--surface-2); color: var(--muted); }
 
 .checks { gap: 6px; }

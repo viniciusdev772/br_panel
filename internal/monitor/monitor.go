@@ -56,8 +56,17 @@ func Run(ctx context.Context, st *store.Store) {
 
 func (sm *sampler) sample(now time.Time) {
 	seen := map[string]bool{}
-	record := func(key, unit string) {
-		usec, mem, ok := sysinfo.ReadCgroup(filepath.Join(sm.cgRoot, unit))
+	// record stores one chart point for key, summing the CPU and memory of all its units (the
+	// instances of an app).
+	record := func(key string, units ...string) {
+		var usec, mem uint64
+		ok := false
+		for _, unit := range units {
+			u, m, found := sysinfo.ReadCgroup(filepath.Join(sm.cgRoot, unit))
+			if found {
+				usec, mem, ok = usec+u, mem+uint64(m), true
+			}
+		}
 		if !ok { // stopped: leave a gap in the chart
 			return
 		}
@@ -72,7 +81,7 @@ func (sm *sampler) sample(now time.Time) {
 		_ = sm.store.InsertMetrics(key, []store.Point{{TS: now.Unix(), CPU: round1(cpu), Mem: int64(mem)}})
 	}
 	for _, a := range sm.store.List() {
-		record(a.Name, systemd.UnitName(a.Name))
+		record(a.Name, systemd.ReplicaUnits(a.Name, a.Replicas)...)
 	}
 	for _, d := range sm.store.ListDatabases() { // databases are stored under "db:<name>"
 		record(DBKey(d.Name), systemd.DBUnitName(d.Name))
