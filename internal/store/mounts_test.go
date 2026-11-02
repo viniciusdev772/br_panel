@@ -61,7 +61,7 @@ func TestMountsMigrationOnOldDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(`DROP TABLE mounts; ALTER TABLE apps DROP COLUMN volume_backup; PRAGMA user_version = 6`); err != nil {
+	if _, err := s.db.Exec(`DROP TABLE mounts; ALTER TABLE apps DROP COLUMN volume_backup; ALTER TABLE apps DROP COLUMN web; PRAGMA user_version = 6`); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()

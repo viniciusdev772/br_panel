@@ -323,8 +323,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		}
 		return d.nginx().Remove(ctx, log, a.Name)
 	}
-	d.ensureDNS(ctx, log, a.Domain)
-	return d.nginx().Ensure(ctx, log, siteFor(a))
+	return d.publishSite(ctx, log, a)
 }
 
 // writeInstance writes the environment file and the unit of instance k. Every instance mounts the
@@ -348,6 +347,7 @@ func siteFor(a store.App) nginx.Site {
 	for k := 0; k < max(a.Replicas, 1); k++ {
 		site.Upstreams = append(site.Upstreams, fmt.Sprintf("127.0.0.1:%d", a.Port+k))
 	}
+	applyWeb(&site, a.Web)
 	return site
 }
 

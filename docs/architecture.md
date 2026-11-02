@@ -67,6 +67,12 @@ usuário (`postStart`) → `ready`. Segredos nunca vão em argv (variáveis de a
 temporários). Cada motor implementa a interface `engine` (`locate`, `init`, `configure`, `execStart`, `postStart`, `url`, `backup`,
 `restore`, `setPassword`, `tables`, `preview`).
 
+### Opções do Nginx por aplicação (`store.Web`, `nginx`, `deploy.ApplySite`)
+
+A aba **Site** grava `store.Web` (JSON na coluna `apps.web`, separado do formulário da aplicação: `UpdateConfig` não o toca; `SetWeb` o salva). `siteFor` copia as opções para `nginx.Site`, e `renderVhost` gera um conjunto de blocos `server` por domínio (principal, extras e redirecionamentos), cada um com o próprio `ssl_certificate`; o grupo `upstream` e a zona de limite ficam uma vez só no topo. Domínios sem certificado servem em HTTP e `Ensure` emite os que faltam um a um (falha em um não impede os outros). Um redirecionamento aponta para `https` só quando o destino já tem certificado.
+
+Senha: `server` ganha `auth_basic` com o arquivo `brpanel-<app>.htpasswd` (bcrypt `$2y$`, gerado por `nginx.HashPassword`); o local do desafio ACME tem `auth_basic off`. Manutenção: `error_page 503` para um local nomeado que serve `brpanel-<app>.maintenance.html` (título e texto escapados) e `location / { return 503; }`; com ela ligada a senha é dispensada. Os dois arquivos ficam ao lado do vhost e são regravados ou removidos junto com ele. `ApplySite` só recarrega o vhost (rápido) e, ao adicionar domínio, roda `Ensure` em segundo plano com o log na aba Logs; antes de salvar no banco o vhost novo passa por `nginx -t`, então uma configuração recusada nunca é guardada.
+
 ### Armazenamento das aplicações (`deploy.prepareMounts`)
 
 Na aba **Armazenamento** da aplicação: o tipo `volume` é uma pasta gerenciada pelo painel em `<data>/volumes/<app>/<nome>` (dono: usuário das apps), `bind` aponta para uma pasta que já existe no servidor e `file` guarda um texto no banco e o grava em arquivo montado **somente leitura** (`<data>/files/<app>/<id>`, 0600). Tudo valida em `internal/validate` (nome; destino relativo ou absoluto; caminhos proibidos no destino e no `bind`: `/etc`, `/proc`, `/sys`, `/dev`, `/boot`, `/root`, `/run`, o diretório de dados e, no destino, `/usr` e outros).
@@ -92,6 +98,7 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 | `POST /apps/{name}/{deploy\|start\|stop\|restart\|delete}` | sessão+CSRF | Ações |
 | `POST /apps/{name}/{mount-add\|mount-delete\|volume-backup\|volume-restore\|volume-delete\|volume-schedule}` | sessão+CSRF | Aba Armazenamento: montagens e backups dos volumes |
 | `GET /apps/{name}/volume-backups/{file}` | sessão | Download de backup de volume (nome validado) |
+| `POST /apps/{name}/site/{domain-add\|domain-delete\|auth-add\|auth-delete\|maintenance\|limits}` | sessão+CSRF | Aba Site: endereços extras e redirecionamentos, senha, manutenção, upload e timeout |
 | `GET /apps/{name}/logs` | sessão | Página de logs |
 | `GET /apps/{name}/log?kind=service\|deploy&lines=N&download=1` | sessão | Texto dos logs |
 | `GET /apps/{name}/metrics?range=1h\|6h\|24h` | sessão | JSON de CPU/RAM e status |

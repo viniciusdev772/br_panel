@@ -129,6 +129,17 @@ Antes de subir, o painel cria o destino dentro da pasta do projeto e passa `Bind
 
 **Backups:** manual ou agendado (diário/semanal), um `.tar.gz` por volume em `<data>/backups/volumes/<app>/` (os 7 mais recentes), com download, restauração e exclusão. Restaurar para as instâncias, troca a pasta do volume e as inicia de novo.
 
+## Site: outros endereços, senha, manutenção e limites
+
+A aba **Site** da aplicação (precisa de um domínio principal) controla o que o Nginx faz na frente dela. Cada mudança é validada, testada com `nginx -t` e só então salva; se o Nginx recusar, a configuração anterior volta e nada é guardado.
+
+- **Outros endereços:** domínios extras da mesma aplicação (por exemplo o `www`), cada um com o **próprio certificado** do Let's Encrypt, emitido em segundo plano (o andamento aparece nos Logs). Um endereço pode também **levar para outro endereço**, com redirecionamento permanente (301) ou temporário (302), por exemplo `www` para a raiz ou um domínio antigo para o novo. Até 10 endereços; um domínio não pode ser usado por duas aplicações.
+- **Senha para entrar:** usuário e senha (de 8 a 72 caracteres) pela tela. O painel grava só o hash bcrypt, num arquivo `brpanel-<app>.htpasswd` ao lado do vhost, legível apenas pelo root e pelo grupo dos workers do Nginx quando o `user` do `nginx.conf` permite saber qual é. O hash nunca volta para a tela; o desafio do Let's Encrypt continua passando sem senha. Até 10 usuários; repetir o nome troca a senha.
+- **Página de manutenção:** liga e desliga, com título e mensagem. Ligada, todos os endereços da aplicação respondem `503` com a página (o texto é sempre escapado) e `Retry-After`, e a aplicação continua rodando.
+- **Limites:** tamanho máximo de upload em MB (vazio usa o padrão do Nginx, 1 MB) e tempo de espera pela resposta da aplicação (10 a 3600 s, padrão 300).
+
+Sem Nginx na frente (aplicação sem domínio) nada disso vale; as opções ficam salvas e entram no próximo deploy.
+
 ## Bancos de dados (PostgreSQL, MySQL/MariaDB, MongoDB, Redis)
 
 Em **Criar → Banco de dados** o painel provisiona uma instância **dedicada** por banco, como serviço systemd

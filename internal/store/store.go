@@ -41,6 +41,7 @@ type App struct {
 	CPUPercent int // CPU limit per instance (100 = one CPU), 0 = none
 	RateLimit  int // requests per second per client IP at nginx, 0 = off
 
+	Web        Web       // extra domains, basic auth, maintenance page, upload and timeout limits
 	AutoScale  AutoScale // keeps Replicas between AutoScale.Min and .Max by itself
 	ScaledAt   time.Time // when the instance count last changed (deploys do not count); drives the cooldowns
 	Kind       string    // detected project type, e.g. "Node.js (npm)"; informational
@@ -193,6 +194,8 @@ CREATE TABLE mounts (
 	UNIQUE (app, target)
 );
 ALTER TABLE apps ADD COLUMN volume_backup TEXT NOT NULL DEFAULT 'off';
+`, `
+ALTER TABLE apps ADD COLUMN web TEXT NOT NULL DEFAULT '';
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -262,18 +265,21 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit, autoscale, scale_at`
+const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit, autoscale, scale_at, web`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanApp(r rowScanner) (App, error) {
 	var a App
 	var auto, last, scaled int64
-	var as string
-	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit, &as, &scaled)
+	var as, web string
+	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit, &as, &scaled, &web)
 	a.AutoDeploy = auto != 0
 	if as != "" {
 		_ = json.Unmarshal([]byte(as), &a.AutoScale) // a damaged value just means autoscaling off
+	}
+	if web != "" {
+		_ = json.Unmarshal([]byte(web), &a.Web) // a damaged value just means no extra options
 	}
 	if scaled > 0 {
 		a.ScaledAt = time.Unix(scaled, 0)
@@ -384,11 +390,14 @@ func (s *Store) FinishDeploy(name string, ok bool) {
 	_, _ = s.db.Exec(`UPDATE apps SET status = ?, last_deploy = ? WHERE name = ?`, st, time.Now().Unix(), name)
 }
 
-// DomainOwner returns the app using domain, if any.
+// DomainOwner returns the app using domain, as its main domain or as one of its extra domains.
 func (s *Store) DomainOwner(domain string) (string, bool) {
-	var n string
-	err := s.db.QueryRow(`SELECT name FROM apps WHERE domain = ?`, domain).Scan(&n)
-	return n, err == nil
+	for _, a := range s.List() {
+		if a.Domain == domain || a.Web.HasDomain(domain) {
+			return a.Name, true
+		}
+	}
+	return "", false
 }
 
 func (s *Store) CountApps() int {

@@ -3,6 +3,8 @@
   <input type="hidden" name="csrf" value="{{.csrf}}">
   {{if .file}}<input type="hidden" name="file" value="{{.file}}">{{end}}
   {{if .id}}<input type="hidden" name="id" value="{{.id}}">{{end}}
+  {{if .domain}}<input type="hidden" name="domain" value="{{.domain}}">{{end}}
+  {{if .user}}<input type="hidden" name="user" value="{{.user}}">{{end}}
   <button class="mdc-button {{if .raised}}mdc-button--raised{{else if .danger}}mdc-button--outlined mdc-button--danger{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
 </form>
 {{end}}
@@ -29,6 +31,7 @@
     <button type="button" class="tab-btn is-active" data-tab="deploy" role="tab">Deploy</button>
     <button type="button" class="tab-btn" data-tab="variaveis" role="tab">Variáveis</button>
     <button type="button" class="tab-btn" data-tab="armazenamento" role="tab">Armazenamento</button>
+    <button type="button" class="tab-btn" data-tab="site" role="tab">Site</button>
     <button type="button" class="tab-btn" data-tab="metricas" role="tab">Métricas</button>
     <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs</button>
     <button type="button" class="tab-btn" data-tab="configuracoes" role="tab">Configurações</button>
@@ -156,6 +159,98 @@
       <div class="dbempty">Nenhum backup ainda. Os backups ficam em <code>backups/volumes/{{.App.Name}}</code> (os 7 mais recentes de cada volume são mantidos).</div>
       {{end}}
     </div>
+  </section>
+
+  <section class="panel" id="tab-site" data-panel="site" hidden>
+    {{if not .App.Domain}}<div class="banner"><i class="material-icons">info</i><div>Esta aplicação ainda não tem um domínio. Defina o domínio principal em Configurações para usar esta aba.</div></div>{{end}}
+
+    <h2 class="panel-title">Outros endereços</h2>
+    <div class="mdc-card">
+      {{range .App.Web.Domains}}
+      <div class="backup-row">
+        <div>
+          <strong>{{.Name}}</strong>
+          <span class="muted">· {{if .To}}leva para <code>{{.To}}</code>{{if .Permanent}} (permanente){{end}}{{else}}abre esta aplicação{{end}}</span>
+        </div>
+        <div class="actions">
+          {{template "action" dict "name" $.App.Name "action" "site/domain-delete" "csrf" $.CSRF "icon" "delete" "label" "Remover" "danger" true "domain" .Name "confirm" "Remover este endereço?"}}
+        </div>
+      </div>
+      {{else}}
+      <div class="dbempty">Nenhum outro endereço. Aqui você coloca o <code>www</code> ou outro domínio apontando para a mesma aplicação. Cada endereço ganha o próprio certificado.</div>
+      {{end}}
+    </div>
+    <details class="advanced">
+      <summary>Adicionar endereço</summary>
+      <form method="post" action="/apps/{{.App.Name}}/site/domain-add" class="mdc-card"><div class="card-body">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        {{template "field" dict "name" "domain" "label" "Endereço" "required" true "autocomplete" "off" "hint" "Ex.: www.meusite.com.br"}}
+        <label class="select-label">O que acontece quando alguém abrir esse endereço?
+          <select name="kind" id="domain-kind">
+            <option value="serve">Abre esta aplicação</option>
+            <option value="redirect">Leva para outro endereço</option>
+          </select>
+        </label>
+        <div id="domain-to-box" hidden>
+          {{template "field" dict "name" "to" "label" "Levar para" "autocomplete" "off" "hint" "Ex.: meusite.com.br"}}
+          <div class="mdc-form-field">
+            <div class="mdc-checkbox">
+              <input type="checkbox" class="mdc-checkbox__native-control" id="permanent" name="permanent" checked>
+              <div class="mdc-checkbox__background">
+                <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
+                <div class="mdc-checkbox__mixedmark"></div>
+              </div>
+              <div class="mdc-checkbox__ripple"></div>
+            </div>
+            <label for="permanent">Mudança definitiva (o Google passa a usar o endereço novo)</label>
+          </div>
+        </div>
+        <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Adicionar</span></button></div>
+      </div></form>
+    </details>
+
+    <h2 class="panel-title">Senha para entrar</h2>
+    <div class="mdc-card">
+      {{range .App.Web.Users}}
+      <div class="backup-row">
+        <div><strong>{{.Name}}</strong></div>
+        <div class="actions">
+          {{template "action" dict "name" $.App.Name "action" "site/auth-delete" "csrf" $.CSRF "icon" "delete" "label" "Remover" "danger" true "user" .Name "confirm" "Remover este usuário?"}}
+        </div>
+      </div>
+      {{else}}
+      <div class="dbempty">Sem senha: qualquer pessoa abre o site. Adicione um usuário para o site pedir usuário e senha.</div>
+      {{end}}
+    </div>
+    <details class="advanced">
+      <summary>Adicionar usuário</summary>
+      <form method="post" action="/apps/{{.App.Name}}/site/auth-add" class="mdc-card"><div class="card-body">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        {{template "field" dict "name" "user" "label" "Usuário" "required" true "autocomplete" "off" "hint" "Se o usuário já existe, a senha dele é trocada."}}
+        {{template "field" dict "name" "password" "label" "Senha" "type" "password" "required" true "autocomplete" "new-password" "hint" "De 8 a 72 caracteres. Depois de salva, ela não aparece mais."}}
+        <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">lock</i><span class="mdc-button__label">Salvar usuário</span></button></div>
+      </div></form>
+    </details>
+
+    <h2 class="panel-title">Página de manutenção{{if .App.Web.Maintenance}} <span class="muted">· ligada</span>{{end}}</h2>
+    <form method="post" action="/apps/{{.App.Name}}/site/maintenance" class="mdc-card"><div class="card-body">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      {{template "field" dict "name" "title" "label" "Título" "value" .App.Web.MaintTitle "autocomplete" "off" "hint" "Se ficar vazio: Em manutenção"}}
+      {{template "area" dict "name" "text" "label" "Mensagem" "rows" 3 "value" .App.Web.MaintText "hint" "Se ficar vazia: Voltamos em instantes."}}
+      <p class="hint">Ligada, quem abrir o site vê este aviso e a aplicação continua rodando por trás.</p>
+      <div class="actions form-end">
+        <button class="mdc-button" type="submit" name="state" value="off"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Desligar</span></button>
+        <button class="mdc-button mdc-button--raised" type="submit" name="state" value="on"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">construction</i><span class="mdc-button__label">Ligar manutenção</span></button>
+      </div>
+    </div></form>
+
+    <h2 class="panel-title">Limites</h2>
+    <form method="post" action="/apps/{{.App.Name}}/site/limits" class="mdc-card"><div class="card-body">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      {{template "field" dict "name" "upload_mb" "label" "Tamanho máximo de upload (MB)" "type" "number" "value" (or .App.Web.MaxBodyMB "") "hint" "Vazio usa o padrão do Nginx (1 MB). Aumente se a aplicação recebe fotos ou arquivos."}}
+      {{template "field" dict "name" "read_timeout" "label" "Tempo de espera pela resposta (segundos)" "type" "number" "value" (or .App.Web.ReadTimeout "") "hint" "Vazio usa 300. De 10 a 3600. Aumente para páginas lentas, como relatórios."}}
+      <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">save</i><span class="mdc-button__label">Salvar</span></button></div>
+    </div></form>
   </section>
 
   <section class="panel" id="tab-metricas" data-panel="metricas" hidden>

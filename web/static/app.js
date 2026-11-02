@@ -4,9 +4,12 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
   // ---- Material components ----
-  var fields = {};
+  var fields = {}, allFields = [];
+  // A label measured while its field was hidden (another tab, a collapsed box) needs measuring again.
+  var relayout = function () { allFields.forEach(function (tf) { tf.layout(); }); };
   $$('.mdc-text-field').forEach(function (el) {
     var tf = new mdc.textField.MDCTextField(el);
+    allFields.push(tf);
     var input = $('input, textarea', el);
     if (input && input.name) { fields[input.name] = tf; }
   });
@@ -95,6 +98,7 @@
     if (!found) { return; }
     $$('.tab-btn', tabsEl).forEach(function (b) { b.classList.toggle('is-active', b.dataset.tab === name); });
     if (updateHash) { try { history.replaceState(null, '', '#' + name); } catch (e) { /* ignore */ } }
+    relayout();
     window.dispatchEvent(new CustomEvent('tabshown', { detail: name }));
   }
   if (tabsEl) {
@@ -497,9 +501,19 @@
     var syncMount = function () {
       srcBox.hidden = mountKind.value !== 'bind';
       contentBox.hidden = mountKind.value !== 'file';
+      relayout();
     };
     mountKind.addEventListener('change', syncMount);
     syncMount();
+  }
+
+  // ---- site tab: a redirect needs a destination; a domain that serves the app does not ----
+  var domainKind = $('#domain-kind');
+  if (domainKind) {
+    var toBox = $('#domain-to-box');
+    var syncDomain = function () { toBox.hidden = domainKind.value !== 'redirect'; relayout(); };
+    domainKind.addEventListener('change', syncDomain);
+    syncDomain();
   }
 
   // ---- new app form: auto detection ----

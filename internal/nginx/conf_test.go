@@ -28,7 +28,7 @@ func TestRenderedVhostsPassNginxT(t *testing.T) {
 			for _, d := range []string{"client_body_temp_path", "proxy_temp_path", "fastcgi_temp_path", "uwsgi_temp_path", "scgi_temp_path"} {
 				b.WriteString("    " + d + " " + dir + "/" + d + ";\n")
 			}
-			b.WriteString(commonConf + renderVhost(site, dir, "", "", false) + "}\n")
+			b.WriteString(commonConf + renderVhost(site, vhostEnv{AcmeRoot: dir, Dir: dir, Cert: func(string) (string, string, bool) { return "", "", false }}) + "}\n")
 			conf := filepath.Join(dir, "nginx.conf")
 			if err := os.WriteFile(conf, []byte(b.String()), 0o644); err != nil {
 				t.Fatal(err)

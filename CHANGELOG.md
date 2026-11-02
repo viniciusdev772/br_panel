@@ -10,6 +10,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 - Limites por instância de memória (`MemoryMax`, com `MemoryHigh` em 90%) e CPU (`CPUQuota`), `LimitNOFILE=65536` nas apps, limite de requisições por visitante (`limit_req`, erro 429) e compressão gzip nos vhosts das aplicações. CPU e memória do monitor somam as instâncias; logs mostram todas.
 - Backups dos volumes: manual ou agendado (diário/semanal), um `.tar.gz` por volume em `backups/volumes/<app>` (7 por volume), com download, restauração e exclusão no mesmo padrão dos backups de banco. Excluir a aplicação apaga volumes, arquivos e backups.
 
+- Aba **Site** na aplicação: outros domínios (cada um com o próprio certificado), redirecionamentos (permanentes ou temporários, por exemplo `www` para a raiz), senha de acesso com usuário e senha pela tela (hash bcrypt em arquivo htpasswd, que nunca volta à tela), página de manutenção com título e mensagem (liga e desliga, responde 503), tamanho máximo de upload e tempo de espera pela resposta. Tudo é validado e testado com `nginx -t` antes de ser salvo.
+
 ### Corrigido
 - Atualizar ou reiniciar o painel desconectava o administrador, porque as sessões viviam só na memória. Agora ficam no SQLite (com o hash do id, nunca o cookie) e continuam valendo depois do reinício; trocar a senha e sair continuam encerrando as sessões.
 

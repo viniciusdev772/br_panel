@@ -11,7 +11,7 @@ import (
 
 func TestRenderVhost(t *testing.T) {
 	site := Site{Key: "web", Domain: "app.exemplo.com", Upstream: "127.0.0.1:3000"}
-	http := renderVhost(site, "/var/www/acme", "/c/full.pem", "/c/key.pem", false)
+	http := renderVhost(site, testEnv("/var/www/acme", false))
 	for _, want := range []string{"server_name app.exemplo.com;", "proxy_pass http://127.0.0.1:3000;", "acme-challenge", "$brpanel_connection_upgrade"} {
 		if !strings.Contains(http, want) {
 			t.Errorf("http: faltou %q", want)
@@ -20,7 +20,7 @@ func TestRenderVhost(t *testing.T) {
 	if strings.Contains(http, "443") {
 		t.Error("vhost sem TLS não deve ouvir em 443")
 	}
-	tls := renderVhost(site, "/var/www/acme", "/c/full.pem", "/c/key.pem", true)
+	tls := renderVhost(site, testEnv("/var/www/acme", true))
 	for _, want := range []string{"listen 443 ssl;", "ssl_certificate /c/full.pem;", "ssl_certificate_key /c/key.pem;", "return 301 https://$host$request_uri;"} {
 		if !strings.Contains(tls, want) {
 			t.Errorf("tls: faltou %q", want)
@@ -80,7 +80,7 @@ func TestRetry(t *testing.T) {
 
 func TestRenderVhostSingleInstanceHasNoUpstreamGroup(t *testing.T) {
 	site := Site{Key: "web", Domain: "app.exemplo.com", Upstream: "127.0.0.1:3000"}
-	out := renderVhost(site, "/acme", "/f", "/k", true)
+	out := renderVhost(site, testEnv("/acme", true))
 	for _, bad := range []string{"upstream ", "limit_req", "gzip", "$brpanel_connection_keepalive"} {
 		if strings.Contains(out, bad) {
 			t.Errorf("app simples não deve ter %q:\n%s", bad, out)
@@ -91,7 +91,7 @@ func TestRenderVhostSingleInstanceHasNoUpstreamGroup(t *testing.T) {
 func TestRenderVhostBalancesReplicas(t *testing.T) {
 	site := Site{Key: "api", Domain: "api.exemplo.com", Upstream: "127.0.0.1:3001",
 		Upstreams: []string{"127.0.0.1:3001", "127.0.0.1:3002", "127.0.0.1:3003"}}
-	out := renderVhost(site, "/acme", "/f", "/k", false)
+	out := renderVhost(site, testEnv("/acme", false))
 	for _, want := range []string{
 		"upstream brpanel_api {", "least_conn;", "server 127.0.0.1:3002 max_fails=3 fail_timeout=10s;", "keepalive 16;",
 		"proxy_pass http://brpanel_api;", "proxy_set_header Connection $brpanel_connection_keepalive;",
@@ -115,7 +115,7 @@ func TestRenderVhostBalancesReplicas(t *testing.T) {
 
 func TestRenderVhostRateLimitAndGzip(t *testing.T) {
 	site := Site{Key: "loja", Domain: "loja.exemplo.com", Upstream: "127.0.0.1:3000", RateLimit: 10, Gzip: true}
-	tls := renderVhost(site, "/acme", "/f", "/k", true)
+	tls := renderVhost(site, testEnv("/acme", true))
 	for _, want := range []string{
 		"limit_req_zone $binary_remote_addr zone=brpanel_loja:10m rate=10r/s;",
 		"limit_req zone=brpanel_loja burst=50 nodelay;", "limit_req_status 429;", "gzip on;", "gzip_vary on;", "application/json",
@@ -130,7 +130,7 @@ func TestRenderVhostRateLimitAndGzip(t *testing.T) {
 	if strings.Index(tls, "limit_req_zone") > strings.Index(tls, "server {") {
 		t.Error("limit_req_zone só vale no contexto http, antes dos blocos server")
 	}
-	low := renderVhost(Site{Key: "x", Domain: "x.com", Upstream: "127.0.0.1:1", RateLimit: 1}, "/a", "/f", "/k", false)
+	low := renderVhost(Site{Key: "x", Domain: "x.com", Upstream: "127.0.0.1:1", RateLimit: 1}, testEnv("/a", false))
 	if !strings.Contains(low, "burst=20 ") {
 		t.Errorf("burst mínimo de 20:\n%s", low)
 	}
