@@ -480,6 +480,14 @@
       if (e.key === 'Enter' && !editing && cur !== last && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') { e.preventDefault(); go(cur + 1); }
     });
     show(0);
+
+    // The autoscale fields only matter when it is on.
+    var asBox = $('#autoscale'), asFields = $('#as-fields');
+    if (asBox && asFields) {
+      var syncAs = function () { asFields.hidden = !asBox.checked; };
+      asBox.addEventListener('change', syncAs);
+      syncAs();
+    }
   }
 
   // ---- new app form: auto detection ----
