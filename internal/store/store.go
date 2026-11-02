@@ -196,6 +196,14 @@ CREATE TABLE mounts (
 ALTER TABLE apps ADD COLUMN volume_backup TEXT NOT NULL DEFAULT 'off';
 `, `
 ALTER TABLE apps ADD COLUMN web TEXT NOT NULL DEFAULT '';
+`, `
+CREATE TABLE api_tokens (
+	id        INTEGER PRIMARY KEY AUTOINCREMENT,
+	name      TEXT NOT NULL UNIQUE,
+	hash      TEXT NOT NULL UNIQUE,
+	created   INTEGER NOT NULL,
+	last_used INTEGER NOT NULL DEFAULT 0
+);
 `}
 
 // Store is the panel's SQLite database: settings and apps.

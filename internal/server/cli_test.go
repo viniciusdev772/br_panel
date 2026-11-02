@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -142,5 +145,115 @@ func TestCLIEndToEnd(t *testing.T) {
 	g := do(h, "GET", "/cli/guide.txt", nil, c)
 	if g.Code != http.StatusOK || !strings.HasPrefix(g.Header().Get("Content-Type"), "text/plain") || !strings.Contains(g.Body.String(), "RECEITAS") {
 		t.Errorf("/cli/guide.txt: %d %s", g.Code, g.Header().Get("Content-Type"))
+	}
+}
+
+func bearerReq(h http.Handler, method, path, token, ip string, form url.Values) *httptest.ResponseRecorder {
+	var body *strings.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	} else {
+		body = strings.NewReader("")
+	}
+	r := httptest.NewRequest(method, path, body)
+	r.RemoteAddr = ip + ":4000"
+	if form != nil {
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	if token != "" {
+		r.Header.Set("Authorization", token)
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	return w
+}
+
+// A token opens the same routes the socket does, from anywhere, and nothing else does.
+func TestTokenAuth(t *testing.T) {
+	s, h := newTestServer(t)
+	c := setup(t, s, h, nil)
+	if err := s.store.Create(store.App{Name: "web", Repo: "https://github.com/o/r", Branch: "main", StartCmd: "x", Port: 3001, Replicas: 1}); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errs := runCLI(t, s, "", "tokens", "create", "--name", "notebook")
+	m := regexp.MustCompile(`brp_[0-9a-f]+`).FindString(out)
+	if code != 0 || m == "" {
+		t.Fatalf("tokens create: %d %q %q", code, out, errs)
+	}
+	secret := "Bearer " + m
+	if code, _, errs := runCLI(t, s, "", "tokens", "create", "--name", "notebook"); code != 1 || !strings.Contains(errs, "já existe") {
+		t.Errorf("nome repetido: %d %q", code, errs)
+	}
+	if code, _, _ := runCLI(t, s, "", "tokens", "create", "--name", "Nome Inválido!"); code != 1 {
+		t.Errorf("nome inválido deveria falhar: %d", code)
+	}
+	list := func() string { _, o, _ := runCLI(t, s, "", "tokens", "list", "--json"); return o }
+	if l := list(); !strings.Contains(l, "notebook") || strings.Contains(l, m) || strings.Contains(l, hashToken(m)) {
+		t.Errorf("a lista não pode trazer o segredo nem o hash: %s", l)
+	}
+
+	// Remote use: the bearer header replaces the session and the CSRF field.
+	w := bearerReq(h, "GET", "/api/apps", secret, "198.51.100.20", nil)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"web"`) {
+		t.Fatalf("GET com token: %d %s", w.Code, w.Body.String())
+	}
+	w = bearerReq(h, "POST", "/apps/web/env", secret, "198.51.100.20", url.Values{"env": {"ZZ=1"}})
+	if a, _ := s.store.Get("web"); w.Code != http.StatusSeeOther || a.Env != "ZZ=1" {
+		t.Errorf("POST com token: %d env=%q", w.Code, a.Env)
+	}
+	if bearerReq(h, "GET", "/api/apps", "Basic abc", "198.51.100.20", nil).Code != http.StatusSeeOther {
+		t.Error("outro esquema de Authorization é um pedido comum de navegador")
+	}
+	if w := bearerReq(h, "GET", "/api/apps", "", "198.51.100.20", nil); w.Code != http.StatusSeeOther {
+		t.Errorf("sem credencial: %d", w.Code)
+	}
+	w = bearerReq(h, "POST", "/apps/web/env", "", "198.51.100.20", url.Values{"env": {"HACK=1"}})
+	if a, _ := s.store.Get("web"); w.Code != http.StatusSeeOther || a.Env != "ZZ=1" {
+		t.Errorf("POST sem credencial alterou algo: %d env=%q", w.Code, a.Env)
+	}
+
+	// Wrong tokens are refused, and repeated guesses lock the address (even for the right token).
+	for i := 0; i < 5; i++ {
+		if w := bearerReq(h, "GET", "/api/apps", "Bearer brp_errado", "198.51.100.30", nil); w.Code != http.StatusUnauthorized {
+			t.Fatalf("token errado #%d: %d", i, w.Code)
+		}
+	}
+	if w := bearerReq(h, "GET", "/api/apps", secret, "198.51.100.30", nil); w.Code != http.StatusTooManyRequests {
+		t.Errorf("endereço deveria estar bloqueado: %d", w.Code)
+	}
+	if w := bearerReq(h, "GET", "/api/apps", "Bearer sem-prefixo", "198.51.100.31", nil); w.Code != http.StatusUnauthorized {
+		t.Errorf("sem prefixo: %d", w.Code)
+	}
+
+	// The web page: the secret appears once, right after creating, and never in the list.
+	csrf := csrfOf(t, h, "/cli", c)
+	page := do(h, "POST", "/cli/tokens", url.Values{"csrf": {csrf}, "name": {"celular"}}, c)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "brp_") {
+		t.Fatalf("criar pela tela: %d", page.Code)
+	}
+	if w := do(h, "POST", "/cli/tokens", url.Values{"name": {"x"}}, c); w.Code != http.StatusForbidden {
+		t.Errorf("criar sem CSRF: %d", w.Code)
+	}
+	if w := do(h, "POST", "/cli/tokens", url.Values{"name": {"x"}}); w.Code != http.StatusSeeOther {
+		t.Errorf("criar sem sessão: %d", w.Code)
+	}
+	shownSecret := regexp.MustCompile(`brp_[0-9a-f]{64}`).FindString(page.Body.String())
+	if shownSecret == "" {
+		t.Fatal("o segredo deveria aparecer logo depois de criar")
+	}
+	if again := do(h, "GET", "/cli", nil, c); strings.Contains(again.Body.String(), shownSecret) || !strings.Contains(again.Body.String(), "celular") {
+		t.Error("a página não pode repetir o segredo, mas deve listar o token")
+	}
+
+	// Revoking cuts the access at once.
+	toks := s.store.ListTokens()
+	if code, _, errs := runCLI(t, s, "", "tokens", "revoke", strconv.FormatInt(toks[0].ID, 10), "--yes"); code != 0 {
+		t.Fatalf("revoke: %d %s", code, errs)
+	}
+	if w := bearerReq(h, "GET", "/api/apps", secret, "198.51.100.40", nil); w.Code != http.StatusUnauthorized {
+		t.Errorf("token revogado ainda vale: %d", w.Code)
+	}
+	if code, _, _ := runCLI(t, s, "", "tokens", "revoke", "999", "--yes"); code != 1 {
+		t.Errorf("revogar inexistente: %d", code)
 	}
 }

@@ -50,6 +50,7 @@ var globalFlags = []Flag{
 	{"json", "", "imprime a resposta em JSON (para programas lerem)"},
 	{"yes", "", "confirma comandos que apagam dados"},
 	{"data", "PASTA", "pasta de dados do painel (padrão /var/lib/brpanel)"},
+	{"local", "", "usa o socket deste servidor mesmo com um login remoto salvo"},
 }
 
 // appFlags are shared by `apps create` and `apps set`.
@@ -156,6 +157,20 @@ var Catalog = []Cmd{
 		Summary: "Troca a senha do banco. As apps que o usam precisam de novo deploy.", Examples: []string{"brpanel dbs regenerate pg --yes"}},
 	{Group: "Bancos de dados", Name: "dbs delete", Args: "NOME", Min: 1, Danger: true, Summary: "Exclui o banco e todos os dados dele.", Examples: []string{"brpanel dbs delete pg --yes"}},
 
+	{Group: "Acesso remoto", Name: "login", Args: "[SERVIDOR]",
+		Summary: "Conecta esta máquina a um painel remoto (IP ou domínio) com um token. Depois, todos os comandos passam a controlar esse servidor.",
+		Flags: []Flag{{"token-stdin", "", "lê o token da entrada padrão (para scripts e agentes)"},
+			{"allow-http", "", "aceita servidor sem SSL (o token viaja sem criptografia; evite fora de uma rede de confiança)"}},
+		Examples: []string{"brpanel login painel.example.com", "printf '%s' 'brp_exemplo' | brpanel login painel.example.com --token-stdin"}},
+	{Group: "Acesso remoto", Name: "logout", Summary: "Esquece o servidor remoto salvo; os comandos voltam a usar o socket local.", Examples: []string{"brpanel logout"}},
+	{Group: "Acesso remoto", Name: "whoami", Summary: "Mostra qual servidor os comandos estão controlando (local ou remoto).", Examples: []string{"brpanel whoami"}},
+	{Group: "Acesso remoto", Name: "tokens list", Aliases: []string{"tokens"}, Summary: "Lista os tokens de acesso remoto (o segredo nunca é mostrado de novo).", Examples: []string{"brpanel tokens list"}},
+	{Group: "Acesso remoto", Name: "tokens create", Summary: "Cria um token para o brpanel login de outro computador. O segredo aparece só desta vez.",
+		Flags:    []Flag{{"name", "NOME", "nome do token, ex.: notebook (obrigatório)"}},
+		Examples: []string{"brpanel tokens create --name notebook"}},
+	{Group: "Acesso remoto", Name: "tokens revoke", Aliases: []string{"tokens delete"}, Args: "ID", Min: 1, Danger: true,
+		Summary: "Revoga um token: quem o usa perde o acesso na hora. O ID vem de tokens list.", Examples: []string{"brpanel tokens revoke 2 --yes"}},
+
 	{Group: "Avançado", Name: "raw", Args: "GET|POST CAMINHO [campo=valor ...]", Min: 2,
 		Summary:  "Último recurso: chama uma rota do painel diretamente (POST leva campos de formulário). Prefira os comandos acima.",
 		Examples: []string{"brpanel raw GET /api/overview", "brpanel raw POST /apps/loja/restart"}},
@@ -209,6 +224,7 @@ var firstWord = map[string]string{
 	"app": "apps", "application": "apps", "aplicacao": "apps", "aplicacoes": "apps", "aplicação": "apps", "aplicações": "apps",
 	"db": "dbs", "database": "dbs", "databases": "dbs", "banco": "dbs", "bancos": "dbs",
 	"event": "events", "evento": "events", "eventos": "events",
+	"token": "tokens", "entrar": "login", "sair": "logout",
 	"ajuda": "help", "--help": "help", "-h": "help", "-help": "help", "guia": "guide",
 }
 
@@ -216,7 +232,7 @@ var verbWord = map[string]string{
 	"ls": "list", "listar": "list", "all": "list",
 	"info": "show", "get": "show", "ver": "show", "view": "show", "describe": "show",
 	"new": "create", "add": "create", "criar": "create",
-	"remove": "delete", "rm": "delete", "del": "delete", "excluir": "delete", "destroy": "delete",
+	"revogar": "revoke", "remove": "delete", "rm": "delete", "del": "delete", "excluir": "delete", "destroy": "delete",
 	"redeploy": "deploy", "publish": "deploy", "log": "logs",
 	"envs": "env", "variables": "env", "vars": "env",
 	"domain-rm": "domain-remove", "auth-rm": "auth-remove",

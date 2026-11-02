@@ -22,18 +22,6 @@ type cliKey struct{}
 // sets it, so a browser request can never claim it.
 func viaCLI(r *http.Request) bool { return r.Context().Value(cliKey{}) != nil }
 
-// cliAuth authenticates requests from the CLI socket as a throw-away session. The socket is a file
-// with mode 0600 owned by root, so being able to open it is the authentication; everything else
-// (validation, CSRF check, flash messages) is the same code the web pages use.
-func (s *Server) cliAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if viaCLI(r) {
-			defer s.auth.Grant(r)()
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // cliHandler is the whole panel as seen from the CLI socket.
 func (s *Server) cliHandler() http.Handler {
 	h := s.routes()
@@ -132,7 +120,7 @@ func (s *Server) handleAPIDatabases(w http.ResponseWriter, r *http.Request) {
 // ---- the /cli page ----
 
 func (s *Server) handleCLIPage(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, "cli", page{Title: "CLI", Nav: "cli", CLIGroups: cli.Groups(), CLIPrompt: cli.Prompt, CLICount: len(cli.Catalog)})
+	s.renderCLIPage(w, r, page{})
 }
 
 func (s *Server) handleCLIGuide(w http.ResponseWriter, r *http.Request) {

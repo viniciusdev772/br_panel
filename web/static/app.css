@@ -367,3 +367,8 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .cli-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cli-usage { font-size: 14px; font-weight: 500; word-break: break-word; }
 .copied { color: var(--primary, #4caf50); }
+.tokens-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tokens-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.tokens-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.tokens-table td:last-child { width: 48px; text-align: right; }
+@media (max-width: 600px) { .tokens-table th:nth-child(2), .tokens-table td:nth-child(2) { display: none; } }

@@ -18,7 +18,8 @@ REGRAS:
 7. Comandos que apagam exigem --yes no fim. Só use --yes se o usuário pediu para apagar.
 8. Senhas nunca vão na linha de comando. Para senha do site use: printf '%s' 'SENHA' | brpanel apps auth-add NOME USUARIO --password-stdin
 9. Para ler a saída em JSON, acrescente --json.
-10. Guia completo com receitas: brpanel guide`
+10. Guia completo com receitas: brpanel guide
+11. Em outro computador (não no servidor), conecte antes: printf '%s' 'TOKEN' | brpanel login ENDEREÇO --token-stdin   (o token é criado na aba CLI do painel). Se aparecer "você ainda não entrou em nenhum servidor", é isso que falta.`
 
 // HelpOverview is `brpanel help`: every command in one line, grouped.
 func HelpOverview() string {
@@ -82,9 +83,22 @@ espaço de nomes.
 
 COMO RODAR
   sudo brpanel COMANDO [argumentos] [opções]
-O comando fala com o painel por um socket local que só o root acessa; não precisa de senha nem token.
+No servidor, o comando fala com o painel por um socket local que só o root acessa; não precisa de senha
+nem token. Em outro computador, veja a seção abaixo (brpanel login).
 Se aparecer "sem permissão", falta o sudo. Se aparecer "não consegui falar com o painel", o painel
 está parado: systemctl status brpanel.
+
+CONTROLAR UM SERVIDOR DE OUTRO COMPUTADOR (Linux, macOS ou Windows)
+  1. Instalar a CLI no seu computador:
+       Linux/macOS:  curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh
+       Windows:      irm https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.ps1 | iex
+  2. Criar um token (uma vez, por computador ou agente). No servidor: sudo brpanel tokens create --name notebook
+     (ou na aba CLI do painel). O segredo (começa com brp_) aparece só nessa hora.
+  3. Entrar: printf '%s' 'brp_...' | brpanel login painel.example.com --token-stdin
+     Use o domínio do painel (com SSL). Com só o IP o token viaja sem criptografia e é preciso --allow-http.
+  4. Usar normalmente: brpanel status, brpanel apps list...   brpanel whoami mostra qual servidor está ativo.
+  Sair: brpanel logout.  Revogar um token: sudo brpanel tokens revoke ID --yes.
+Um token dá o poder total do painel: trate como senha e nunca o mostre ao usuário sem necessidade.
 
 COMO LER A RESPOSTA
   OK: ...      o comando deu certo (código de saída 0)
@@ -162,6 +176,9 @@ SE DER ERRO
   O Nginx recusou...          o valor foi rejeitado e nada foi salvo; corrija o valor
   o deploy falhou             brpanel apps logs NOME --kind deploy --lines 80
   sem permissão               rode com sudo
+  você ainda não entrou...    em outro computador falta: brpanel login ENDEREÇO --token-stdin
+  o servidor recusou o token  token errado ou revogado: crie outro e entre de novo
+  certificado SSL...          use o domínio do painel, não o IP
   não consegui falar...       systemctl status brpanel
 
 LIMITES

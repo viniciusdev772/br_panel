@@ -18,14 +18,18 @@ jobs:
           go-version-file: go.mod
       - name: Testes
         run: go test ./internal/...
-      - name: Build (linux amd64 e arm64) e somas SHA-256
+      - name: Build (servidor linux e CLI para linux, macOS e Windows) e somas SHA-256
         run: |
           mkdir dist
           for arch in amd64 arm64; do
             CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-$arch ./cmd/brpanel
+            for os in linux darwin windows; do
+              ext=""; [ "$os" = windows ] && ext=".exe"
+              CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-cli-$os-$arch$ext ./cmd/brpanel-cli
+            done
           done
           cd dist
-          for f in brpanel-linux-*; do sha256sum "$f" > "$f.sha256"; done
+          for f in brpanel-*; do sha256sum "$f" > "$f.sha256"; done
       - name: Publica a release
         env:
           GH_TOKEN: ${{ github.token }}

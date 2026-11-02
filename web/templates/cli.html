@@ -9,6 +9,45 @@ sudo brpanel apps deploy minha-app --wait</pre>
   <p class="muted">O comando fala com o painel por um socket local (<code>/var/lib/brpanel/brpanel.sock</code>) que só o root abre. Não há senha, token nem variável de ambiente para configurar, e nada fica exposto na rede. Se a pasta de dados não for a padrão, use <code>--data PASTA</code>.</p>
 </div></div>
 
+<h2 class="mdc-typography--subtitle1 section-title" id="acesso-remoto">Acesso remoto (do seu computador)</h2>
+<div class="mdc-card"><div class="card-body">
+  <p>Controle este servidor de qualquer lugar, no Linux, macOS ou Windows. São três passos: instalar a CLI, criar um token aqui e entrar com o endereço do servidor.</p>
+  <p><b>1. Instalar</b> (no seu computador, não no servidor):</p>
+  <pre class="codeblock">curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh</pre>
+  <pre class="codeblock">irm https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.ps1 | iex</pre>
+  <p class="muted">A primeira linha serve para Linux e macOS; a segunda, para o PowerShell do Windows. O instalador confere a soma SHA-256 e não pede administrador.</p>
+  <p><b>2. Criar um token</b> (uma senha de acesso para a CLI; dê um nome por computador ou agente):</p>
+  {{if .NewToken}}
+  <div class="notice" role="status">
+    <p>Token <b>{{.NewTokenName}}</b> criado. <b>Copie agora: ele não será mostrado de novo.</b></p>
+    <pre class="codeblock">{{.NewToken}}</pre>
+    <div class="actions">
+      <button class="mdc-button mdc-button--raised" type="button" data-copy-text="{{.NewToken}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">content_copy</i><span class="mdc-button__label">Copiar o token</span></button>
+      <button class="mdc-button" type="button" data-copy-text="printf '%s' '{{.NewToken}}' | brpanel login {{.PanelHost}} --token-stdin"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">terminal</i><span class="mdc-button__label">Copiar o comando de login</span></button>
+    </div>
+  </div>
+  {{end}}
+  <form method="post" action="/cli/tokens" class="inline-form">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    {{template "field" dict "name" "name" "label" "Nome do token" "required" true "autocomplete" "off" "hint" "Letras minúsculas, números e hífen. Ex.: notebook, agente-ia, ci."}}
+    <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Criar token</span></button></div>
+  </form>
+  {{if .Tokens}}
+  <table class="tokens-table">
+    <thead><tr><th>Nome</th><th>Criado</th><th>Último uso</th><th></th></tr></thead>
+    <tbody>{{range .Tokens}}
+      <tr><td>{{.Name}}</td><td>{{.Created.Format "02/01/2006 15:04"}}</td><td>{{if .LastUsed.IsZero}}nunca{{else}}{{.LastUsed.Format "02/01/2006 15:04"}}{{end}}</td>
+        <td><form method="post" action="/cli/tokens/{{.ID}}/revoke" data-confirm="Revogar o token {{.Name}}? Quem o usa perde o acesso na hora."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="icon-btn" type="submit" aria-label="Revogar o token {{.Name}}" title="Revogar"><i class="material-icons">delete</i></button></form></td></tr>
+    {{end}}</tbody>
+  </table>
+  {{else}}<p class="muted">Nenhum token ainda.</p>{{end}}
+  <p><b>3. Entrar</b> (no seu computador; o token é pedido sem aparecer na tela):</p>
+  <pre class="codeblock">brpanel login {{.PanelHost}}
+brpanel status</pre>
+  <p class="muted">Use o endereço com SSL (o domínio do painel). Com só o IP o token viaja sem criptografia, e a CLI avisa e pede confirmação (<code>--allow-http</code> em scripts). Para voltar ao servidor local: <code>brpanel logout</code>. O login fica só no seu computador (<code>brpanel whoami</code> mostra qual servidor está ativo). Para entrar sem digitar, por exemplo em um agente: <code>printf '%s' 'brp_…' | brpanel login ENDEREÇO --token-stdin</code>.</p>
+  <p class="muted">Um token dá o mesmo poder que esta tela (publicar e apagar aplicações e bancos): trate como senha, um por computador ou agente, e revogue o que não usa mais.</p>
+</div></div>
+
 <h2 class="mdc-typography--subtitle1 section-title">Para agentes de IA</h2>
 <div class="mdc-card"><div class="card-body">
   <p>Cole este bloco no prompt do sistema de qualquer agente. Ele funciona até com modelos pequenos (4B): são poucas regras, e cada resposta do comando começa com <code>OK:</code> ou <code>ERRO:</code> e traz linhas <code>DICA:</code> com o próximo passo. Erros de digitação sugerem o comando certo (<i>você quis dizer…</i>).</p>

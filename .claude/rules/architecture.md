@@ -5,7 +5,7 @@ Layout Go padrão: `cmd/brpanel` (entrada) → `internal/*` (toda a lógica, nã
 Direção das dependências (só para a direita/baixo; nunca o contrário):
 
 ```
-cmd/brpanel → server, store, cli
+cmd/brpanel → server, store, cli      cmd/brpanel-cli → cli (só a CLI; compila em Windows/macOS)
 server      → auth, autoscale, cli, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, volume, web
 deploy      → cloudflare, nodeenv, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate, volume
 dbengine    → execx, settings, store, systemd, validate

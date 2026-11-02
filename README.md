@@ -175,9 +175,20 @@ Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limit
 
 ## CLI e agentes de IA
 
-O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpanel apps deploy loja --wait`, `sudo brpanel dbs create --kind postgres --name pg`… São 34 comandos (aplicações, variáveis, site/Nginx, bancos, status, eventos), listados na página **CLI** do painel e em `brpanel help`. Sem argumentos de comando, `brpanel` continua iniciando o servidor.
+O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpanel apps deploy loja --wait`, `sudo brpanel dbs create --kind postgres --name pg`… São 40 comandos (aplicações, variáveis, site/Nginx, bancos, status, eventos), listados na página **CLI** do painel e em `brpanel help`. Sem argumentos de comando, `brpanel` continua iniciando o servidor.
 
-- **Sem senha nem token.** A CLI fala com o painel em execução por um socket Unix (`<data>/brpanel.sock`, modo 0600, só root), e cada pedido passa pelas mesmas rotas e validações da interface web. Se a pasta de dados não for a padrão, use `--data PASTA`.
+- **No servidor, sem senha nem token.** A CLI fala com o painel em execução por um socket Unix (`<data>/brpanel.sock`, modo 0600, só root), e cada pedido passa pelas mesmas rotas e validações da interface web. Se a pasta de dados não for a padrão, use `--data PASTA`.
+- **De qualquer lugar (acesso remoto).** Instale só a CLI no seu computador e conecte com um token:
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh   # Linux e macOS
+  ```
+  ```powershell
+  irm https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.ps1 | iex       # Windows (PowerShell)
+  ```
+
+  Depois crie um token na aba **CLI** do painel (ou `sudo brpanel tokens create --name notebook` no servidor) e rode `brpanel login painel.exemplo.com` (a CLI pede o token sem mostrá-lo; em scripts e agentes: `printf '%s' 'brp_…' | brpanel login ENDEREÇO --token-stdin`). `brpanel whoami` mostra o servidor ativo e `brpanel logout` volta ao socket local. O instalador baixa o binário da última release, confere o SHA-256 e instala sem administrador (`~/.local/bin` ou `%LOCALAPPDATA%\Programs\brpanel`). Pelo IP o painel responde em `http://IP:8080` sem SSL; a CLI avisa e exige confirmação (`--allow-http`), então prefira o domínio do painel com SSL.
+  Os tokens (`brp_` + 256 bits) valem o mesmo que a tela: só o hash SHA-256 fica no banco, o segredo aparece uma única vez, há até 20, e revogar corta o acesso na hora. Tentativas com token errado bloqueiam o IP por um minuto.
 - **Feita para agentes de IA, até os pequenos (4B).** Toda resposta começa com `OK:` ou `ERRO:` e traz linhas `DICA:`, `USO:` e `EXEMPLO:` com o próximo passo; códigos de saída 0 (certo), 1 (o painel recusou) e 2 (comando mal escrito). Erros de digitação sugerem o comando certo, plural/singular e sinônimos funcionam (`app ls`, `apps rm`, `apps env set`), opções desconhecidas listam as válidas e o que apaga dados exige `--yes`. Senhas nunca vão na linha de comando (`--password-stdin`). `--json` em qualquer comando; `--wait` espera o deploy e diz se deu certo.
 - **Um catálogo só.** `internal/cli/catalog.go` gera o `--help`, a página `/cli` e o guia para agentes (`brpanel guide`, também em `/cli/guide.txt`), e um teste confere que todo exemplo documentado é aceito pelo parser. Para um agente, cole o bloco da página **CLI** no prompt do sistema ou salve o guia como `AGENTS.md`/`CLAUDE.md` do projeto.
 
@@ -246,7 +257,10 @@ nova execução ao final.
 - Sessão por cookie `HttpOnly` + `SameSite=Strict` (`Secure` automático sob HTTPS), CSRF em todo POST,
   sessões encerradas ao trocar a senha. As sessões ficam no SQLite (só o hash do id) e sobrevivem a reinícios do painel. Até a configuração inicial, só `/setup` responde e exige o token.
 - O socket da CLI (`brpanel.sock`) é 0600 e do root: quem consegue abri-lo já é root no servidor, então ele
-  substitui a senha. Só ele marca uma requisição como vinda da CLI; o listener HTTP nunca faz isso.
+  substitui a senha. Pela rede, a CLI usa tokens de acesso (`Authorization: Bearer brp_…`): só o SHA-256 é
+  guardado, o segredo tem 256 bits aleatórios, o IP é bloqueado após 5 tokens errados e um token revogado
+  deixa de valer no pedido seguinte. Um token não é um cookie (o navegador não o envia sozinho), por isso
+  dispensa o campo CSRF. Use sempre o painel em HTTPS: pelo HTTP puro o token viaja sem criptografia.
 - Banco e diretório de dados só para root (0600/0750). Segredos (chave do GitHub App, segredo do webhook)
   ficam em texto no banco: proteja backups e acesso ao servidor.
 - URLs de repositório validadas (https/ssh, sem credenciais); `git`, `systemctl`, `nginx` e `certbot` são

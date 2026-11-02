@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,6 +58,7 @@ func usageErr(c *Cmd, msg string) error {
 // call carries one parsed command to its handler.
 type call struct {
 	c    *client
+	rt   http.RoundTripper // set only by RunWith; login uses it instead of the network
 	cmd  *Cmd
 	pos  []string
 	fl   map[string][]string
@@ -122,16 +124,26 @@ func run(rt http.RoundTripper, args []string, in io.Reader, out, errw io.Writer)
 		return report(errw, &cliErr{msg: "este comando apaga dados e não pode ser desfeito", code: 2,
 			extra: []string{"DICA: se tem certeza, repita o mesmo comando com --yes no final", "USO: " + cmd.Usage()}}, asJSON)
 	}
-	x := &call{cmd: cmd, pos: pos, fl: fl, in: in, out: out, json: asJSON}
-	if rt == nil {
-		data := DefaultData
-		if v := fl["data"]; len(v) > 0 {
-			data = v[len(v)-1]
+	x := &call{cmd: cmd, pos: pos, fl: fl, in: in, out: out, json: asJSON, rt: rt}
+	if !offline[cmd.Name] {
+		base, remote := "http://brpanel", false
+		if rt == nil {
+			if cfg, ok := loadConfig(); ok && !x.on("local") { // logged in: use the remote server
+				rt, base, remote = bearerRT{cfg.Token, http.DefaultTransport}, cfg.Server, true
+			} else if runtime.GOOS != "linux" && !x.set("data") { // the panel's socket exists only on the Linux server
+				return report(errw, fail("você ainda não entrou em nenhum servidor",
+					"DICA: crie um token na aba CLI do painel e rode: brpanel login ENDEREÇO-DO-PAINEL",
+					"DICA: o guia completo é: brpanel guide"), asJSON)
+			} else {
+				data := DefaultData
+				if v := fl["data"]; len(v) > 0 {
+					data = v[len(v)-1]
+				}
+				rt = unixTransport(filepath.Join(data, SocketName))
+			}
 		}
-		rt = unixTransport(filepath.Join(data, SocketName))
+		x.c = newClient(rt, base, remote)
 	}
-	x.c = &client{hc: &http.Client{Transport: rt, Timeout: 2 * time.Minute,
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	if err := handlers[cmd.Name](x); err != nil {
 		return report(errw, err, asJSON)
 	}
@@ -155,6 +167,14 @@ func report(w io.Writer, err error, asJSON bool) int {
 	return ce.code
 }
 
+// offline commands never contact a server (login builds its own client).
+var offline = map[string]bool{"help": true, "guide": true, "login": true, "logout": true, "whoami": true}
+
+func newClient(rt http.RoundTripper, base string, remote bool) *client {
+	return &client{base: base, remote: remote, hc: &http.Client{Transport: rt, Timeout: 2 * time.Minute,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+}
+
 func unixTransport(sock string) http.RoundTripper {
 	return &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		c, err := (&net.Dialer{}).DialContext(ctx, "unix", sock)
@@ -166,7 +186,8 @@ func unixTransport(sock string) http.RoundTripper {
 		case errors.Is(err, os.ErrNotExist), errors.Is(err, syscall.ECONNREFUSED):
 			return nil, fail("não consegui falar com o painel ("+sock+")",
 				"DICA: o painel precisa estar rodando neste servidor. Confira com: systemctl status brpanel",
-				"DICA: se a pasta de dados não é "+DefaultData+", passe --data PASTA")
+				"DICA: se a pasta de dados não é "+DefaultData+", passe --data PASTA",
+				"DICA: para controlar um servidor remoto (de outro computador), use: brpanel login ENDEREÇO")
 		}
 		return nil, err
 	}}

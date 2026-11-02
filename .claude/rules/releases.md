@@ -22,9 +22,10 @@ paths:
 ## Assets
 
 - Cada release leva exatamente estes arquivos, por arquitetura (`amd64`, `arm64`):
-  - `brpanel-linux-<arch>`: binário estático, `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-<arch> ./cmd/brpanel`
-  - `brpanel-linux-<arch>.sha256`: saída de `sha256sum` do binário, rodada dentro de `dist/` (nome de arquivo sem caminho).
-- `scripts/install.sh` baixa `releases/latest/download/<nome>` e confere o `.sha256`. **Renomear ou trocar o formato de um asset exige mudar o `install.sh` no mesmo commit**, e uma release com assets faltando quebra a instalação de todo mundo.
+  - `brpanel-linux-<arch>`: binário estático do servidor, `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-<arch> ./cmd/brpanel`
+  - `brpanel-cli-<os>-<arch>` (`os` = `linux`, `darwin`, `windows`; `.exe` no Windows): só a CLI, para o computador de quem usa, de `./cmd/brpanel-cli`.
+  - um `.sha256` para cada um, saída de `sha256sum` rodada dentro de `dist/` (nome de arquivo sem caminho). Total: 16 arquivos (8 binários + 8 somas).
+- `scripts/install.sh` (servidor) e `scripts/install-cli.sh` / `scripts/install-cli.ps1` (CLI) baixam `releases/latest/download/<nome>` e conferem o `.sha256`. **Renomear ou trocar o formato de um asset exige mudar o instalador correspondente no mesmo commit**, e uma release com assets faltando quebra a instalação de todo mundo.
 - `dist/` e binários nunca entram no Git (veja `git-workflow.md`); eles vivem só na release.
 - Nada de segredo, banco de dados, chave ou dado de servidor nos assets ou nas notas da release: as releases são públicas.
 

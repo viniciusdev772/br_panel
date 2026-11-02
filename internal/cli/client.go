@@ -10,7 +10,11 @@ import (
 )
 
 // client talks to the panel's normal routes; the socket side authenticates every request.
-type client struct{ hc *http.Client }
+type client struct {
+	hc     *http.Client
+	base   string // http://brpanel for the socket, the server URL for a remote
+	remote bool
+}
 
 type reply struct {
 	status int
@@ -23,7 +27,7 @@ func (c *client) do(method, path string, form url.Values) (reply, error) {
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	req, err := http.NewRequest(method, "http://brpanel"+path, body)
+	req, err := http.NewRequest(method, c.base+path, body)
 	if err != nil {
 		return reply{}, fail("endereço inválido: " + path)
 	}
@@ -32,6 +36,9 @@ func (c *client) do(method, path string, form url.Values) (reply, error) {
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
+		if c.remote {
+			err = explain(err, c.base)
+		}
 		return reply{}, err
 	}
 	defer resp.Body.Close()
@@ -46,6 +53,12 @@ func check(r reply) error {
 		return fail("o painel ainda não foi configurado", "DICA: abra o painel no navegador e conclua a configuração inicial (/setup)")
 	case r.status == http.StatusSeeOther && strings.HasPrefix(r.loc, "/login"):
 		return fail("o painel recusou a sessão local", "DICA: reinicie o painel (systemctl restart brpanel) e tente de novo")
+	case r.status == http.StatusUnauthorized:
+		return fail("o servidor recusou o token (inválido ou revogado)",
+			"DICA: crie outro no painel (aba CLI > Acesso remoto) ou no servidor com: sudo brpanel tokens create --name NOME",
+			"DICA: depois entre de novo: brpanel login ENDEREÇO")
+	case r.status == http.StatusTooManyRequests:
+		return fail("muitas tentativas recusadas; o servidor bloqueou este IP por um minuto", "DICA: espere 1 minuto e tente de novo")
 	case r.status == http.StatusNotFound:
 		return fail("não encontrado", "DICA: confira o nome com: brpanel apps list  (ou brpanel dbs list)")
 	case r.status == http.StatusUnprocessableEntity:

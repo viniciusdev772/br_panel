@@ -223,6 +223,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/apps", s.protected(s.handleAPIApps))
 	mux.HandleFunc("GET /api/apps/{name}", s.protected(s.handleAPIApp))
 	mux.HandleFunc("GET /api/databases", s.protected(s.handleAPIDatabases))
+	mux.HandleFunc("GET /api/tokens", s.protected(s.handleAPITokens))
+	mux.HandleFunc("POST /cli/tokens", s.protected(s.handleTokenCreate))
+	mux.HandleFunc("POST /cli/tokens/{id}/revoke", s.protected(s.handleTokenRevoke))
 	mux.HandleFunc("GET /cli", s.protected(s.handleCLIPage))
 	mux.HandleFunc("GET /cli/guide.txt", s.protected(s.handleCLIGuide))
 	mux.HandleFunc("GET /api/github/repos", s.protected(s.handleGitHubRepos))
@@ -312,6 +315,11 @@ type page struct {
 	CLIPrompt string
 	CLICount  int
 
+	Tokens       []store.Token
+	NewToken     string // shown once, right after creation
+	NewTokenName string
+	PanelHost    string
+
 	SetupCode      string // setup only: code already known from the install link
 	AppUserDefault string // setup only: system user submitted silently with the form
 	Setup          bool
@@ -343,7 +351,7 @@ type ghStatus struct {
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, p page) {
 	if viaCLI(r) { // the CLI wants the outcome, not the page
-		writeJSON(w, map[string]string{"error": p.Error, "flash": p.Flash})
+		writeJSON(w, map[string]string{"error": p.Error, "flash": p.Flash, "token": p.NewToken})
 		return
 	}
 	p.CSRF, p.Authed = s.auth.Session(r)
