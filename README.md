@@ -9,6 +9,21 @@ automático e faz deploy a cada push via GitHub App. UI em Material Design 2 (MD
 
 ## Instalação e primeiro início
 
+### Instalação rápida (Ubuntu/Debian, root)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install.sh | sudo sh
+```
+
+O script baixa o binário da última [release](https://github.com/viniciusdev772/br_panel/releases) (amd64 ou arm64),
+confere a soma SHA-256, instala em `/usr/local/bin/brpanel`, cria a unit systemd, inicia o serviço e imprime o link
+de configuração. Instala o `git` se faltar. Opções: `sh -s -- --with-nginx` (instala também nginx e certbot, para
+domínios e SSL) e `sh -s -- --version v0.1.0` (uma versão específica). Rodar de novo **atualiza** o binário (o
+anterior fica em `brpanel.bak`) e preserva a unit e os dados. Prefere ler antes de executar? O script é
+[`scripts/install.sh`](scripts/install.sh).
+
+### Compilar do código-fonte
+
 Requer Go 1.26+ para compilar (sem CGO; o SQLite é o driver puro-Go `modernc.org/sqlite`) e, no servidor,
 `git` e systemd (e opcionalmente `nginx`, `certbot`).
 

@@ -5,6 +5,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 ## [Não lançado]
 
 ### Adicionado
+- Script de instalação `scripts/install.sh` (uma linha com `curl | sudo sh`; instala e atualiza) e workflow de release que publica os binários linux amd64/arm64 com soma SHA-256 a cada tag `v*`.
 - Instalação automática do MongoDB: adiciona o repositório oficial e instala a última versão principal disponível para a distribuição (hoje 9.0), com a chave PGP verificada pelo apt. Recusa CPUs sem AVX e distribuições sem repositório oficial.
 - Aba **Dados** do banco permite criar: tabela (PostgreSQL/MySQL, colunas por tipo), coleção (MongoDB, com documento JSON opcional) ou chave de texto (Redis). Itens existentes não são sobrescritos.
 

@@ -1,0 +1,32 @@
+name: Release
+
+# Publica os binários que scripts/install.sh baixa. Dispare com: git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Testes
+        run: go test ./internal/...
+      - name: Build (linux amd64 e arm64) e somas SHA-256
+        run: |
+          mkdir dist
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-$arch ./cmd/brpanel
+          done
+          cd dist
+          for f in brpanel-linux-*; do sha256sum "$f" > "$f.sha256"; done
+      - name: Publica a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "$GITHUB_REF_NAME"
