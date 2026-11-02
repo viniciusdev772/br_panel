@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- Configurações: os caminhos do sistema (Nginx, ACME, certificados, units) e o usuário dos bancos ficam recolhidos em "Avançado"; os padrões já servem para Ubuntu/Debian.
+
 ### Corrigido
 - Aplicações com comando de início `VAR=valor comando` (ex.: `NODE_ENV=production npm start`, o que a detecção gera) entravam em loop de reinício com `exec: NODE_ENV=production: not found`. A unit usa `exec env VAR=valor comando` nesse caso e não usa `exec` em comandos compostos (`a && b`), onde o `b` nunca rodava.
 - O build das aplicações (`npm ci`, `pip`, `cargo`…) falhava com `EACCES: mkdir '/home/brapps'`: o `runuser` trocava o `HOME` pela pasta pessoal do usuário das aplicações, que não existe. Agora usa `runuser -m`, e o build recebe o `HOME`, `PORT` e `HOST` definidos pelo deploy.
