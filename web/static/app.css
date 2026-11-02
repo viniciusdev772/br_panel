@@ -325,6 +325,7 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .stepper .is-active .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
 .stepper .is-done .dot { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 .wizard-on .wizard-nav { justify-content: flex-end; }
+.mdc-button[hidden] { display: none; } /* .mdc-button sets display, which would beat the hidden attribute */
 @media (max-width: 600px) { .stepper .label { display: none; } .stepper .is-active .label { display: inline; } }
 .detect-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .detect-result { background: rgba(52, 211, 153, .1); border: 1px solid rgba(52, 211, 153, .35); color: var(--ok); padding: 10px 14px; border-radius: 10px; line-height: 1.6; }
