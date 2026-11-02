@@ -102,6 +102,12 @@ CREATE TABLE events (
 );
 CREATE INDEX events_ts ON events(ts DESC);
 ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT '';
+`, `
+CREATE TABLE sessions (
+	id_hash TEXT PRIMARY KEY,
+	csrf    TEXT NOT NULL,
+	exp     INTEGER NOT NULL
+);
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -120,7 +126,11 @@ func Open(path string) (*Store, error) {
 	}
 	f.Close()
 
-	u := url.URL{Scheme: "file", Path: path, RawQuery: url.Values{"_pragma": {
+	uriPath := path
+	if filepath.VolumeName(path) != "" { // Windows: file:///C:/dir/x.db
+		uriPath = "/" + filepath.ToSlash(path)
+	}
+	u := url.URL{Scheme: "file", Path: uriPath, RawQuery: url.Values{"_pragma": {
 		"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)", "synchronous(NORMAL)",
 	}}.Encode()}
 	db, err := sql.Open("sqlite", u.String())

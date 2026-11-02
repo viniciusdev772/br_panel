@@ -185,7 +185,7 @@ nova execução ao final.
 - Senha do admin com **Argon2id** (32 MiB, t=3; acima do mínimo da OWASP); entrada limitada a 128 caracteres.
   Login com tempo equivalente para usuário inexistente, bloqueio por IP após 5 falhas.
 - Sessão por cookie `HttpOnly` + `SameSite=Strict` (`Secure` automático sob HTTPS), CSRF em todo POST,
-  sessões encerradas ao trocar a senha. Até a configuração inicial, só `/setup` responde e exige o token.
+  sessões encerradas ao trocar a senha. As sessões ficam no SQLite (só o hash do id) e sobrevivem a reinícios do painel. Até a configuração inicial, só `/setup` responde e exige o token.
 - Banco e diretório de dados só para root (0600/0750). Segredos (chave do GitHub App, segredo do webhook)
   ficam em texto no banco: proteja backups e acesso ao servidor.
 - URLs de repositório validadas (https/ssh, sem credenciais); `git`, `systemctl`, `nginx` e `certbot` são

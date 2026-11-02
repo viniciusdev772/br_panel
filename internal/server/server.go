@@ -72,6 +72,7 @@ func New(cfg Config, st *store.Store) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{cfg: cfg, store: st, auth: auth.New()}
+	s.auth.Persist(st) // sessions survive a restart (every panel update restarts it)
 	s.dep = deploy.New(st, cfg.DataDir, s.settings, s.githubApp)
 	s.node = nodeenv.New(filepath.Join(cfg.DataDir, "nvm"), func() string { return s.settings().AppUser }, func() string { return s.settings().NodeVersion })
 	s.dep.Node = s.node

@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Corrigido
+- Atualizar ou reiniciar o painel desconectava o administrador, porque as sessões viviam só na memória. Agora ficam no SQLite (com o hash do id, nunca o cookie) e continuam valendo depois do reinício; trocar a senha e sair continuam encerrando as sessões.
+
 ### Alterado
 - A tela de criar e editar aplicação agora é feita em quatro etapas (Código, Execução, Endereço, Ajustes), com textos mais simples e os campos técnicos (build, comando de início, porta) recolhidos em "Ajustar à mão". Sem JavaScript, todas as etapas aparecem juntas.
 

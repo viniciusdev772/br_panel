@@ -191,3 +191,37 @@ func TestDatabasesAndEvents(t *testing.T) {
 		t.Errorf("%+v", ev)
 	}
 }
+
+func TestSessionsRoundTrip(t *testing.T) {
+	s, dir := newTestStore(t)
+	exp := time.Now().Add(time.Hour).Truncate(time.Second)
+	s.SaveSession("h1", "csrf1", exp)
+	s.SaveSession("h2", "csrf2", time.Now().Add(-time.Minute)) // expired
+	s.DeleteSession("nada")
+
+	got := map[string]string{}
+	s.EachSession(func(h, csrf string, e time.Time) {
+		got[h] = csrf
+		if h == "h1" && !e.Equal(exp) {
+			t.Errorf("exp: %v", e)
+		}
+		s.SaveSession(h, csrf, e) // the callback may use the database (single connection)
+	})
+	if len(got) != 1 || got["h1"] != "csrf1" {
+		t.Fatalf("só a sessão válida deve voltar: %v", got)
+	}
+
+	s.Close() // reopen: it must still be there
+	s2, err := Open(filepath.Join(dir, "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s2.Close()
+	n := 0
+	s2.EachSession(func(string, string, time.Time) { n++ })
+	if n != 1 {
+		t.Errorf("depois de reabrir: %d sessões", n)
+	}
+	s2.DeleteAllSessions()
+	s2.EachSession(func(string, string, time.Time) { t.Error("deveria estar vazio") })
+}

@@ -1,4 +1,5 @@
-// Package auth provides in-memory sessions, CSRF tokens and login throttling.
+// Package auth provides sessions, CSRF tokens and login throttling. Sessions are kept in memory and,
+// when a Persistence is attached, mirrored to it so they survive a restart.
 package auth
 
 import (
@@ -37,10 +38,33 @@ type session struct {
 	exp  time.Time
 }
 
+// Persistence stores sessions across restarts. Session ids are never handed to it, only their hash.
+type Persistence interface {
+	SaveSession(idHash, csrf string, exp time.Time)
+	DeleteSession(idHash string)
+	DeleteAllSessions()
+	EachSession(fn func(idHash, csrf string, exp time.Time))
+}
+
+// Auth holds sessions keyed by the SHA-256 of the cookie value.
 type Auth struct {
 	mu       sync.Mutex
 	sessions map[string]session
 	fails    map[string]*failState
+	store    Persistence
+}
+
+func idHash(id string) string {
+	h := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(h[:])
+}
+
+// Persist loads the sessions saved by an earlier run and mirrors every change to p from now on.
+func (a *Auth) Persist(p Persistence) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.store = p
+	p.EachSession(func(h, csrf string, exp time.Time) { a.sessions[h] = session{csrf: csrf, exp: exp} })
 }
 
 type failState struct {
@@ -98,10 +122,17 @@ func (a *Auth) Start(w http.ResponseWriter, r *http.Request) {
 	for k, s := range a.sessions {
 		if now.After(s.exp) {
 			delete(a.sessions, k)
+			if a.store != nil {
+				a.store.DeleteSession(k)
+			}
 		}
 	}
 	id := RandomToken(32)
-	a.sessions[id] = session{csrf: RandomToken(16), exp: now.Add(sessionTTL)}
+	sess := session{csrf: RandomToken(16), exp: now.Add(sessionTTL)}
+	a.sessions[idHash(id)] = sess
+	if a.store != nil {
+		a.store.SaveSession(idHash(id), sess.csrf, sess.exp)
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: id, Path: "/", HttpOnly: true, Secure: IsHTTPS(r),
 		SameSite: http.SameSiteStrictMode, MaxAge: int(sessionTTL.Seconds()),
@@ -121,7 +152,7 @@ func IsHTTPS(r *http.Request) bool {
 func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		a.mu.Lock()
-		delete(a.sessions, c.Value)
+		a.drop(idHash(c.Value))
 		a.mu.Unlock()
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: IsHTTPS(r)})
@@ -135,9 +166,10 @@ func (a *Auth) Session(r *http.Request) (csrf string, ok bool) {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	s, found := a.sessions[c.Value]
+	h := idHash(c.Value)
+	s, found := a.sessions[h]
 	if !found || time.Now().After(s.exp) {
-		delete(a.sessions, c.Value)
+		a.drop(h)
 		return "", false
 	}
 	return s.csrf, true
@@ -147,5 +179,16 @@ func (a *Auth) Session(r *http.Request) (csrf string, ok bool) {
 func (a *Auth) RevokeAll() {
 	a.mu.Lock()
 	a.sessions = map[string]session{}
+	if a.store != nil {
+		a.store.DeleteAllSessions()
+	}
 	a.mu.Unlock()
+}
+
+// drop forgets one session; the caller holds a.mu.
+func (a *Auth) drop(h string) {
+	delete(a.sessions, h)
+	if a.store != nil {
+		a.store.DeleteSession(h)
+	}
 }
