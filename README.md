@@ -195,7 +195,7 @@ O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpane
 - **De qualquer lugar (acesso remoto).** Instale só a CLI no seu computador e conecte com um token:
 
   ```sh
-  curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh   # Linux e macOS
+  curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh   # Linux, macOS e Termux (Android arm64)
   ```
   ```powershell
   irm https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.ps1 | iex       # Windows (PowerShell)

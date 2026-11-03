@@ -23,8 +23,8 @@ paths:
 
 - Cada release leva exatamente estes arquivos, por arquitetura (`amd64`, `arm64`):
   - `brpanel-linux-<arch>`: binário estático do servidor, `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-<arch> ./cmd/brpanel`
-  - `brpanel-cli-<os>-<arch>` (`os` = `linux`, `darwin`, `windows`; `.exe` no Windows): só a CLI, para o computador de quem usa, de `./cmd/brpanel-cli`.
-  - um `.sha256` para cada um, saída de `sha256sum` rodada dentro de `dist/` (nome de arquivo sem caminho). Total: 16 arquivos (8 binários + 8 somas).
+  - `brpanel-cli-<os>-<arch>` (`os` = `linux`, `darwin`, `windows`; `.exe` no Windows): só a CLI, para o computador de quem usa, de `./cmd/brpanel-cli`. Mais `brpanel-cli-android-arm64` (Termux; `GOOS=android`, PIE — o build `linux` estático dá `unexpected e_type: 2` lá).
+  - um `.sha256` para cada um, saída de `sha256sum` rodada dentro de `dist/` (nome de arquivo sem caminho). Total: 18 arquivos (9 binários + 9 somas).
 - `scripts/install.sh` (servidor) e `scripts/install-cli.sh` / `scripts/install-cli.ps1` (CLI) baixam `releases/latest/download/<nome>` e conferem o `.sha256`. **Renomear ou trocar o formato de um asset exige mudar o instalador correspondente no mesmo commit**, e uma release com assets faltando quebra a instalação de todo mundo.
 - `dist/` e binários nunca entram no Git (veja `git-workflow.md`); eles vivem só na release.
 - Nada de segredo, banco de dados, chave ou dado de servidor nos assets ou nas notas da release: as releases são públicas.

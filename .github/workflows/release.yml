@@ -28,6 +28,8 @@ jobs:
               CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-cli-$os-$arch$ext ./cmd/brpanel-cli
             done
           done
+          # Termux (Android) só executa binários PIE; GOOS=android gera um sem precisar de cgo.
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o dist/brpanel-cli-android-arm64 ./cmd/brpanel-cli
           cd dist
           for f in brpanel-*; do sha256sum "$f" > "$f.sha256"; done
       - name: Publica a release
