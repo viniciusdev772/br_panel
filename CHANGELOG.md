@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.5.0] - 2026-11-03
+
 ### Adicionado
 - **Detecção de monorepo com projeto na raiz**: um repositório com um projeto na raiz e outros em pastas (por exemplo `web/`, `video/`, `android/`) agora é reconhecido como monorepo, além dos `workspaces` declarados. Pastas de testes, exemplos e documentação não contam; projetos Android/Gradle/Flutter aparecem como não publicáveis. O aviso sai na descoberta do formulário, na página da aplicação, no registro do deploy e em `brpanel apps show` / `/api/apps` (`monorepo`, `monorepo_apps`).
 - **Aviso de variáveis de ambiente faltando**: a cada deploy o painel lê o `.env.example` e o código (JavaScript/TypeScript, Python e Go) e compara com as variáveis da aplicação. As obrigatórias (sem valor padrão) que não estão definidas aparecem num aviso na página da aplicação e na aba Variáveis, no registro do deploy, na descoberta do formulário e em `brpanel apps show` / `/api/apps` (`missing_env`, `optional_env`). O resultado fica em `apps/<app>/scan.json`; salvar as variáveis tira o aviso sem novo deploy.
