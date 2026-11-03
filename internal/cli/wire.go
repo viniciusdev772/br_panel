@@ -81,3 +81,17 @@ type TemplateInfo struct {
 	Source      string   `json:"source"`
 	MemoryMB    int      `json:"memory_mb"`
 }
+
+// CacheInfo is the JSON the panel serves at /api/cache: the shared build cache.
+type CacheInfo struct {
+	Dir   string      `json:"dir"`
+	Total int64       `json:"total"`
+	Items []CacheItem `json:"items"`
+}
+
+// CacheItem is the disk use of one tool's cache.
+type CacheItem struct {
+	Name  string `json:"name"`
+	Label string `json:"label"`
+	Bytes int64  `json:"bytes"`
+}

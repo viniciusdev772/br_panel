@@ -38,6 +38,12 @@ Cada projeto tem a sua página: estado atual, histórico de publicações, vari�
 
 ![Página de um projeto](img/20-app-deploy.png)
 
+## Publicações mais rápidas
+
+O painel guarda o que já baixou. Na segunda publicação de um projeto, só chegam as mudanças do código, e os pacotes que o projeto usa vêm de uma pasta de cache que todas as aplicações dividem. Se as dependências não mudaram desde a última vez, o painel nem as instala de novo.
+
+Na tela de Configurações, o cartão Cache de builds mostra quanto espaço esse cache ocupa, com botões para apagar o que ninguém usa há 30 dias ou para esvaziar tudo. Se um projeto se comportar de um jeito estranho depois de uma atualização, o botão Refazer do zero, na página dele, apaga o código baixado e as dependências e reconstrói tudo. Os arquivos guardados em Armazenamento não são apagados.
+
 ## Endereço próprio e cadeado
 
 Ao informar um domínio, o painel liga o endereço ao projeto e pede o certificado de segurança gratuito (Let's Encrypt). Ele renova o certificado sozinho. Se o seu domínio está na Cloudflare, o painel também cria a entrada de DNS por você, para não precisar mexer em outro site.

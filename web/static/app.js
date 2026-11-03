@@ -149,7 +149,7 @@
       if (r.status === 'deployed') { return r.state === 'active' || r.state === 'unknown' ? ['Deploy concluído', 'ok'] : ['Serviço ' + r.state, 'warn']; }
       return ['Aguardando deploy', 'muted'];
     };
-    var EV_ICON = { deploy: 'rocket_launch', database: 'storage', backup: 'backup', app: 'add_circle' };
+    var EV_ICON = { deploy: 'rocket_launch', database: 'storage', backup: 'backup', app: 'add_circle', cache: 'cleaning_services' };
     var overview = function () {
       getJSON('/api/overview').then(function (o) {
         var h = o.host;

@@ -86,7 +86,8 @@ func cmdStatus(x *call) error {
 			DiskUsed  int64      `json:"disk_used"`
 			CPUs      int        `json:"cpus"`
 		} `json:"host"`
-		Res map[string]struct {
+		Cache int64 `json:"cache"`
+		Res   map[string]struct {
 			Type   string   `json:"type"`
 			State  string   `json:"state"`
 			Status string   `json:"status"`
@@ -101,6 +102,7 @@ func cmdStatus(x *call) error {
 	fmt.Fprintf(x.out, "Servidor: %d CPUs, carga %.2f %.2f %.2f, memória %s de %s, disco %s de %s, ligado há %s\n",
 		h.CPUs, h.Load[0], h.Load[1], h.Load[2], humanBytes(h.MemUsed), humanBytes(h.MemTotal),
 		humanBytes(h.DiskUsed), humanBytes(h.DiskTotal), (time.Duration(h.Uptime) * time.Second).Round(time.Minute))
+	fmt.Fprintf(x.out, "Cache de builds: %s (limpar: brpanel cache prune)\n", humanBytes(ov.Cache))
 	if len(ov.Res) == 0 {
 		fmt.Fprintln(x.out, "Nenhuma aplicação ou banco ainda. Crie uma app com: brpanel apps create --repo URL")
 		return nil
@@ -345,7 +347,11 @@ func dflt(s, d string) string {
 
 func cmdAppsDeploy(x *call) error {
 	name := x.pos[0]
-	msg, _, err := x.c.act("POST", "/apps/"+url.PathEscape(name)+"/deploy", nil)
+	action := "deploy"
+	if x.on("clean") {
+		action = "deploy-clean"
+	}
+	msg, _, err := x.c.act("POST", "/apps/"+url.PathEscape(name)+"/"+action, nil)
 	if err != nil && !(x.on("wait") && strings.HasPrefix(err.Error(), "Já existe um deploy")) {
 		return err
 	}
@@ -353,6 +359,10 @@ func cmdAppsDeploy(x *call) error {
 	if x.on("wait") {
 		time.Sleep(pollEvery / 2)
 		return waitDeploy(x, name)
+	}
+	if x.on("clean") {
+		x.ok("deploy do zero iniciado em segundo plano (código, dependências e cache do app apagados). Para esperar o fim rode: brpanel apps wait " + name)
+		return nil
 	}
 	x.ok("deploy iniciado em segundo plano. Para esperar o fim rode: brpanel apps wait " + name)
 	return nil

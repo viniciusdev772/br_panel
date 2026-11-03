@@ -17,6 +17,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
 | `internal/sysinfo` | Leitura de cgroup v2 e `/proc` (RAM, carga, disco, uptime) |
 | `internal/cloudflare` | Registro DNS A do domínio da app via API Token da Cloudflare (só biblioteca padrão) |
+| `internal/buildcache` | Cache de pacotes dos builds em `<data>/cache` (npm, pnpm, Yarn, Bun, pip, Go, Cargo, Composer): variáveis de ambiente, tamanhos, limpeza por idade e total (só biblioteca padrão) |
 | `internal/nodeenv` | Instala o Node.js com o nvm (versão fixa) em `<data>/nvm` e liga node/npm/npx em `/usr/local/bin` |
 | `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório, criação do App pelo fluxo de manifest |
 | `internal/settings` | Configuração guardada no banco, validação, Argon2id |
@@ -81,6 +82,14 @@ Antes de escrever as units, `prepareMounts` valida as linhas de novo, cria as pa
 
 Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/diário/semanal, goroutine `RunVolumeScheduler` no `server.Run`) escrevem `<data>/backups/volumes/<app>/<volume>-AAAA-MM-DD-hhmmss.tar.gz` — os 7 mais recentes de cada volume permanecem. Uma `restauração` descompacta em uma pasta temporária, recusa entradas que tentam sair da pasta (`../`, caminhos absolutos, links duros, dispositivos e um link plantado pelo próprio app), para as instâncias, troca a pasta e as inicia de novo.
 
+### Cache de builds (`buildcache`, `deploy`)
+
+`<data>/cache` é uma pasta só, do usuário das apps, para os pacotes de **todos** os builds: `buildEnv(a, useCache)` acrescenta `npm_config_cache`, `npm_config_store_dir` (pnpm), `YARN_CACHE_FOLDER`, `BUN_INSTALL_CACHE_DIR`, `XDG_CACHE_HOME` (pip e build do Go), `GOMODCACHE`, `CARGO_HOME` e `COMPOSER_CACHE_DIR` antes das variáveis da própria app (que podem sobrescrevê-las). Só o build recebe essas variáveis; o serviço em execução, não. Se a pasta não puder ser criada, o deploy avisa no log e as ferramentas usam o cache do `HOME` da app, como antes.
+
+O checkout `<data>/apps/<app>/src` é reaproveitado (`git fetch --depth 1` + `reset --hard`), então `node_modules`, `.venv`, `target/` e `.next` sobrevivem entre deploys. **Pular a instalação** (`depscache.go`): se o build começa exatamente com `npm ci`, `npm install`, `pnpm install --frozen-lockfile`, `yarn install --frozen-lockfile`, `bun install` ou o `composer install` da detecção, seguido de `&&` ou sozinho, o painel calcula o SHA-256 de comando + manifesto + lockfiles + versão do Node.js + variáveis lidas pelos gerenciadores (`NODE_ENV`, `NPM_CONFIG_*`…) e o compara com `<data>/apps/<app>/deps.sha256`, gravado depois de um build que terminou bem. Igual, sem falta da pasta instalada e **com lockfile** → o prefixo de instalação é removido do comando. O arquivo é apagado antes de uma instalação e escrito só se o build inteiro passar. **Deploy do zero** (`Deployer.StartClean`, ação `deploy-clean`, `apps deploy --clean`): `cleanApp` move `src`, os caches privados do `HOME` da app (`.npm`, `.cache`, `.cargo`, `go`…) e o `deps.sha256` para o lixo (`discard`, apagado em segundo plano); volumes e arquivos de armazenamento não são tocados e o cache compartilhado também não.
+
+**Tamanho e limpeza:** `Cache.Items` soma os arquivos por ferramenta (guardado por 30 s: as telas consultam a cada poucos segundos). `Prune(dias)` apaga arquivos cujo último uso (o maior entre mtime e atime) é mais velho que o limite e as pastas que ficaram vazias; `Clear` esvazia tudo. As duas recusam quando há deploy em andamento (`Deployer.Busy`). O tamanho aparece em **Configurações > Cache de builds**, em `/api/cache`, em `/api/overview` (`cache`) e em `brpanel status`.
+
 ### Monitoramento
 `monitor.Run` lê a cada 15 s `cpu.stat` e `memory.current` (menos `inactive_file`) de `/sys/fs/cgroup/system.slice/brpanel-<app>.service` e grava em `metrics` (24 h). A UI consulta `/apps/{name}/metrics` e `/api/overview`.
 
@@ -131,6 +140,8 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 | `POST /databases/{name}/{start\|stop\|restart\|backup\|restore\|backup-delete\|schedule\|regenerate\|public\|delete}` | sessão+CSRF | Ações |
 | `POST /apps/{name}/env` | sessão+CSRF | Salvar variáveis (valida referências a bancos) |
 | `GET/POST /settings` | sessão (+CSRF) | Configurações |
+| `GET /api/cache` | sessão | JSON do cache de builds (total e por ferramenta) |
+| `POST /cache/prune`, `POST /cache/clear` | sessão + CSRF | Limpa os itens sem uso há N dias (`days`, padrão 30) ou esvazia o cache; recusam com deploy em andamento |
 | `GET /github` | sessão | Criação guiada do GitHub App e guia manual |
 | `POST /github/domain` | sessão + CSRF | Cria o registro DNS na Cloudflare, salva o domínio do painel e o publica |
 | `POST /github/publish` | sessão + CSRF | Repete a publicação (Nginx + SSL) do painel no domínio salvo |

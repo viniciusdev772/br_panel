@@ -246,6 +246,12 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		if !s.dep.Start(a.Name, "manual") {
 			msg = "Já existe um deploy em andamento."
 		}
+	case "deploy-clean":
+		if !s.dep.StartClean(a.Name, "do zero") {
+			msg = "Já existe um deploy em andamento."
+		} else {
+			msg = "Deploy do zero iniciado: o código e as dependências estão sendo refeitos."
+		}
 	case "restart":
 		if a.Replicas > 1 { // one instance at a time, in the background: it can take a while
 			go func() { _ = s.dep.Restart(a) }()
