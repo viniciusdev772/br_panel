@@ -4,6 +4,10 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- `scripts/release.sh vX.Y.Z`: publica a release à mão, sem GitHub Actions.
+- README: tabela com links diretos para os binários da última release (inclui Termux).
+
 ## [0.3.1] - 2026-11-03
 
 ### Corrigido
