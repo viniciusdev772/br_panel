@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-11-03
+
 ### Corrigido
 - Excluir uma aplicação não espera mais o deploy terminar (antes respondia "Aguarde o deploy terminar antes de excluir"): o deploy em andamento é cancelado, com toda a árvore de processos do build (o `runuser` os põe em outra sessão, e o `npm` ficava órfão), a repetição pendente é descartada e as pastas são só renomeadas e apagadas em segundo plano. Apagar o `node_modules` de 2,5 GB do n8n levava mais de um minuto; agora a exclusão responde em cerca de 3 s e o nome já pode ser reutilizado.
 - A pasta `volumes/<app>` era criada `root:root 0750`, então a aplicação não conseguia abrir seu armazenamento pelo caminho real (`$VOLUME_<NOME>`) e falhava com EACCES. Agora fica 0711 em todo deploy, o que também conserta volumes já existentes.
