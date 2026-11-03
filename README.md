@@ -201,6 +201,20 @@ O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpane
   irm https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.ps1 | iex       # Windows (PowerShell)
   ```
 
+  **Download direto dos binários** (sempre a última release; confira com o `.sha256` ao lado de cada um):
+
+  | Sistema | CLI (só a CLI) | SHA-256 |
+  |---|---|---|
+  | Linux x86_64 | [brpanel-cli-linux-amd64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-linux-amd64) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-linux-amd64.sha256) |
+  | Linux arm64 | [brpanel-cli-linux-arm64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-linux-arm64) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-linux-arm64.sha256) |
+  | **Termux (Android arm64)** | [brpanel-cli-android-arm64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-android-arm64) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-android-arm64.sha256) |
+  | macOS Intel | [brpanel-cli-darwin-amd64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-darwin-amd64) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-darwin-amd64.sha256) |
+  | macOS Apple Silicon | [brpanel-cli-darwin-arm64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-darwin-arm64) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-darwin-arm64.sha256) |
+  | Windows x86_64 | [brpanel-cli-windows-amd64.exe](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-windows-amd64.exe) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-windows-amd64.exe.sha256) |
+  | Windows arm64 | [brpanel-cli-windows-arm64.exe](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-windows-arm64.exe) | [.sha256](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-cli-windows-arm64.exe.sha256) |
+
+  Servidor do painel (Linux): [brpanel-linux-amd64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-linux-amd64) · [brpanel-linux-arm64](https://github.com/viniciusdev772/br_panel/releases/latest/download/brpanel-linux-arm64). No Termux, baixe, rode `chmod +x` e mova para `$PREFIX/bin/brpanel` (o instalador acima já faz isso e ajusta o `~/.bashrc`).
+
   Depois crie um token na aba **CLI** do painel (ou `sudo brpanel tokens create --name notebook` no servidor) e rode `brpanel login painel.exemplo.com` (a CLI pede o token sem mostrá-lo; em scripts e agentes: `printf '%s' 'brp_…' | brpanel login ENDEREÇO --token-stdin`). `brpanel whoami` mostra o servidor ativo e `brpanel logout` volta ao socket local. O instalador baixa o binário da última release, confere o SHA-256 e instala sem administrador (`~/.local/bin` ou `%LOCALAPPDATA%\Programs\brpanel`). Pelo IP o painel responde em `http://IP:8080` sem SSL; a CLI avisa e exige confirmação (`--allow-http`), então prefira o domínio do painel com SSL.
   Os tokens (`brp_` + 256 bits) valem o mesmo que a tela: só o hash SHA-256 fica no banco, o segredo aparece uma única vez, há até 20, e revogar corta o acesso na hora. Tentativas com token errado bloqueiam o IP por um minuto.
 - **Feita para agentes de IA, até os pequenos (4B).** Toda resposta começa com `OK:` ou `ERRO:` e traz linhas `DICA:`, `USO:` e `EXEMPLO:` com o próximo passo; códigos de saída 0 (certo), 1 (o painel recusou) e 2 (comando mal escrito). Erros de digitação sugerem o comando certo, plural/singular e sinônimos funcionam (`app ls`, `apps rm`, `apps env set`), opções desconhecidas listam as válidas e o que apaga dados exige `--yes`. Senhas nunca vão na linha de comando (`--password-stdin`). `--json` em qualquer comando; `--wait` espera o deploy e diz se deu certo.
