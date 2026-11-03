@@ -11,6 +11,7 @@ Ele foi pensado para quem tem um servidor (uma VPS) e quer cuidar dele sem virar
 - Publicar um projeto a partir do GitHub, sem preencher formulário comprido. O painel olha o projeto e descobre sozinho como ele funciona.
 - Ter um endereço próprio (como `loja.seusite.com.br`) com cadeado de segurança, emitido e renovado sem você pedir.
 - Atualizar o site a cada vez que você salva uma mudança no GitHub.
+- Publicar de novo em menos tempo: o painel guarda o que já baixou e não repete trabalho quando nada mudou.
 - Acompanhar quanto de processador e de memória cada projeto usa, em gráficos das últimas 24 horas.
 - Instalar programas prontos, como n8n, Uptime Kuma e Gitea, com um clique.
 - Criar bancos de dados (PostgreSQL, MySQL, MongoDB e Redis) e ligá-los aos seus projetos.
@@ -40,6 +41,12 @@ curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/script
 No final, ele mostra um link. Abra esse link no navegador, crie o seu usuário e pronto. Para atualizar o painel mais tarde, rode o mesmo comando de novo. Os seus projetos e dados ficam como estão.
 
 Quer ler o comando antes de executar? Ele está em [`scripts/install.sh`](scripts/install.sh).
+
+## Publicações mais rápidas
+
+Na primeira vez, o painel baixa o projeto e tudo o que ele usa. Nas seguintes, só chegam as mudanças do código. Os pacotes dos projetos ficam numa pasta comum a todas as aplicações, então cada um é baixado uma única vez. Se as dependências continuam as mesmas, o painel nem as instala de novo.
+
+Em Configurações, o cartão Cache de builds mostra quanto espaço isso ocupa e deixa apagar o que ninguém usa há 30 dias. Se um projeto se comportar de um jeito estranho depois de uma atualização, o botão Refazer do zero, na página dele, reconstrói tudo. Os arquivos que a aplicação guarda em Armazenamento não são apagados.
 
 ## Um painel para o dia a dia
 
