@@ -1,6 +1,10 @@
 package monorepo
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
 func TestMatch(t *testing.T) {
 	for _, c := range []struct {
@@ -62,6 +66,11 @@ func TestAffected(t *testing.T) {
 		{"exclusão também vale para arquivo global", "apps/web", []string{"!package.json"}, []string{"package.json"}, false},
 		{"arquivo apagado dentro da pasta", "apps/web", nil, []string{"apps/web"}, true},
 		{"nada mudou", "apps/web", nil, nil, false},
+		{"sem pasta, só exclusões: o resto conta", "", []string{"!**/*.md"}, []string{"src/main.go"}, true},
+		{"sem pasta, só exclusões: o excluído não conta", "", []string{"!**/*.md", "!docs/**"}, []string{"README.md", "docs/a.txt"}, false},
+		{"sem pasta, exclusão e inclusão", "", []string{"!**/*.md", "docs/guia.md"}, []string{"docs/guia.md"}, true},
+		{"patches do pnpm valem para todos", "apps/web", nil, []string{"patches/x.patch"}, true},
+		{"release do yarn vale para todos", "apps/web", nil, []string{".yarn/releases/yarn-4.js"}, true},
 	} {
 		if got := Affected(c.root, c.watch, c.changed); got != c.want {
 			t.Errorf("%s: Affected = %v, quero %v", c.name, got, c.want)
@@ -83,8 +92,27 @@ func TestChangedPaths(t *testing.T) {
 	if _, ok := ChangedPaths([]Commit{{}, {}}); ok {
 		t.Error("commits sem arquivo nenhum não provam nada: deployar tudo")
 	}
+	if _, ok := ChangedPaths(append(make([]Commit, maxTrustedCommits-2), Commit{Modified: []string{"a"}})); !ok {
+		t.Error("um push abaixo do limite é confiável")
+	}
 	many := make([]Commit, maxTrustedCommits)
 	if _, ok := ChangedPaths(many); ok {
 		t.Error("um push com tantos commits quanto o limite pode ter sido cortado")
+	}
+}
+
+// Patterns and paths come from outside: many "**" against a deep path must not blow up.
+func TestMatchIsNotExponential(t *testing.T) {
+	path := strings.Repeat("a/", 150) + "c"
+	pat := strings.Repeat("**/a/", 8) + "**/b"
+	done := make(chan bool, 1)
+	go func() { done <- Match(pat, path) }()
+	select {
+	case got := <-done:
+		if got {
+			t.Error("não deveria casar")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Match ficou exponencial")
 	}
 }

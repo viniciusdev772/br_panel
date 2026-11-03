@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func paths(cs []Candidate) []string {
@@ -215,5 +216,37 @@ func TestWorkspacesIgnoreLinks(t *testing.T) {
 	}
 	if got := paths(Workspaces(repo)); !slices.Equal(got, []string{"apps/ok"}) {
 		t.Errorf("links para fora entraram na lista: %v", got)
+	}
+}
+
+// Hostile patterns and trees: the expansion has a budget and never follows a link.
+func TestWorkspacesExpansionIsBounded(t *testing.T) {
+	outside := t.TempDir()
+	for i := 0; i < 50; i++ {
+		if err := os.MkdirAll(filepath.Join(outside, "d"+string(rune('a'+i%26)), "x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo := project(t, map[string]string{"pnpm-workspace.yaml": "packages:\n  - 'evil/*/*/*'\n  - '**/**/**/**/x'\n"})
+	if err := os.Symlink(outside, filepath.Join(repo, "evil")); err != nil {
+		t.Fatal(err)
+	}
+	// a wide tree with no match: stops by the visit budget
+	for i := 0; i < 80; i++ {
+		for j := 0; j < 80; j++ {
+			if err := os.MkdirAll(filepath.Join(repo, "wide", "n"+string(rune('a'+i%26))+string(rune('a'+i/26)), "m"+string(rune('a'+j%26))+string(rune('a'+j/26))), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	done := make(chan []Candidate, 1)
+	go func() { done <- Workspaces(repo) }()
+	select {
+	case got := <-done:
+		if len(got) != 0 {
+			t.Errorf("nada deveria casar: %v", paths(got))
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a expansão dos padrões não tem limite")
 	}
 }

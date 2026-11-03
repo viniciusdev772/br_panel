@@ -15,9 +15,14 @@ var sharedRootFiles = map[string]bool{
 	"cargo.toml": true, "cargo.lock": true, "rust-toolchain": true, "rust-toolchain.toml": true,
 	"pyproject.toml": true, "uv.lock": true, "poetry.lock": true, "pipfile": true, "pipfile.lock": true,
 	"composer.json": true, "composer.lock": true, "gemfile": true, "gemfile.lock": true, "brpanel.json": true,
+	"bunfig.toml": true, "deno.json": true, "deno.lock": true, ".pnp.cjs": true,
 }
 
 func isSharedRootFile(p string) bool {
+	// Yarn releases and plugins, and pnpm patches, are applied to every app of the workspace.
+	if strings.HasPrefix(p, ".yarn/") || strings.HasPrefix(p, "patches/") {
+		return true
+	}
 	if strings.Contains(p, "/") {
 		return false
 	}
@@ -40,9 +45,12 @@ func Affected(rootDir string, watch []string, changed []string) bool {
 	if rootDir == "" && len(watch) == 0 {
 		return true
 	}
+	// With no folder, patterns that only exclude ("!docs/**") mean "everything except": starting
+	// from nothing they could never match, and the app would silently never deploy.
+	everything := rootDir == "" && !hasPositive(watch)
 	for _, p := range changed {
 		p = strings.TrimPrefix(p, "./")
-		hit := rootDir != "" && (p == rootDir || strings.HasPrefix(p, rootDir+"/") || isSharedRootFile(p))
+		hit := everything || (rootDir != "" && (p == rootDir || strings.HasPrefix(p, rootDir+"/") || isSharedRootFile(p)))
 		for _, w := range watch {
 			if neg := strings.HasPrefix(w, "!"); neg {
 				if Match(strings.TrimPrefix(w, "!"), p) {
@@ -53,6 +61,15 @@ func Affected(rootDir string, watch []string, changed []string) bool {
 			}
 		}
 		if hit {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPositive(watch []string) bool {
+	for _, w := range watch {
+		if !strings.HasPrefix(w, "!") {
 			return true
 		}
 	}
@@ -75,28 +92,27 @@ func Match(pattern, path string) bool {
 	return matchSegs(pat, segs)
 }
 
+// matchSegs matches the pattern segments against the path segments. It is a dynamic program over
+// (pattern position, path position): paths come from a hostile repository, and a naive recursion
+// with several "**" is exponential in the path depth.
 func matchSegs(pat, segs []string) bool {
-	for len(pat) > 0 {
-		if pat[0] == "**" {
-			for len(pat) > 0 && pat[0] == "**" {
-				pat = pat[1:]
-			}
-			if len(pat) == 0 {
-				return true
-			}
-			for i := 0; i <= len(segs); i++ {
-				if matchSegs(pat, segs[i:]) {
-					return true
-				}
-			}
-			return false
-		}
-		if len(segs) == 0 || !matchSeg(pat[0], segs[0]) {
-			return false
-		}
-		pat, segs = pat[1:], segs[1:]
+	// ok[i][j]: pat[i:] matches segs[j:]
+	ok := make([][]bool, len(pat)+1)
+	for i := range ok {
+		ok[i] = make([]bool, len(segs)+1)
 	}
-	return len(segs) == 0
+	ok[len(pat)][len(segs)] = true
+	for i := len(pat) - 1; i >= 0; i-- {
+		for j := len(segs); j >= 0; j-- {
+			switch {
+			case pat[i] == "**":
+				ok[i][j] = ok[i+1][j] || (j < len(segs) && ok[i][j+1])
+			case j < len(segs):
+				ok[i][j] = matchSeg(pat[i], segs[j]) && ok[i+1][j+1]
+			}
+		}
+	}
+	return ok[0][0]
 }
 
 // matchSeg matches one path segment against a pattern with * and ?.
@@ -129,10 +145,11 @@ func matchSeg(p, s string) bool {
 // Commit is the file lists of one commit of a push event.
 type Commit struct{ Added, Modified, Removed []string }
 
-// maxTrustedCommits is the most commits GitHub lists in a push payload (2048 in its current
-// documentation). A push that reaches it may have been cut, so its file lists cannot prove that an
-// app is unaffected.
-const maxTrustedCommits = 2048
+// maxTrustedCommits: GitHub has documented the number of commits listed in a push payload as 20
+// and, more recently, as 2048. Not knowing which one a delivery follows, the smaller number is the
+// safe one: a push that reaches it may have been cut, so its file lists cannot prove that an app
+// is unaffected, and every app deploys. A push with that many commits is rare.
+const maxTrustedCommits = 20
 
 // ChangedPaths flattens the commits of a push into the changed paths. complete is false when the
 // list cannot prove which files changed: no commits (a branch created or moved without new

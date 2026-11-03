@@ -55,16 +55,44 @@ func TestWebhookDeploysOnlyTheAffectedMonorepoApps(t *testing.T) {
 		return
 	}
 
+	// which app really started a deploy (the counts alone would not notice one app taking another's place)
+	started := func() map[string]int {
+		n := map[string]int{}
+		for _, e := range s.store.Events(200) {
+			if e.Kind == "deploy" && strings.HasPrefix(e.Message, "Deploy iniciado") {
+				n[e.Resource]++
+			}
+		}
+		return n
+	}
+	delta := func(before map[string]int) string {
+		after, ran := started(), []string{}
+		for _, n := range []string{"web", "api", "tudo"} {
+			if after[n] > before[n] {
+				ran = append(ran, n)
+			}
+		}
+		return strings.Join(ran, ",")
+	}
+
 	// 1: only apps/web changed -> web and the whole-repo app, not api
+	before := started()
 	if out := push("[" + commit("apps/web/src/a.ts") + "]"); !strings.HasPrefix(out, "2 deploy(s) disparado(s), 1 ignorado(s)") {
 		t.Errorf("push em apps/web: %q", out)
+	}
+	if got := delta(before); got != "web,tudo" {
+		t.Errorf("push em apps/web publicou %q", got)
 	}
 	if got := deployed("web", "api", "tudo"); len(got) != 2 || got[0] != "web" || got[1] != "tudo" {
 		t.Errorf("deveriam ter rodado web e tudo: %v", got)
 	}
 	// 2: a watched sibling package -> web again (api still untouched)
+	before = started()
 	if out := push("[" + commit("packages/ui/button.tsx") + "]"); !strings.HasPrefix(out, "2 deploy(s)") {
 		t.Errorf("push em packages/ui: %q", out)
+	}
+	if got := delta(before); got != "web,tudo" {
+		t.Errorf("push em packages/ui publicou %q", got)
 	}
 	// 3: a shared root file -> every app
 	if out := push("[" + commit("pnpm-lock.yaml") + "]"); !strings.HasPrefix(out, "3 deploy(s) disparado(s)") {
@@ -91,8 +119,12 @@ func TestWebhookDeploysOnlyTheAffectedMonorepoApps(t *testing.T) {
 		}
 	}
 	// 5: a README in the root affects nobody except the whole-repo app
+	before = started()
 	if out := push("[" + commit("README.md") + "]"); !strings.HasPrefix(out, "1 deploy(s) disparado(s), 2 ignorado(s)") {
 		t.Errorf("README: %q", out)
+	}
+	if got := delta(before); got != "tudo" {
+		t.Errorf("README publicou %q", got)
 	}
 }
 

@@ -68,9 +68,14 @@ func splitInstall(build string) (s *depStep, up, rest string) {
 // depsHash fingerprints an install: the command, the manifest, the lockfiles and extra (what else
 // changes the result: the Node.js version and the variables the package managers read). It is
 // empty when no lockfile exists.
-func depsHash(src string, s *depStep, extra string) string {
+func depsHash(src, app string, s *depStep, extra string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "v1\x00%s\x00%s\x00", s.cmd, extra)
+	fmt.Fprintf(h, "v2\x00%s\x00%s\x00", s.cmd, extra)
+	if app != src { // an app inside a workspace: its own dependency list counts too
+		b, _ := os.ReadFile(filepath.Join(app, s.manifest))
+		fmt.Fprintf(h, "app:%s\x00%d\x00", s.manifest, len(b))
+		h.Write(b)
+	}
 	locked := false
 	for _, f := range append([]string{s.manifest}, s.locks...) {
 		b, err := os.ReadFile(filepath.Join(src, f))
@@ -104,7 +109,7 @@ func planDeps(build, proj, repo, extra, saved string) depsPlan {
 		p.rest = build
 		return p
 	}
-	p.hash = depsHash(base, s, extra)
+	p.hash = depsHash(base, proj, s, extra)
 	if fi, err := os.Stat(filepath.Join(base, s.dir)); err == nil && fi.IsDir() && p.hash != "" && p.hash == saved {
 		p.skip = true
 	}

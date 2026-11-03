@@ -125,7 +125,7 @@ func noSymlinks(base, target string) error {
 			return err
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("%q é um atalho no repositório; o destino da montagem não pode passar por ele", seg)
+			return fmt.Errorf("%q é um atalho no repositório; o caminho não pode passar por ele", seg)
 		}
 	}
 	return nil

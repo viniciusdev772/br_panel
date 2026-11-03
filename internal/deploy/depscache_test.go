@@ -290,3 +290,41 @@ func TestMonorepoSiblingsDeployOneAtATime(t *testing.T) {
 		t.Errorf("o log deveria explicar a espera: %q", log.String())
 	}
 }
+
+// An app inside a workspace: a dependency added to the app's own package.json (without touching the
+// lockfile) must not be skipped, or the service would start without it.
+func TestPlanDepsNoticesTheAppsOwnManifest(t *testing.T) {
+	repo := project(t, map[string]string{
+		"package-lock.json": "x", "package.json": "{}", "node_modules/a": "x",
+		"apps/web/package.json": `{"name":"web"}`,
+	})
+	proj := filepath.Join(repo, "apps", "web")
+	const build = "cd ../.. && npm install && npm run build --workspace='web' --if-present"
+	first := planDeps(build, proj, repo, "", "")
+	if !planDeps(build, proj, repo, "", first.hash).skip {
+		t.Fatal("nada mudou: deveria pular")
+	}
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{"name":"web","dependencies":{"x":"1"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if planDeps(build, proj, repo, "", first.hash).skip {
+		t.Error("o package.json do próprio app mudou: não pode pular a instalação")
+	}
+}
+
+func TestSiblingsOfTheSameRepositoryShareOneQueueWhateverTheSpelling(t *testing.T) {
+	d := &Deployer{}
+	a := store.App{Name: "a", Repo: "https://github.com/O/Mono.git", RootDir: "x"}
+	b := store.App{Name: "b", Repo: "https://github.com/o/mono", RootDir: "y"}
+	var log bytes.Buffer
+	rel, ok := d.waitSiblings(context.Background(), a, &log)
+	if !ok {
+		t.Fatal("o primeiro entra")
+	}
+	defer rel()
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	if _, ok := d.waitSiblings(ctx, b, &log); ok {
+		t.Error("a mesma repositório escrito de outro jeito deveria esperar")
+	}
+}

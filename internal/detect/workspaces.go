@@ -213,7 +213,8 @@ func expand(repo string, patterns []string) []string {
 	}
 	var out []string
 	for _, p := range include {
-		for _, d := range globDirs(repo, strings.Split(p, "/"), "", 0) {
+		w := &globWalk{repo: repo}
+		for _, d := range w.globDirs(strings.Split(p, "/"), "", 0) {
 			skip := false
 			for _, e := range exclude {
 				if globMatch(e, d) {
@@ -232,31 +233,46 @@ func expand(repo string, patterns []string) []string {
 	return out
 }
 
+// maxGlobVisits bounds the folder entries read while expanding the patterns of one repository:
+// the patterns and the folder tree come from a repository nobody vetted.
+const maxGlobVisits = 5000
+
+type globWalk struct {
+	repo   string
+	visits int
+}
+
 // globDirs lists the folders under repo that match the segments ("*" one level, "**" any number).
-func globDirs(repo string, segs []string, prefix string, depth int) []string {
+// Links are never followed, and the walk stops after maxGlobVisits entries.
+func (w *globWalk) globDirs(segs []string, prefix string, depth int) []string {
 	if len(segs) == 0 {
 		return []string{prefix}
 	}
-	if depth > maxGlobDepth {
+	if depth > maxGlobDepth || w.visits > maxGlobVisits {
 		return nil
 	}
 	seg, rest := segs[0], segs[1:]
 	if seg != "*" && seg != "**" && !strings.ContainsAny(seg, "*?[") {
 		next := path.Join(prefix, seg)
-		if !isDir(repo, next) {
+		fi, err := os.Lstat(filepath.Join(w.repo, filepath.FromSlash(next))) // Lstat: a link is not a folder here
+		w.visits++
+		if err != nil || !fi.IsDir() {
 			return nil
 		}
-		return globDirs(repo, rest, next, depth+1)
+		return w.globDirs(rest, next, depth+1)
 	}
-	entries, err := os.ReadDir(filepath.Join(repo, filepath.FromSlash(prefix)))
+	entries, err := os.ReadDir(filepath.Join(w.repo, filepath.FromSlash(prefix)))
 	if err != nil {
 		return nil
 	}
 	var out []string
 	if seg == "**" { // zero folders: keep matching the rest here
-		out = append(out, globDirs(repo, rest, prefix, depth+1)...)
+		out = append(out, w.globDirs(rest, prefix, depth+1)...)
 	}
 	for _, e := range entries {
+		if w.visits++; w.visits > maxGlobVisits {
+			break
+		}
 		name := e.Name()
 		if !e.IsDir() || strings.HasPrefix(name, ".") || skipDirs[name] || e.Type()&os.ModeSymlink != 0 {
 			continue
@@ -264,10 +280,10 @@ func globDirs(repo string, segs []string, prefix string, depth int) []string {
 		next := path.Join(prefix, name)
 		switch {
 		case seg == "**":
-			out = append(out, globDirs(repo, segs, next, depth+1)...)
+			out = append(out, w.globDirs(segs, next, depth+1)...)
 		default:
 			if ok, _ := path.Match(seg, name); ok {
-				out = append(out, globDirs(repo, rest, next, depth+1)...)
+				out = append(out, w.globDirs(rest, next, depth+1)...)
 			}
 		}
 		if len(out) >= maxGlobHits {

@@ -341,6 +341,13 @@ func (d *Deployer) start(name, reason string, clean bool) bool {
 			fmt.Fprintln(lf, "\n== CANCELADO enquanto esperava na fila ==")
 			return
 		}
+		// The app may have been edited, or deleted, while this deploy waited its turn.
+		fresh, found := d.Store.Get(name)
+		if !found {
+			fmt.Fprintln(lf, "\n== CANCELADO: a aplicação foi excluída ==")
+			return
+		}
+		a = fresh
 		ctx, stop := context.WithTimeout(ctx, timeout)
 		defer stop()
 		if err := d.deploy(ctx, a, lf, clean); err != nil {
@@ -368,14 +375,15 @@ func (d *Deployer) waitSiblings(ctx context.Context, a store.App, log io.Writer)
 	if a.RootDir == "" {
 		return func() {}, true
 	}
+	key := strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(a.Repo, "/"), ".git")) // x.git and x are one repository
 	d.repoMu.Lock()
 	if d.repoSem == nil {
 		d.repoSem = map[string]chan struct{}{}
 	}
-	sem := d.repoSem[a.Repo]
+	sem := d.repoSem[key]
 	if sem == nil {
 		sem = make(chan struct{}, 1)
-		d.repoSem[a.Repo] = sem
+		d.repoSem[key] = sem
 	}
 	d.repoMu.Unlock()
 	select {
