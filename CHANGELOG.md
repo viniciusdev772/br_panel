@@ -4,11 +4,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
-
-
 ### Alterado
+- README reescrito para quem não é técnico, com imagens do painel; o texto técnico anterior (com a tabela de downloads dos binários) está em `docs/referencia-tecnica.md`. Novo guia `docs/funcionalidades.md`.
+- O script de capturas (`make screenshots`) roda em cerca de 40 s: bancos sobem em paralelo, esperas por condição no lugar de pausas fixas, e telas de bancos não instalados são puladas.
+
+### Adicionado
 - `scripts/release.sh vX.Y.Z`: publica a release à mão, sem GitHub Actions.
-- README: tabela com links diretos para os binários da última release (inclui Termux).
 
 ## [0.3.1] - 2026-11-03
 
