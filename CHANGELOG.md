@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.4.1] - 2026-11-03
+
 ### Corrigido
 - Aplicações que usam Corepack/pnpm/npm ao iniciar entravam em loop de reinício com `EACCES: mkdir '/home/<usuário>/.cache/...'`: o serviço não definia `HOME`, e o systemd usava a pasta do usuário do sistema, que não existe. O arquivo de ambiente passa a gravar `HOME` apontando para a pasta da app (como já era no build); uma variável `HOME` da própria app ainda prevalece. Vale a partir do próximo deploy.
 
