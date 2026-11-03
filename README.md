@@ -129,6 +129,20 @@ Antes de subir, o painel cria o destino dentro da pasta do projeto e passa `Bind
 
 **Backups:** manual ou agendado (diário/semanal), um `.tar.gz` por volume em `<data>/backups/volumes/<app>/` (os 7 mais recentes), com download, restauração e exclusão. Restaurar para as instâncias, troca a pasta do volume e as inicia de novo.
 
+## Templates: apps prontos com um clique, sem Docker
+
+Em **Criar → Templates** (ou `brpanel templates install n8n` na CLI) o painel instala programas conhecidos como uma aplicação comum: baixa o programa oficial, prepara e roda como serviço systemd, com Nginx e SSL se você informar um domínio. Nada de contêineres. Os dados ficam numa pasta de armazenamento (aba **Armazenamento**) que sobrevive a atualizações, entra nos backups de volume e pode ser restaurada. Um novo deploy atualiza para a versão que estiver nas variáveis (`TPL_VERSION`).
+
+| Template | O que é | Origem |
+|---|---|---|
+| **n8n** | automação de fluxos com editor visual | pacote npm oficial (versão `latest` ou a que você fixar) |
+| **Uptime Kuma** | monitoramento de sites com alertas e página de status | tag do repositório oficial |
+| **Gitea** | hospedagem de repositórios Git (SQLite) | binário oficial, com a soma SHA-256 publicada conferida antes de usar |
+
+Cada instalação ganha segredos próprios gerados na hora (por exemplo a chave de criptografia do n8n), porta livre, e variáveis certas para o endereço: com domínio, os webhooks já saem com o `https://` correto; sem domínio, o n8n funciona por `http` na porta do servidor. O Node.js, quando falta, o painel instala com o nvm. O n8n precisa de uns 1 GB de memória livre na instalação.
+
+**Criar um template novo** é uma entrada em `internal/templates/catalog.go`: um repositório Git (versão = tag) ou arquivos próprios, o comando de build e o de início (uma linha cada; scripts maiores vão em `Files`), variáveis (`Secret` gera um valor aleatório), e a pasta de armazenamento. Um teste valida o catálogo, e o template só deve ser listado depois de instalado num servidor de verdade. Binários baixados precisam de soma SHA-256 publicada pelo projeto.
+
 ## Site: outros endereços, senha, manutenção e limites
 
 A aba **Site** da aplicação (precisa de um domínio principal) controla o que o Nginx faz na frente dela. Cada mudança é validada, testada com `nginx -t` e só então salva; se o Nginx recusar, a configuração anterior volta e nada é guardado.

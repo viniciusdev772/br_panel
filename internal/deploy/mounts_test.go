@@ -58,6 +58,14 @@ func TestPrepareMountsCreatesFoldersFilesAndTargets(t *testing.T) {
 	if fi, err := os.Stat(vol); err != nil || !fi.IsDir() {
 		t.Errorf("pasta do volume: %v", err)
 	}
+	// The app opens the volume by its real path ($VOLUME_UPLOADS): the folder above it must let the
+	// app user walk through (x) without listing the other volumes. It was root-only (0750) before.
+	if fi, err := os.Stat(d.Paths.VolumesDir("web")); err != nil || fi.Mode().Perm() != 0o711 {
+		t.Errorf("pasta pai dos volumes precisa ser 0711: %v %v", err, fi)
+	}
+	if fi, _ := os.Stat(vol); fi.Mode().Perm() != 0o750 {
+		t.Errorf("a pasta do volume continua 0750: %v", fi.Mode().Perm())
+	}
 	if fi, err := os.Stat(file); err != nil {
 		t.Fatalf("arquivo guardado: %v", err)
 	} else if fi.Mode().Perm() != 0o600 {

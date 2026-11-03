@@ -53,6 +53,11 @@ func (d *Deployer) prepareMounts(ctx context.Context, a store.App) (mountSetup, 
 			if err := os.MkdirAll(source, 0o750); err != nil {
 				return m, err
 			}
+			// MkdirAll made the parent (volumes/<app>) root-only too, but the app reaches its folder
+			// by this real path ($VOLUME_<NAME>): the parent must be traversable, not listable.
+			if err := os.Chmod(d.Paths.VolumesDir(a.Name), 0o711); err != nil {
+				return m, err
+			}
 			if err := d.chownMount(ctx, source); err != nil {
 				return m, err
 			}

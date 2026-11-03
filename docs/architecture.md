@@ -84,6 +84,10 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 ### Monitoramento
 `monitor.Run` lê a cada 15 s `cpu.stat` e `memory.current` (menos `inactive_file`) de `/sys/fs/cgroup/system.slice/brpanel-<app>.service` e grava em `metrics` (24 h). A UI consulta `/apps/{name}/metrics` e `/api/overview`.
 
+### Templates
+
+`internal/templates` guarda o catálogo (folha, só biblioteca padrão). Um template é um *preset* de aplicação, não um tipo novo de app: `Instantiate` devolve o `Plan` (repositório, branch, build, início, variáveis com segredos aleatórios e montagens) e `handleTemplateInstall` faz as mesmas validações do formulário de aplicação, escolhe a porta, cria o app, as montagens `volume` e dispara o deploy. Templates de arquivos usam `Repo = "template:<id>"`: no deploy, `writeTemplateFiles` grava os arquivos na pasta do projeto (sempre sobrescritos; `node_modules` e binários baixados ficam) em vez do `git clone`. Templates com repositório usam a versão como branch/tag. Em ambos `ensureRequires` confere os programas (`node`, `npm`, `curl`, `git`) e instala o Node.js com o nvm se for o que falta, e a versão chega ao build pela variável `TPL_VERSION`, validada porque vai a um comando de shell. `templates.ForRepo` reconhece o template do app pelo repositório, sem coluna nova no banco.
+
 ### CLI
 
 `brpanel <comando>` (qualquer primeiro argumento sem `-`) executa `cli.Run` em vez de subir o servidor. O cliente fala HTTP sobre o socket Unix `<data>/brpanel.sock` (modo 0600, criado por `Server.serveCLI`). O handler do socket é o mesmo `routes()` com a requisição marcada no contexto (`viaCLI`, só `cliHandler` marca); `cliAuth` então chama `auth.Grant`, que abre uma sessão descartável de 1 minuto e coloca cookie e campo `csrf` na requisição. Assim as rotas `protected()` e os handlers são os da interface web, sem uma segunda API para manter; `render` devolve só `{error, flash}` em JSON para a CLI, que lê o resultado das ações no `?msg=` do redirecionamento. As leituras estruturadas são `/api/apps`, `/api/apps/{name}` e `/api/databases` (tipos em `cli/wire.go`). **Acesso remoto:** qualquer requisição ao listener HTTP com `Authorization: Bearer brp_…` passa por `cliAuth` (`server/tokens.go`): o SHA-256 do segredo é buscado em `api_tokens`, falhas contam no mesmo bloqueio por IP do login (`auth.Locked/Fail`), token inválido responde 401 antes de qualquer rota, e um token válido marca a requisição como `viaCLI` e recebe o `Grant` como no socket. Outros esquemas de `Authorization` são ignorados (pedido comum de navegador). No cliente, `brpanel login` valida o token em `/api/overview` e grava `{server, token}` em `os.UserConfigDir()/brpanel/config.json` (0600); com login salvo os comandos usam `bearerRT` sobre HTTPS em vez do socket (`--local` força o socket). `cmd/brpanel-cli` é o mesmo `cli.Run` sem o servidor, compilável para Windows/macOS (o servidor depende de Linux); os instaladores `scripts/install-cli.{sh,ps1}` baixam os assets `brpanel-cli-<os>-<arch>` da release.
@@ -111,6 +115,9 @@ Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/di�
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
 | `GET /api/apps`, `GET /api/apps/{name}`, `GET /api/databases` | sessão | JSON das aplicações e bancos (sem senhas de banco nem hashes); usados pela CLI |
 | `GET /cli`, `GET /cli/guide.txt` | sessão | Página da CLI e guia em texto puro para agentes de IA |
+| `GET /templates`, `GET /templates/{id}` | sessão | Catálogo de templates de um clique e o formulário de instalação |
+| `POST /templates/{id}` | sessão+CSRF ou token | Instala o template como aplicação nova (nome, domínio, versão) e inicia o deploy |
+| `GET /api/templates` | sessão ou token | JSON do catálogo (usado pela CLI) |
 | `GET /api/tokens` | sessão ou token | JSON dos tokens de acesso (nome, criação, último uso; nunca segredo nem hash) |
 | `POST /cli/tokens`, `POST /cli/tokens/{id}/revoke` | sessão+CSRF ou token | Criar (o segredo aparece uma vez) e revogar token de acesso remoto |
 | `POST /tools/node/install` | sessão + CSRF | Instala o Node.js com o nvm em segundo plano |

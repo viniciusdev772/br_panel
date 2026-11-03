@@ -119,6 +119,14 @@ esperar o resultado. Mudar configuração ou variáveis só vale depois de um no
 
 RECEITAS (copie e troque os valores)
 
+0) Instalar um app pronto (n8n, Uptime Kuma, Gitea…), sem Docker:
+   brpanel templates list                       (ids disponíveis)
+   brpanel templates install n8n --domain flows.example.com --wait
+   Sem --domain o app abre pela porta do servidor (brpanel apps show NOME mostra a porta).
+   O dado fica numa pasta de armazenamento própria e sobrevive a deploys.
+   Atualizar para a versão mais nova: brpanel apps deploy NOME --wait
+   Atalho: brpanel install n8n
+
 1) Publicar um site a partir do GitHub, com domínio:
    brpanel apps create --repo https://github.com/exemplo/loja --name loja --domain loja.example.com --wait
    O painel detecta Node, Python, Go, etc., escolhe a porta e configura Nginx e SSL.

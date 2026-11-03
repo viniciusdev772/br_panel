@@ -16,7 +16,7 @@ var catalog = []Template{
 			"package.json": "{\n  \"name\": \"n8n-instance\",\n  \"private\": true,\n  \"version\": \"1.0.0\"\n}\n",
 		},
 		Requires: []string{"node", "npm"},
-		Build:    `npm install --no-audit --no-fund --no-progress "n8n@$TPL_VERSION"`,
+		Build:    `npm install --no-audit --no-fund --no-progress --loglevel=error "n8n@$TPL_VERSION"`,
 		Start:    `N8N_PORT=$PORT N8N_LISTEN_ADDRESS=$HOST N8N_USER_FOLDER=$VOLUME_DATA ./node_modules/.bin/n8n start`,
 		Env: []EnvVar{
 			{Key: "N8N_ENCRYPTION_KEY", Secret: true},
@@ -39,7 +39,7 @@ var catalog = []Template{
 		Repo:        "https://github.com/louislam/uptime-kuma.git",
 		Version:     "2.5.9", VersionHint: "uma tag do repositório, como 2.5.9",
 		Requires: []string{"node", "npm", "git"},
-		Build:    `npm ci --omit dev --no-audit --no-fund && npm run download-dist`,
+		Build:    `npm ci --omit dev --no-audit --no-fund --loglevel=error && npm run download-dist`,
 		Start:    `UPTIME_KUMA_PORT=$PORT UPTIME_KUMA_HOST=$HOST DATA_DIR=$VOLUME_DATA/ node server/server.js`,
 		Mounts:   []Mount{{Name: "data", Target: "data"}},
 		MemoryMB: 512,

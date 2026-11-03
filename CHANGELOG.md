@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- **Templates de um clique, sem Docker**: página **Templates** (menu Criar), rotas `/templates` e `/api/templates` e, na CLI, `brpanel templates list|show|install` (atalho `brpanel install n8n`). Primeiros templates: **n8n** (pacote npm oficial), **Uptime Kuma** (tag do repositório oficial) e **Gitea** (binário oficial com SHA-256 conferido). Cada instalação cria uma aplicação comum com armazenamento persistente, segredos aleatórios próprios, variáveis certas para o domínio (webhooks do n8n, cookie seguro) e instalação automática do Node.js; um novo deploy atualiza para a versão escolhida. Apps de template usam `template:<id>` como repositório, aceito pela validação.
+
 ## [0.2.0] - 2026-11-02
 
 ### Adicionado

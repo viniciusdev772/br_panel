@@ -31,7 +31,10 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/validate"
 )
 
-const deployTimeout = 20 * time.Minute
+const (
+	deployTimeout         = 20 * time.Minute
+	templateDeployTimeout = 60 * time.Minute
+)
 
 // Paths is the on-disk layout of the data directory.
 type Paths struct{ Data string }
@@ -215,7 +218,11 @@ func (d *Deployer) Start(name, reason string) bool {
 				d.Start(name, "push recebido durante o deploy anterior")
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), deployTimeout)
+		timeout := deployTimeout
+		if _, isTemplate := templates.ForRepo(a.Repo); isTemplate {
+			timeout = templateDeployTimeout // n8n alone is more than 2 GB of npm packages
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		lf, err := os.OpenFile(d.Paths.LogFile(name), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
 		if err != nil {
