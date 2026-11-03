@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.3.1] - 2026-11-03
+
 ### Corrigido
 - A CLI não instalava no Termux (Android): o binário Linux estático falhava com `unexpected e_type: 2`, porque o Android só executa binários PIE. A release agora publica `brpanel-cli-android-arm64` (compilado com `GOOS=android`), o `install-cli.sh` detecta o Termux e instala em `$PREFIX/bin`, e a CLI usa os DNS do Termux (não há `/etc/resolv.conf` no Android). O instalador também acrescenta o PATH ao `~/.bashrc` e ao `~/.profile` (uma vez só) quando a pasta não está no PATH.
 
