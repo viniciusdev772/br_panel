@@ -93,6 +93,6 @@ export GITEA__server__HTTP_ADDR="$HOST"
 export GITEA__server__APP_DATA_PATH="$VOLUME_DATA/data"
 mkdir -p "$VOLUME_DATA/custom/conf"
 CONF="$VOLUME_DATA/custom/conf/app.ini"
-./gitea environment-to-ini --config "$CONF"
+./gitea config edit-ini --apply-env --in-place --config "$CONF"
 exec ./gitea web --config "$CONF"
 `
