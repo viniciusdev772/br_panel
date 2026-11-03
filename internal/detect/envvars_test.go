@@ -19,7 +19,7 @@ func TestEnvVars(t *testing.T) {
 	dir := project(t, map[string]string{
 		"package.json":        `{"scripts":{"start":"node src/a.js"}}`,
 		".env.example":        "# comentário\nMONGODB_URI=mongodb://localhost\nEMPTY_ONE=\nexport QUOTED=\"\"\nlower=1\n",
-		"src/a.js":            "const k = process.env.JWT_PRIVATE_KEY;\nconst p = process.env.WITH_DEFAULT || 'x';\nconst q = process.env['BRACKET'] ?? 1;\nconst r = process.env.CHAINED?.trim();\nconst s = process.env.PORT;\n",
+		"src/a.js":            "const k = process.env.JWT_PRIVATE_KEY;\nconst p = process.env.WITH_DEFAULT || 'x';\nconst q = process.env['BRACKET'] ?? 1;\nconst e1 = process.env.EMPTY_NULLISH ?? \"\";\nconst e2 = process.env.EMPTY_OR || '';\nconst e3 = process.env.TERNARY ? 1 : 2;\nconst r = process.env.CHAINED?.trim();\nconst s = process.env.PORT;\n",
 		"src/b.py":            "import os\nos.environ['PY_REQUIRED']\nos.getenv('PY_OPTIONAL', 'x')\n",
 		"src/c.go":            "package main\nvar _ = os.Getenv(\"GO_VAR\")\n",
 		"node_modules/x/i.js": "process.env.IN_NODE_MODULES",
@@ -30,7 +30,7 @@ func TestEnvVars(t *testing.T) {
 	})
 	got := envByName(EnvVars(dir, dir))
 	want := map[string]bool{ // name -> required
-		"JWT_PRIVATE_KEY": true, "WITH_DEFAULT": false, "BRACKET": false, "CHAINED": true, "PORT": true,
+		"JWT_PRIVATE_KEY": true, "WITH_DEFAULT": false, "BRACKET": false, "CHAINED": true, "PORT": true, "EMPTY_NULLISH": true, "EMPTY_OR": true, "TERNARY": false,
 		"MONGODB_URI": false, "EMPTY_ONE": true, "QUOTED": true, "PY_REQUIRED": true, "PY_OPTIONAL": false, "GO_VAR": false,
 	}
 	for n, req := range want {

@@ -36,8 +36,10 @@ var (
 	envName = `[A-Z][A-Z0-9_]{1,63}`
 	// process.env.X, process.env["X"]; group 3 is a fallback operator right after it (||, ??, ?).
 	// "?." is optional chaining, not a default.
-	jsEnvRe  = regexp.MustCompile(`process\.env(?:\.(` + envName + `)|\[\s*['"](` + envName + `)['"]\s*\])(\s*(?:\|\||\?\?|\?[^.]))?`)
-	envKeyRe = regexp.MustCompile(`^` + envName + `$`)
+	jsEnvRe = regexp.MustCompile(`process\.env(?:\.(` + envName + `)|\[\s*['"](` + envName + `)['"]\s*\])(\s*(?:\|\||\?\?|\?[^.]))?`)
+	// what follows `||`/`??` when the "default" is nothing at all
+	emptyDefault = regexp.MustCompile("^\\s*(?:\"\"|''|``|null\\b|undefined\\b)")
+	envKeyRe     = regexp.MustCompile(`^` + envName + `$`)
 	// os.environ["X"] (required) · os.environ.get("X"[, default]) · os.getenv("X"[, default])
 	pyEnvRe = regexp.MustCompile(`os\.environ\[\s*['"](` + envName + `)['"]\s*\]|os\.(?:environ\.get|getenv)\(\s*['"](` + envName + `)['"]`)
 	goEnvRe = regexp.MustCompile(`os\.(?:Getenv|LookupEnv)\(\s*"(` + envName + `)"\s*\)`)
@@ -122,8 +124,19 @@ func EnvVars(dir, root string) []EnvVar {
 				add(m[1], false, rel) // Go code checks for "" by hand: a default cannot be told apart
 			}
 		default:
-			for _, m := range jsEnvRe.FindAllStringSubmatch(src, -1) {
-				add(m[1]+m[2], m[3] == "", rel)
+			for _, m := range jsEnvRe.FindAllStringSubmatchIndex(src, -1) {
+				var name, op string
+				if m[2] >= 0 {
+					name = src[m[2]:m[3]]
+				} else {
+					name = src[m[4]:m[5]]
+				}
+				if m[6] >= 0 {
+					op = strings.TrimSpace(src[m[6]:m[7]])
+				}
+				ternary := strings.HasPrefix(op, "?") && op != "??" // `X ? a : b` tests it, no default involved
+				// `?? ""` only turns "unset" into "empty": the code still needs a value.
+				add(name, op == "" || (!ternary && emptyDefault.MatchString(src[m[7]:])), rel)
 			}
 		}
 		return nil
