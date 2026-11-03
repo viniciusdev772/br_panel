@@ -33,7 +33,7 @@ paths:
 
 1. `make check` verde, `CHANGELOG.md` ajustado, commit e push na `main`.
 2. Crie e envie a tag. O workflow `.github/workflows/release.yml` compila, gera os `.sha256` e publica.
-3. Se o GitHub Actions estiver indisponível (a conta chegou a ser bloqueada por cobrança), faça o mesmo à mão: compile os dois binários e os `.sha256` em `dist/` e rode `gh release create vX.Y.Z dist/* --title vX.Y.Z --notes-file <trecho do changelog>`.
+3. Se o GitHub Actions estiver indisponível (a conta chegou a ser bloqueada por cobrança), rode `scripts/release.sh vX.Y.Z` na `main` (compila, gera os `.sha256`, cria a tag e publica com `gh`).
 4. Confira a release: quatro assets, tamanhos plausíveis e `sha256sum -c` passando.
 5. Teste o `scripts/install.sh` a partir da URL pública num servidor com o painel já instalado (caminho de atualização) antes de dizer que está pronta.
 
