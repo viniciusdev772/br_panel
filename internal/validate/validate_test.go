@@ -7,8 +7,10 @@ func TestValidateRepo(t *testing.T) {
 		"https://github.com/user/repo.git",
 		"git@github.com:user/repo.git",
 		"ssh://git@example.com/user/repo",
+		"template:n8n", "template:uptime-kuma",
 	}
 	bad := []string{
+		"template:", "template:../x", "template:N8N", "template:a b", "template:-x", "template:" + "a_b", "templates:n8n",
 		"", "-oProxyCommand=x", "ext::sh -c id", "file:///etc", "http://x.com/a",
 		"https://user:tok@github.com/a/b", "https://github.com", "https://a.com/a b",
 		"--upload-pack=x", "ssh://root@example.com/x",

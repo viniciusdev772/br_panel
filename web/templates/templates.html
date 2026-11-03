@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">Templates</h1></div>
+<div class="mdc-card"><div class="card-body">
+  <p>Aplicações prontas para instalar com um clique, <b>sem Docker</b>: o painel baixa o programa oficial, prepara e roda como serviço do sistema, com Nginx e SSL se você informar um domínio. Os dados ficam numa pasta de armazenamento que sobrevive a atualizações.</p>
+  <p class="muted">Precisa de outra coisa? <a href="/apps/new">Publique qualquer repositório Git</a>.</p>
+</div></div>
+<div class="tpl-grid">
+  {{range .Tpls}}
+  <a class="mdc-card tpl-card" href="/templates/{{.ID}}">
+    <div class="card-body">
+      <div class="tpl-top"><span class="tpl-icon"><i class="material-icons">{{.Icon}}</i></span><div><strong>{{.Name}}</strong><span class="muted tpl-cat">{{.Category}}</span></div></div>
+      <p>{{.Summary}}</p>
+      <span class="tpl-go">Instalar <i class="material-icons">arrow_forward</i></span>
+    </div>
+  </a>
+  {{end}}
+</div>
+{{end}}

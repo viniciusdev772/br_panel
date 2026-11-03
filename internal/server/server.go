@@ -29,6 +29,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/store"
 	"github.com/viniciusdev772/br_panel/internal/sysinfo"
 	"github.com/viniciusdev772/br_panel/internal/systemd"
+	"github.com/viniciusdev772/br_panel/internal/templates"
 	"github.com/viniciusdev772/br_panel/internal/volume"
 	"github.com/viniciusdev772/br_panel/web"
 )
@@ -181,7 +182,7 @@ func (s *Server) loadTemplates() error {
 		"join":  strings.Join,
 		"split": strings.Split,
 	}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new", "cli"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new", "cli", "templates", "template"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {
 			return err
@@ -224,6 +225,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/apps/{name}", s.protected(s.handleAPIApp))
 	mux.HandleFunc("GET /api/databases", s.protected(s.handleAPIDatabases))
 	mux.HandleFunc("GET /api/tokens", s.protected(s.handleAPITokens))
+	mux.HandleFunc("GET /api/templates", s.protected(s.handleAPITemplates))
+	mux.HandleFunc("GET /templates", s.protected(s.handleTemplates))
+	mux.HandleFunc("GET /templates/{id}", s.protected(s.handleTemplateForm))
+	mux.HandleFunc("POST /templates/{id}", s.protected(s.handleTemplateInstall))
 	mux.HandleFunc("POST /cli/tokens", s.protected(s.handleTokenCreate))
 	mux.HandleFunc("POST /cli/tokens/{id}/revoke", s.protected(s.handleTokenRevoke))
 	mux.HandleFunc("GET /cli", s.protected(s.handleCLIPage))
@@ -310,6 +315,9 @@ type page struct {
 	VolumeBackups  []volume.Info
 	VolumeSchedule string
 	VolumeBusy     string
+
+	Tpls []templates.Template
+	Tpl  templates.Template
 
 	CLIGroups []cli.Group
 	CLIPrompt string

@@ -11,11 +11,12 @@ import (
 )
 
 var (
-	nameRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
-	branchRe  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
-	envKeyRe  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	domainRe  = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
-	scpRepoRe = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+$`)
+	nameRe         = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
+	branchRe       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$`)
+	envKeyRe       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	domainRe       = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	templateRepoRe = regexp.MustCompile(`^template:[a-z0-9][a-z0-9-]{0,31}$`)
+	scpRepoRe      = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._/~-]+$`)
 )
 
 func Name(n string) error {
@@ -33,6 +34,9 @@ func Repo(raw string) error {
 	}
 	if strings.ContainsAny(raw, " \t\r\n\x00") || strings.HasPrefix(raw, "-") {
 		return errors.New("URL do repositório contém caracteres inválidos")
+	}
+	if templateRepoRe.MatchString(raw) { // an app made from a one-click template: files, not a checkout
+		return nil
 	}
 	if scpRepoRe.MatchString(raw) {
 		return nil

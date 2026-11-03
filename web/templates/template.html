@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">Instalar {{.Tpl.Name}}</h1></div>
+<div class="mdc-card"><div class="card-body">
+  <p>{{.Tpl.Description}}</p>
+  <dl class="meta">
+    <dt>Categoria</dt><dd>{{.Tpl.Category}}</dd>
+    <dt>Origem</dt><dd>{{if .Tpl.Repo}}<code>{{.Tpl.Repo}}</code>{{else}}arquivos do painel{{end}}</dd>
+    {{if .Tpl.Requires}}<dt>Precisa de</dt><dd>{{join .Tpl.Requires ", "}} <span class="muted">(o Node.js o painel instala sozinho)</span></dd>{{end}}
+    {{if .Tpl.MemoryMB}}<dt>Memória sugerida</dt><dd>{{.Tpl.MemoryMB}} MB livres</dd>{{end}}</dd>
+    {{if .Tpl.Docs}}<dt>Documentação</dt><dd><a href="{{.Tpl.Docs}}" target="_blank" rel="noopener noreferrer">{{.Tpl.Docs}}</a></dd>{{end}}
+  </dl>
+</div></div>
+<div class="mdc-card"><form method="post" class="card-body" action="/templates/{{.Tpl.ID}}">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  {{template "field" dict "name" "name" "label" "Nome da aplicação" "value" (index .Form "name") "required" true "autocomplete" "off" "hint" "Letras minúsculas, números e hífen. É o nome do serviço no servidor."}}
+  {{template "field" dict "name" "domain" "label" "Domínio (opcional)" "value" (index .Form "domain") "autocomplete" "off" "hint" "Por exemplo app.exemplo.com.br, com o DNS apontando para este servidor: o painel configura o Nginx e o SSL. Sem domínio, a aplicação abre pela porta do servidor."}}
+  {{if .Tpl.Version}}{{template "field" dict "name" "version" "label" "Versão" "value" (index .Form "version") "autocomplete" "off" "hint" .Tpl.VersionHint}}{{end}}
+  <div class="actions form-end">
+    <a class="mdc-button" href="/templates"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Voltar</span></a>
+    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Instalar {{.Tpl.Name}}</span></button>
+  </div>
+  <p class="muted">A instalação roda em segundo plano (pode levar alguns minutos); o andamento aparece nos Logs da aplicação.</p>
+</form></div>
+{{end}}

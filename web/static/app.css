@@ -372,3 +372,14 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .tokens-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .tokens-table td:last-child { width: 48px; text-align: right; }
 @media (max-width: 600px) { .tokens-table th:nth-child(2), .tokens-table td:nth-child(2) { display: none; } }
+
+/* ---- /templates ---- */
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+.tpl-card { text-decoration: none; color: inherit; display: block; transition: border-color .15s, transform .15s; border: 1px solid var(--border); }
+.tpl-card:hover, .tpl-card:focus-visible { border-color: var(--accent); transform: translateY(-2px); }
+.tpl-top { display: flex; align-items: center; gap: 12px; }
+.tpl-top strong { display: block; }
+.tpl-icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.tpl-cat { font-size: 12px; }
+.tpl-go { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 500; font-size: 14px; }
+.tpl-go .material-icons { font-size: 18px; }

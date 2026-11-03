@@ -4,6 +4,7 @@
   <div class="menu" id="create-menu" role="menu">
     <h3>Aplicação</h3>
     <a href="/apps/new" role="menuitem"><i class="material-icons">rocket_launch</i><span>Repositório Git</span></a>
+    <a href="/templates" role="menuitem"><i class="material-icons">widgets</i><span>Templates (n8n e outros)</span></a>
     <h3>Banco de dados</h3>
     {{range .Kinds}}
     <a href="/databases/new?kind={{.Kind}}" role="menuitem"><span class="badge badge--sm b-{{.Kind}}">{{.Badge}}</span><span>{{.Label}}</span>{{if not .Installed}}<small>instalar</small>{{end}}</a>
@@ -51,6 +52,7 @@
       <p class="muted">Crie uma aplicação a partir de um repositório Git e adicione bancos de dados. As conexões aparecem aqui como setas.</p>
       <div class="actions">
         <a class="mdc-button mdc-button--raised" href="/apps/new"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">rocket_launch</i><span class="mdc-button__label">Nova aplicação</span></a>
+        <a class="mdc-button mdc-button--outlined" href="/templates"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">widgets</i><span class="mdc-button__label">Instalar com um clique</span></a>
         <a class="mdc-button mdc-button--outlined" href="/databases/new?kind=postgres"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">storage</i><span class="mdc-button__label">Novo banco de dados</span></a>
       </div>
     </div>

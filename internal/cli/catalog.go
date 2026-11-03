@@ -157,6 +157,18 @@ var Catalog = []Cmd{
 		Summary: "Troca a senha do banco. As apps que o usam precisam de novo deploy.", Examples: []string{"brpanel dbs regenerate pg --yes"}},
 	{Group: "Bancos de dados", Name: "dbs delete", Args: "NOME", Min: 1, Danger: true, Summary: "Exclui o banco e todos os dados dele.", Examples: []string{"brpanel dbs delete pg --yes"}},
 
+	{Group: "Templates (um clique)", Name: "templates list", Aliases: []string{"templates"},
+		Summary:  "Lista os apps prontos para instalar com um clique, sem Docker (n8n, Uptime Kuma, Gitea…).",
+		Examples: []string{"brpanel templates list", "brpanel templates list --json"}},
+	{Group: "Templates (um clique)", Name: "templates show", Args: "ID", Min: 1,
+		Summary: "Mostra o que o template instala, o que ele precisa e o que fazer depois.", Examples: []string{"brpanel templates show n8n"}},
+	{Group: "Templates (um clique)", Name: "templates install", Aliases: []string{"install"}, Args: "ID", Min: 1,
+		Summary: "Instala o template como uma aplicação nova (cria, prepara e inicia em segundo plano). Use --wait para esperar.",
+		Flags: []Flag{{"name", "NOME", "nome da aplicação (padrão: o id do template)"}, {"domain", "DOMINIO", "domínio com Nginx e SSL (sem ele, abre pela porta do servidor)"},
+			{"version", "VERSAO", "versão a instalar (padrão: a do template; veja templates show)"}, {"wait", "", "espera a instalação terminar e diz se deu certo"},
+			{"timeout", "SEGUNDOS", "com --wait: tempo máximo (padrão 600)"}},
+		Examples: []string{"brpanel templates install n8n --domain flows.example.com --wait", "brpanel install gitea --name git"}},
+
 	{Group: "Acesso remoto", Name: "login", Args: "[SERVIDOR]",
 		Summary: "Conecta esta máquina a um painel remoto (IP ou domínio) com um token. Depois, todos os comandos passam a controlar esse servidor.",
 		Flags: []Flag{{"token-stdin", "", "lê o token da entrada padrão (para scripts e agentes)"},
@@ -224,7 +236,7 @@ var firstWord = map[string]string{
 	"app": "apps", "application": "apps", "aplicacao": "apps", "aplicacoes": "apps", "aplicação": "apps", "aplicações": "apps",
 	"db": "dbs", "database": "dbs", "databases": "dbs", "banco": "dbs", "bancos": "dbs",
 	"event": "events", "evento": "events", "eventos": "events",
-	"token": "tokens", "entrar": "login", "sair": "logout",
+	"token": "tokens", "entrar": "login", "sair": "logout", "template": "templates", "modelo": "templates", "modelos": "templates",
 	"ajuda": "help", "--help": "help", "-h": "help", "-help": "help", "guia": "guide",
 }
 
@@ -232,7 +244,7 @@ var verbWord = map[string]string{
 	"ls": "list", "listar": "list", "all": "list",
 	"info": "show", "get": "show", "ver": "show", "view": "show", "describe": "show",
 	"new": "create", "add": "create", "criar": "create",
-	"revogar": "revoke", "remove": "delete", "rm": "delete", "del": "delete", "excluir": "delete", "destroy": "delete",
+	"instalar": "install", "revogar": "revoke", "remove": "delete", "rm": "delete", "del": "delete", "excluir": "delete", "destroy": "delete",
 	"redeploy": "deploy", "publish": "deploy", "log": "logs",
 	"envs": "env", "variables": "env", "vars": "env",
 	"domain-rm": "domain-remove", "auth-rm": "auth-remove",

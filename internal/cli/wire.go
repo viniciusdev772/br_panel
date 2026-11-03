@@ -65,3 +65,19 @@ type DBInfo struct {
 	UsedBy   []string `json:"used_by"`
 	Refs     []string `json:"refs"`
 }
+
+// TemplateInfo is the JSON the panel serves at /api/templates: one installable app.
+type TemplateInfo struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Category    string   `json:"category"`
+	Summary     string   `json:"summary"`
+	Description string   `json:"description"`
+	Version     string   `json:"version"`
+	VersionHint string   `json:"version_hint"`
+	Needs       []string `json:"needs"`
+	Docs        string   `json:"docs"`
+	After       string   `json:"after"`
+	Source      string   `json:"source"`
+	MemoryMB    int      `json:"memory_mb"`
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/settings"
 	"github.com/viniciusdev772/br_panel/internal/store"
 	"github.com/viniciusdev772/br_panel/internal/systemd"
+	"github.com/viniciusdev772/br_panel/internal/templates"
 	"github.com/viniciusdev772/br_panel/internal/validate"
 )
 
@@ -254,27 +255,21 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		}
 	}
 
-	// Reuse the existing checkout only if it points at the same repository.
-	if _, err := os.Stat(filepath.Join(src, ".git")); err == nil {
-		if url, _ := d.capture(ctx, src, gitEnv, "git", "config", "--get", "remote.origin.url"); url != a.Repo {
-			fmt.Fprintln(log, "repositório mudou; clonando novamente")
-			if err := os.RemoveAll(src); err != nil {
-				return err
-			}
+	tpl, fromTemplate := templates.ForRepo(a.Repo)
+	switch {
+	case strings.HasPrefix(a.Repo, templates.RefPrefix) && !fromTemplate:
+		return fmt.Errorf("o template %q não existe mais nesta versão do painel", strings.TrimPrefix(a.Repo, templates.RefPrefix))
+	case fromTemplate && tpl.FilesBased():
+		if err := d.writeTemplateFiles(ctx, tpl, src, log); err != nil {
+			return err
 		}
-	} else if err := os.RemoveAll(src); err != nil {
-		return err
+	default:
+		if err := d.fetchGit(ctx, a, appDir, src, gitEnv, log); err != nil {
+			return err
+		}
 	}
-
-	if _, err := os.Stat(src); os.IsNotExist(err) {
-		if err := d.run(ctx, log, appDir, gitEnv, "git", "clone", "--depth", "1", "--branch", a.Branch, "--", a.Repo, src); err != nil {
-			return err
-		}
-	} else {
-		if err := d.run(ctx, log, src, gitEnv, "git", "fetch", "--depth", "1", "origin", a.Branch); err != nil {
-			return err
-		}
-		if err := d.run(ctx, log, src, gitEnv, "git", "reset", "--hard", "FETCH_HEAD"); err != nil {
+	if fromTemplate {
+		if err := d.ensureRequires(ctx, tpl.Requires, log); err != nil {
 			return err
 		}
 	}
@@ -324,6 +319,82 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		return d.nginx().Remove(ctx, log, a.Name)
 	}
 	return d.publishSite(ctx, log, a)
+}
+
+// fetchGit clones the repository, or updates the checkout when it already points at it.
+func (d *Deployer) fetchGit(ctx context.Context, a store.App, appDir, src string, gitEnv []string, log io.Writer) error {
+	// Reuse the existing checkout only if it points at the same repository.
+	if _, err := os.Stat(filepath.Join(src, ".git")); err == nil {
+		if url, _ := d.capture(ctx, src, gitEnv, "git", "config", "--get", "remote.origin.url"); url != a.Repo {
+			fmt.Fprintln(log, "repositório mudou; clonando novamente")
+			if err := os.RemoveAll(src); err != nil {
+				return err
+			}
+		}
+	} else if err := os.RemoveAll(src); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return d.run(ctx, log, appDir, gitEnv, "git", "clone", "--depth", "1", "--branch", a.Branch, "--", a.Repo, src)
+	}
+	if err := d.run(ctx, log, src, gitEnv, "git", "fetch", "--depth", "1", "origin", a.Branch); err != nil {
+		return err
+	}
+	return d.run(ctx, log, src, gitEnv, "git", "reset", "--hard", "FETCH_HEAD")
+}
+
+// writeTemplateFiles lays the template's own files over the project folder. They are rewritten on
+// every deploy; what the build installed next to them (node_modules, a downloaded binary) stays.
+func (d *Deployer) writeTemplateFiles(ctx context.Context, t templates.Template, src string, log io.Writer) error {
+	fmt.Fprintf(log, "template %s: gravando %d arquivo(s)\n", t.Name, len(t.Files))
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		return err
+	}
+	paths := []string{src}
+	for name, content := range t.Files {
+		p := filepath.Join(src, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return err
+		}
+		if err := writeFile(p, content, 0o644); err != nil {
+			return err
+		}
+		paths = append(paths, p)
+	}
+	if user := d.Settings().AppUser; user != "" {
+		for _, p := range paths {
+			if err := chownTo(ctx, user, p); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ensureRequires checks that the programs a template needs exist, installing Node.js with nvm
+// when that is what is missing (the same help detected projects get).
+func (d *Deployer) ensureRequires(ctx context.Context, requires []string, log io.Writer) error {
+	missing := func() (m []string) {
+		for _, r := range requires {
+			if _, err := exec.LookPath(r); err != nil {
+				m = append(m, r)
+			}
+		}
+		return m
+	}
+	m := missing()
+	if len(m) > 0 && d.Node != nil && needsNode(m) {
+		fmt.Fprintln(log, "Node.js ausente no servidor: instalando com o nvm…")
+		if err := d.Node.Ensure(ctx, log); err != nil {
+			fmt.Fprintf(log, "AVISO: %v\n", err)
+		}
+		m = missing()
+	}
+	if len(m) > 0 {
+		return fmt.Errorf("faltam programas no servidor: %s", strings.Join(m, ", "))
+	}
+	return nil
 }
 
 // writeInstance writes the environment file and the unit of instance k. Every instance mounts the
