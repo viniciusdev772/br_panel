@@ -39,7 +39,12 @@ type mountSetup struct {
 // storage, so all of them get the same list.
 func (d *Deployer) prepareMounts(ctx context.Context, a store.App) (mountSetup, error) {
 	var m mountSetup
-	src := d.Paths.SrcDir(a.Name)
+	src := d.ProjectDir(a) // relative targets are relative to the app's folder (RootDir in a monorepo)
+	if a.RootDir != "" {
+		if err := noSymlinks(d.Paths.SrcDir(a.Name), src); err != nil {
+			return m, fmt.Errorf("diretório raiz %q: %w", a.RootDir, err)
+		}
+	}
 	for _, mo := range d.Store.ListMounts(a.Name) {
 		// Validated again on purpose: the row may predate a rule change, and everything here
 		// ends up in a unit file rendered by systemd.

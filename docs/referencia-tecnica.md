@@ -89,6 +89,17 @@ Um `Procfile` (linha `web:`) define o comando de início, e um `brpanel.json` na
 (`{"build": "...", "start": "...", "port": 8080}`) sobrescreve tudo. Se faltar algum programa no servidor
 (node, go, python3…), o painel avisa com a sugestão de instalação antes de tentar compilar.
 
+## Monorepo: vários apps no mesmo repositório
+
+Crie uma aplicação para cada projeto do repositório e informe, em **Pasta do projeto no repositório** (`--root` na CLI), o caminho dele, como `apps/web`. O botão **Descobrir automaticamente** lista as pastas que parecem aplicações (a partir de `workspaces` do package.json, `pnpm-workspace.yaml`, `go.work`, `[workspace]` do Cargo ou das pastas com manifesto) e, ao escolher uma, preenche pasta, nome (`repo-pasta`) e comandos. Bibliotecas aparecem em separado. Nada é criado sozinho.
+
+- **Onde roda.** O build, a detecção e o serviço usam a pasta do projeto (`<data>/apps/<app>/src/<pasta>`); o repositório inteiro é clonado, porque workspaces precisam dos pacotes irmãos. Cada app ocupa o seu próprio clone.
+- **Workspaces JavaScript.** O lockfile fica na raiz do workspace, então o comando de build começa com `cd ../..`, instala uma vez para o workspace e constrói só o pacote e os pacotes internos de que ele depende: pnpm `pnpm --filter '<nome>...' run build`, Yarn `workspace` (1) ou `workspaces foreach -Rt --from` (2+), Bun `--filter`, Turborepo `turbo run build --filter='<nome>...'` e Nx `nx build`. Com npm o build usa `--workspace` e **não** constrói os pacotes internos sozinho: use o Turborepo se o app depende de pacotes que precisam de build. A instalação pulada (veja abaixo) vale também aqui.
+- **Go, Rust, Python, PHP e Ruby.** O projeto roda na pasta como se fosse um repositório. Em Go, `go.work` na raiz é encontrado automaticamente; membros de um workspace Cargo iniciam por `../../target/release/<binário>`.
+- **Quando um push publica.** Com o GitHub App, só os apps afetados pelos arquivos do push são publicados: os da pasta do app e os arquivos globais da raiz (package.json, lockfiles, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `go.work`, `Cargo.toml`…). Em **Outras pastas que também publicam esta aplicação** (`--watch`) você lista pacotes irmãos, um padrão por linha (`packages/ui/**`); um `!` no começo ignora (`!**/*.md`), e **o último padrão que casa vence**. Na dúvida (push forçado, branch nova, sem lista de arquivos, 2048 commits) todos os apps do repositório são publicados. Um app sem pasta continua sendo publicado a cada push. Deploy manual e **Refazer do zero** nunca são filtrados.
+- **Fila.** Apps do mesmo repositório com pasta publicam um de cada vez, para um push que atinge vários não rodar vários clones e instalações juntos.
+- **Segurança.** A pasta só aceita um caminho relativo simples (sem `..`, barra no começo, `.git` ou caracteres de shell), é conferida depois do clone e não pode passar por link simbólico do repositório. Nomes de pacote só entram nos comandos se forem nomes npm válidos.
+
 ## Cache de builds e deploys mais rápidos
 
 - **Código e dependências ficam entre deploys.** O código de cada app fica em `<data>/apps/<app>/src` e é atualizado com `git fetch --depth 1` e `reset --hard`: só a diferença é baixada, e `node_modules`, `.venv`, `target/` e `.next` continuam lá para builds incrementais.

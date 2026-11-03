@@ -54,6 +54,8 @@ func appFromForm(r *http.Request, name string) (store.App, error) {
 		Domain:     strings.ToLower(strings.TrimSpace(r.PostFormValue("domain"))),
 		AutoDeploy: r.PostFormValue("auto_deploy") == "on",
 		Env:        r.PostFormValue("env"),
+		RootDir:    strings.TrimSpace(r.PostFormValue("root_dir")),
+		WatchPaths: r.PostFormValue("watch_paths"),
 	}
 	if a.Branch == "" {
 		a.Branch = "main"
@@ -69,6 +71,15 @@ func appFromForm(r *http.Request, name string) (store.App, error) {
 		if err != nil {
 			return a, err
 		}
+	}
+	var rerr, werr error
+	a.RootDir, rerr = validate.RootDir(a.RootDir) // normalized: "./apps/web/" becomes "apps/web"
+	a.WatchPaths, werr = validate.WatchPaths(a.WatchPaths)
+	if rerr != nil {
+		return a, rerr
+	}
+	if werr != nil {
+		return a, werr
 	}
 	if _, ok := githubapp.Slug(a.Repo); a.AutoDeploy && !ok {
 		return a, errors.New("deploy automático exige um repositório do GitHub")

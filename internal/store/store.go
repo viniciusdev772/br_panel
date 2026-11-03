@@ -41,6 +41,8 @@ type App struct {
 	CPUPercent int // CPU limit per instance (100 = one CPU), 0 = none
 	RateLimit  int // requests per second per client IP at nginx, 0 = off
 
+	RootDir    string    // folder of the app inside the repository (monorepo), slash separated; "" = the whole repository
+	WatchPaths string    // extra repository paths whose changes redeploy the app (one pattern per line); see monorepo.Affected
 	Web        Web       // extra domains, basic auth, maintenance page, upload and timeout limits
 	AutoScale  AutoScale // keeps Replicas between AutoScale.Min and .Max by itself
 	ScaledAt   time.Time // when the instance count last changed (deploys do not count); drives the cooldowns
@@ -204,6 +206,9 @@ CREATE TABLE api_tokens (
 	created   INTEGER NOT NULL,
 	last_used INTEGER NOT NULL DEFAULT 0
 );
+`, `
+ALTER TABLE apps ADD COLUMN root_dir TEXT NOT NULL DEFAULT '';
+ALTER TABLE apps ADD COLUMN watch_paths TEXT NOT NULL DEFAULT '';
 `}
 
 // Store is the panel's SQLite database: settings and apps.
@@ -273,7 +278,7 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit, autoscale, scale_at, web`
+const appCols = `name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, kind, status, last_deploy, replicas, memory_mb, cpu_percent, rate_limit, autoscale, scale_at, web, root_dir, watch_paths`
 
 type rowScanner interface{ Scan(...any) error }
 
@@ -281,7 +286,7 @@ func scanApp(r rowScanner) (App, error) {
 	var a App
 	var auto, last, scaled int64
 	var as, web string
-	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit, &as, &scaled, &web)
+	err := r.Scan(&a.Name, &a.Repo, &a.Branch, &a.BuildCmd, &a.StartCmd, &a.Port, &a.Domain, &auto, &a.Env, &a.Kind, &a.Status, &last, &a.Replicas, &a.MemoryMB, &a.CPUPercent, &a.RateLimit, &as, &scaled, &web, &a.RootDir, &a.WatchPaths)
 	a.AutoDeploy = auto != 0
 	if as != "" {
 		_ = json.Unmarshal([]byte(as), &a.AutoScale) // a damaged value just means autoscaling off
@@ -334,9 +339,9 @@ func (s *Store) Create(a App) error {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM databases WHERE name = ?`, a.Name).Scan(&taken); err == nil && taken > 0 {
 		return ErrExists // apps and databases share one namespace (variable references use the name)
 	}
-	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, replicas, memory_mb, cpu_percent, rate_limit, autoscale, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), StatusIdle, time.Now().Unix())
+	_, err := s.db.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, replicas, memory_mb, cpu_percent, rate_limit, autoscale, root_dir, watch_paths, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		a.Name, a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), a.RootDir, a.WatchPaths, StatusIdle, time.Now().Unix())
 	if isConstraint(err) {
 		return ErrExists
 	}
@@ -345,8 +350,8 @@ func (s *Store) Create(a App) error {
 
 // UpdateConfig changes an app's settings without touching its deploy status.
 func (s *Store) UpdateConfig(a App) error {
-	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=?, replicas=?, memory_mb=?, cpu_percent=?, rate_limit=?, autoscale=? WHERE name=?`,
-		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), a.Name)
+	_, err := s.db.Exec(`UPDATE apps SET repo=?, branch=?, build_cmd=?, start_cmd=?, port=?, domain=?, auto_deploy=?, env=?, replicas=?, memory_mb=?, cpu_percent=?, rate_limit=?, autoscale=?, root_dir=?, watch_paths=? WHERE name=?`,
+		a.Repo, a.Branch, a.BuildCmd, a.StartCmd, a.Port, a.Domain, b2i(a.AutoDeploy), a.Env, max(a.Replicas, 1), a.MemoryMB, a.CPUPercent, a.RateLimit, a.autoscaleJSON(), a.RootDir, a.WatchPaths, a.Name)
 	if isConstraint(err) {
 		return ErrExists
 	}
@@ -728,6 +733,17 @@ func (s *Store) Events(limit int) []Event {
 		if rows.Scan(&ts, &e.Kind, &e.Resource, &e.Message) == nil {
 			e.TS = time.Unix(ts, 0)
 			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// WatchLines is WatchPaths split into its patterns, in order.
+func (a App) WatchLines() []string {
+	var out []string
+	for _, l := range strings.Split(a.WatchPaths, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
 		}
 	}
 	return out

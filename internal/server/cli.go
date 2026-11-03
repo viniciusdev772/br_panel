@@ -62,7 +62,7 @@ func (s *Server) serveCLI(ctx context.Context) {
 func (s *Server) appInfo(a store.App) cli.AppInfo {
 	units := systemd.ReplicaUnits(a.Name, a.Replicas)
 	info := cli.AppInfo{
-		Name: a.Name, Repo: a.Repo, Branch: a.Branch, BuildCmd: a.BuildCmd, StartCmd: a.StartCmd, Port: a.Port,
+		Name: a.Name, Repo: a.Repo, Branch: a.Branch, RootDir: a.RootDir, WatchPaths: a.WatchPaths, BuildCmd: a.BuildCmd, StartCmd: a.StartCmd, Port: a.Port,
 		Domain: a.Domain, AutoDeploy: a.AutoDeploy, Env: a.Env, Replicas: a.Replicas, MemoryMB: a.MemoryMB,
 		CPUPercent: a.CPUPercent, RateLimit: a.RateLimit, Kind: a.Kind, Status: a.Status,
 		State: systemd.StateUnits(units), Deploying: a.Deploying(),

@@ -383,3 +383,7 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .tpl-cat { font-size: 12px; }
 .tpl-go { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 500; font-size: 14px; }
 .tpl-go .material-icons { font-size: 18px; }
+
+/* monorepo: apps found in the repository */
+.mono-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+#mono-box { margin-bottom: 12px; }

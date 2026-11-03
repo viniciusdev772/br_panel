@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -97,7 +98,7 @@ func (d *Deployer) autoConfigure(ctx context.Context, a store.App, src string, l
 	if a.StartCmd != "" {
 		return a, nil
 	}
-	det := detect.Detect(src)
+	det := detect.DetectApp(src, a.RootDir)
 	if det == nil {
 		return a, fmt.Errorf("não consegui detectar o tipo do projeto (procurei package.json, go.mod, requirements.txt, Cargo.toml, Gemfile, composer.json, index.html…). Informe o comando de início ou adicione um Procfile")
 	}
@@ -155,6 +156,24 @@ func needsNode(requires []string) bool {
 	return false
 }
 
+// SuggestNameIn names an app of a monorepo after the repository and its folder (mono + apps/web
+// = "mono-web"); without a folder it is SuggestName.
+func SuggestNameIn(repo, root string) string {
+	base := SuggestName(repo)
+	if root == "" {
+		return base
+	}
+	last := root[strings.LastIndex(root, "/")+1:]
+	n := strings.Trim(nameSlugRe.ReplaceAllString(strings.ToLower(base+"-"+last), "-"), "-")
+	if len(n) > 32 {
+		n = strings.Trim(n[:32], "-")
+	}
+	if validate.Name(n) != nil {
+		return base
+	}
+	return n
+}
+
 // SuggestName derives an app name from the repository URL.
 func SuggestName(repo string) string {
 	base := repo[strings.LastIndexAny(repo, "/:")+1:]
@@ -178,10 +197,18 @@ func (e ErrCloneFailed) Error() string {
 
 var detectMu sync.Mutex // one throw-away clone at a time
 
-// DetectRepo makes a shallow, temporary clone of repo@branch and reports what detect.Detect
-// finds, plus the programs the suggested commands need that are missing on this server.
-// It returns a nil detection (and no error) for projects it does not recognise.
-func (d *Deployer) DetectRepo(ctx context.Context, repo, branch string) (*detect.Detection, []string, error) {
+// RepoDetection is what DetectRepo finds in a repository.
+type RepoDetection struct {
+	Det     *detect.Detection  // nil for projects it does not recognise
+	Missing []string           // programs the suggested commands need that this server lacks
+	Apps    []detect.Candidate // the apps of a monorepo (empty for a single project)
+}
+
+// DetectRepo makes a shallow, temporary clone of repo@branch and reports what detect finds in
+// its folder root ("" = the whole repository; an app of a monorepo otherwise), the programs the
+// suggested commands need that are missing on this server, and the apps a monorepo holds.
+func (d *Deployer) DetectRepo(ctx context.Context, repo, branch, root string) (RepoDetection, error) {
+	var res RepoDetection
 	detectMu.Lock()
 	defer detectMu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
@@ -189,27 +216,36 @@ func (d *Deployer) DetectRepo(ctx context.Context, repo, branch string) (*detect
 
 	tmp, err := os.MkdirTemp(filepath.Join(d.DataDir, "tmp"), "detect-")
 	if err != nil {
-		return nil, nil, err
+		return res, err
 	}
 	defer os.RemoveAll(tmp)
-	env := []string{"PATH=" + execPath(), "HOME=" + tmp, "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=https:ssh",
+	env := []string{"PATH=" + execPath(), "HOME=" + tmp, "GIT_TERMINAL_PROMPT=0", "GIT_ALLOW_PROTOCOL=" + cmp.Or(d.gitProtocols, "https:ssh"),
 		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"}
 	if u := d.Settings().AppUser; u != "" {
 		if err := chownTo(ctx, u, tmp); err != nil {
-			return nil, nil, err
+			return res, err
 		}
 	}
 	gitEnv := githubapp.AuthEnv(ctx, d.GitHub(), repo, env, io.Discard)
 	var out strings.Builder
 	src := filepath.Join(tmp, "src")
 	if err := d.run(ctx, &out, tmp, gitEnv, "git", "clone", "--depth", "1", "--branch", branch, "--", repo, src); err != nil {
-		return nil, nil, ErrCloneFailed{Detail: lastLine(out.String())}
+		return res, ErrCloneFailed{Detail: lastLine(out.String())}
 	}
-	det := detect.Detect(src)
-	if det == nil {
-		return nil, nil, nil
+	// The clone is not trusted and the panel reads it as root: the folder must be a real one.
+	if root != "" {
+		if err := noSymlinks(src, filepath.Join(src, filepath.FromSlash(root))); err != nil {
+			return res, fmt.Errorf("diretório raiz %q: %w", root, err)
+		}
+		if fi, err := os.Stat(filepath.Join(src, filepath.FromSlash(root))); err != nil || !fi.IsDir() {
+			return res, fmt.Errorf("o diretório raiz %q não existe neste repositório (branch %s)", root, branch)
+		}
 	}
-	return det, detect.MissingRequirements(det, exec.LookPath), nil
+	res.Apps = detect.Workspaces(src)
+	if res.Det = detect.DetectApp(src, root); res.Det != nil {
+		res.Missing = detect.MissingRequirements(res.Det, exec.LookPath)
+	}
+	return res, nil
 }
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")

@@ -68,15 +68,18 @@ func readSmall(dir, name string) string {
 
 // Detect inspects dir and returns the suggested build/start commands, or nil.
 // Precedence: brpanel.json overrides, then Procfile's web process, then the language rules.
-func Detect(dir string) *Detection {
+func Detect(dir string) *Detection { return detectIn(dir, dir) }
+
+// detectIn is Detect for a project that lives in dir inside a repository checked out at root.
+func detectIn(dir, root string) *Detection {
 	var d *Detection
 	switch {
 	case exists(dir, "package.json"):
-		d = detectNode(dir)
+		d = detectNode(dir, root)
 	case exists(dir, "go.mod"):
 		d = detectGo(dir)
 	case exists(dir, "Cargo.toml"):
-		d = detectRust(dir)
+		d = detectRust(dir, root)
 	case exists(dir, "requirements.txt"), exists(dir, "pyproject.toml"), exists(dir, "Pipfile"):
 		d = detectPython(dir)
 	case exists(dir, "Gemfile"):
@@ -149,8 +152,9 @@ func procfileWeb(dir string) string {
 
 // ---- Node.js ----
 
-func detectNode(dir string) *Detection {
+func detectNode(dir, root string) *Detection {
 	var pkg struct {
+		Name            string            `json:"name"`
 		Main            string            `json:"main"`
 		Scripts         map[string]string `json:"scripts"`
 		Dependencies    map[string]string `json:"dependencies"`
@@ -164,15 +168,21 @@ func detectNode(dir string) *Detection {
 		return a || b
 	}
 
+	// In a monorepo the lockfile lives at the workspace root, above the app's folder.
+	lockDir := findLockDir(dir, root)
+	berry := yarnBerry(lockDir)
 	pm, install, run, exec := "npm", "npm install", "npm run", "npx"
 	switch {
-	case exists(dir, "pnpm-lock.yaml"):
+	case exists(lockDir, "pnpm-lock.yaml"):
 		pm, install, run, exec = "pnpm", "pnpm install --frozen-lockfile", "pnpm run", "pnpm exec"
-	case exists(dir, "yarn.lock"):
+	case exists(lockDir, "yarn.lock"):
 		pm, install, run, exec = "yarn", "yarn install --frozen-lockfile", "yarn", "yarn"
-	case exists(dir, "bun.lockb"), exists(dir, "bun.lock"):
+		if berry { // Yarn 2+ replaced --frozen-lockfile by --immutable
+			install = "yarn install --immutable"
+		}
+	case exists(lockDir, "bun.lockb"), exists(lockDir, "bun.lock"):
 		pm, install, run, exec = "bun", "bun install", "bun run", "bunx"
-	case exists(dir, "package-lock.json"), exists(dir, "npm-shrinkwrap.json"):
+	case exists(lockDir, "package-lock.json"), exists(lockDir, "npm-shrinkwrap.json"):
 		install = "npm ci"
 	}
 
@@ -180,7 +190,10 @@ func detectNode(dir string) *Detection {
 	if pm == "bun" {
 		d.Requires = []string{"bun"}
 	}
-	if _, ok := pkg.Scripts["build"]; ok {
+	_, hasBuild := pkg.Scripts["build"]
+	if lockDir != dir {
+		d.Build = workspaceBuild(dir, lockDir, pkg.Name, pm, install, berry, hasBuild, exists(lockDir, "turbo.json"), exists(lockDir, "nx.json"), d)
+	} else if hasBuild {
 		d.Build += " && " + run + " build"
 	}
 	if v := pkg.Engines["node"]; v != "" {
@@ -254,13 +267,35 @@ func hasRootMain(dir string) bool {
 
 var cargoNameRe = regexp.MustCompile(`(?m)^name\s*=\s*"([A-Za-z0-9_-]+)"`)
 
-func detectRust(dir string) *Detection {
+func detectRust(dir, root string) *Detection {
 	d := &Detection{Kind: "Rust", Port: 8080, Requires: []string{"cargo"}, Build: "cargo build --release",
 		Notes: []string{"o programa deve ler a porta da variável PORT"}}
 	if m := cargoNameRe.FindStringSubmatch(readSmall(dir, "Cargo.toml")); m != nil {
 		d.Start = "./target/release/" + m[1]
+		// A member of a Cargo workspace writes into the workspace's target folder, not its own.
+		if !strings.Contains(readSmall(dir, "Cargo.toml"), "[workspace]") {
+			if ws := cargoWorkspaceDir(dir, root); ws != "" {
+				if rel, err := filepath.Rel(dir, ws); err == nil && !strings.Contains(rel, "\\") {
+					d.Start = filepath.ToSlash(rel) + "/target/release/" + m[1]
+					d.Notes = append(d.Notes, "monorepo Cargo: o binário fica na pasta target da raiz do workspace")
+				}
+			}
+		}
 	}
 	return d
+}
+
+// cargoWorkspaceDir finds the closest folder above dir (up to root) whose Cargo.toml declares a workspace.
+func cargoWorkspaceDir(dir, root string) string {
+	for cur := filepath.Dir(dir); within(root, cur); cur = filepath.Dir(cur) {
+		if strings.Contains(readSmall(cur, "Cargo.toml"), "[workspace]") {
+			return cur
+		}
+		if cur == root || cur == filepath.Dir(cur) {
+			break
+		}
+	}
+	return ""
 }
 
 // ---- Python ----
@@ -377,4 +412,86 @@ func MissingRequirements(d *Detection, lookPath func(string) (string, error)) []
 		}
 	}
 	return out
+}
+
+// ---- Node.js workspaces (monorepo) ----
+
+var lockFiles = []string{"pnpm-lock.yaml", "yarn.lock", "bun.lockb", "bun.lock", "package-lock.json", "npm-shrinkwrap.json"}
+
+// findLockDir returns the closest folder, from dir up to the repository root, that holds a
+// lockfile: the workspace root when dir is a package of a workspace. dir itself when none does.
+func findLockDir(dir, root string) string {
+	for cur := dir; ; cur = filepath.Dir(cur) {
+		for _, l := range lockFiles {
+			if exists(cur, l) {
+				return cur
+			}
+		}
+		if cur == root || cur == filepath.Dir(cur) || !within(root, cur) {
+			return dir
+		}
+	}
+}
+
+// within reports whether dir is root or lies below it.
+func within(root, dir string) bool {
+	rel, err := filepath.Rel(root, dir)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+var yarnMajorRe = regexp.MustCompile(`"packageManager"\s*:\s*"yarn@(\d+)`)
+
+// yarnBerry reports whether the project at dir uses Yarn 2 or later.
+func yarnBerry(dir string) bool {
+	if exists(dir, ".yarnrc.yml") {
+		return true
+	}
+	if m := yarnMajorRe.FindStringSubmatch(readSmall(dir, "package.json")); m != nil {
+		return m[1] != "1"
+	}
+	return false
+}
+
+var pkgNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
+
+// workspaceBuild writes the build of a package that lives below its workspace root: it goes to the
+// root (the build runs in the package folder), installs once for the whole workspace and builds
+// this package together with the workspace packages it depends on. The name goes in single quotes
+// and is checked against the npm name syntax first.
+func workspaceBuild(dir, lockDir, name, pm, install string, berry, hasBuild, turbo, nx bool, d *Detection) string {
+	rel, err := filepath.Rel(dir, lockDir)
+	if err != nil || strings.Contains(rel, "\\") {
+		return install
+	}
+	cd := "cd " + filepath.ToSlash(rel) + " && "
+	d.Notes = append(d.Notes, "monorepo: a instalação roda na raiz do workspace ("+filepath.ToSlash(rel)+") e o build cobre só este pacote e os pacotes do workspace que ele usa")
+	if !hasBuild && !turbo && !nx {
+		return cd + install
+	}
+	if !pkgNameRe.MatchString(name) {
+		d.Notes = append(d.Notes, "o package.json não tem um nome válido: o build roda só a instalação do workspace; ajuste o comando de build à mão")
+		return cd + install
+	}
+	n := "'" + name + "'"
+	exec := map[string]string{"pnpm": "pnpm exec", "yarn": "yarn", "bun": "bunx", "npm": "npx"}[pm]
+	switch {
+	case turbo:
+		return cd + install + " && " + exec + " turbo run build --filter='" + name + "...'"
+	case nx:
+		d.Notes = append(d.Notes, "Nx: confira se o nome do projeto é o do package.json (nx show projects)")
+		return cd + install + " && " + exec + " nx build " + n
+	}
+	switch pm {
+	case "pnpm":
+		return cd + install + " && pnpm --filter '" + name + "...' run build"
+	case "yarn":
+		if berry {
+			return cd + install + " && yarn workspaces foreach -Rt --from " + n + " run build"
+		}
+		return cd + install + " && yarn workspace " + n + " run build"
+	case "bun":
+		return cd + install + " && bun run --filter " + n + " build"
+	}
+	d.Notes = append(d.Notes, "npm não constrói sozinho os pacotes do workspace que este usa; se o build falhar por falta deles, use o Turborepo")
+	return cd + install + " && npm run build --workspace=" + n + " --if-present"
 }

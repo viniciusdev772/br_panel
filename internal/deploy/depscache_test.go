@@ -2,10 +2,12 @@ package deploy
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/viniciusdev772/br_panel/internal/store"
 )
@@ -28,8 +30,15 @@ func TestSplitInstall(t *testing.T) {
 		{"npm cit && x", "", "npm cit && x"},
 		{"echo hi && npm ci", "", "echo hi && npm ci"},
 		{"", "", ""},
+		// a monorepo app: the install runs at the workspace root and the "cd" stays on what is left
+		{"cd ../.. && pnpm install --frozen-lockfile && pnpm --filter 'a...' run build", "pnpm install --frozen-lockfile", "cd ../.. && pnpm --filter 'a...' run build"},
+		{"cd ../.. && npm ci", "npm ci", ""},
+		{"cd ../../.. && yarn install --immutable && yarn workspace x run build", "yarn install --immutable", "cd ../../.. && yarn workspace x run build"},
+		{"cd ../.. && echo x && npm ci", "", "cd ../.. && echo x && npm ci"},
+		{"cd apps/web && npm ci", "", "cd apps/web && npm ci"},
+		{"cd /etc && npm ci", "", "cd /etc && npm ci"},
 	} {
-		s, rest := splitInstall(c.build)
+		s, _, rest := splitInstall(c.build)
 		got := ""
 		if s != nil {
 			got = s.cmd
@@ -43,26 +52,26 @@ func TestSplitInstall(t *testing.T) {
 func TestPlanDepsSkipsOnlyWhenNothingChanged(t *testing.T) {
 	const build = "npm ci && npm run build"
 	src := project(t, map[string]string{"package.json": `{"name":"x"}`, "package-lock.json": `{"v":1}`, "node_modules/a/index.js": "x"})
-	first := planDeps(build, src, "node=24", "")
+	first := planDeps(build, src, src, "node=24", "")
 	if first.skip || first.step == nil || first.hash == "" || first.rest != "npm run build" {
 		t.Fatalf("o primeiro build precisa instalar: %+v", first)
 	}
-	same := planDeps(build, src, "node=24", first.hash)
+	same := planDeps(build, src, src, "node=24", first.hash)
 	if !same.skip {
 		t.Fatalf("lockfile igual e node_modules presente deveria pular: %+v", same)
 	}
 
 	// each of these must force the install again
-	if planDeps(build, src, "node=22", first.hash).skip {
+	if planDeps(build, src, src, "node=22", first.hash).skip {
 		t.Error("outra versão do Node.js não pode pular")
 	}
-	if planDeps("npm install && npm run build", src, "node=24", first.hash).skip {
+	if planDeps("npm install && npm run build", src, src, "node=24", first.hash).skip {
 		t.Error("outro comando de instalação não pode pular")
 	}
 	if err := os.WriteFile(filepath.Join(src, "package-lock.json"), []byte(`{"v":2}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if planDeps(build, src, "node=24", first.hash).skip {
+	if planDeps(build, src, src, "node=24", first.hash).skip {
 		t.Error("lockfile alterado não pode pular")
 	}
 	if err := os.WriteFile(filepath.Join(src, "package-lock.json"), []byte(`{"v":1}`), 0o644); err != nil {
@@ -71,7 +80,7 @@ func TestPlanDepsSkipsOnlyWhenNothingChanged(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(src, "package.json"), []byte(`{"name":"y"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if planDeps(build, src, "node=24", first.hash).skip {
+	if planDeps(build, src, src, "node=24", first.hash).skip {
 		t.Error("package.json alterado não pode pular")
 	}
 	if err := os.WriteFile(filepath.Join(src, "package.json"), []byte(`{"name":"x"}`), 0o644); err != nil {
@@ -80,14 +89,14 @@ func TestPlanDepsSkipsOnlyWhenNothingChanged(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(src, "node_modules")); err != nil {
 		t.Fatal(err)
 	}
-	if planDeps(build, src, "node=24", first.hash).skip {
+	if planDeps(build, src, src, "node=24", first.hash).skip {
 		t.Error("sem node_modules não pode pular")
 	}
 }
 
 func TestPlanDepsNeedsALockfile(t *testing.T) {
 	src := project(t, map[string]string{"package.json": `{}`, "node_modules/a": "x"})
-	p := planDeps("npm install && npm run build", src, "", "qualquer")
+	p := planDeps("npm install && npm run build", src, src, "", "qualquer")
 	if p.skip || p.hash != "" {
 		t.Errorf("sem lockfile não há prova de que nada mudou: %+v", p)
 	}
@@ -95,7 +104,7 @@ func TestPlanDepsNeedsALockfile(t *testing.T) {
 
 func TestPlanDepsIgnoresUnknownBuilds(t *testing.T) {
 	src := project(t, map[string]string{"package.json": `{}`, "package-lock.json": `{}`, "node_modules/a": "x"})
-	p := planDeps("make all", src, "", "x")
+	p := planDeps("make all", src, src, "", "x")
 	if p.step != nil || p.skip || p.rest != "make all" {
 		t.Errorf("%+v", p)
 	}
@@ -183,5 +192,101 @@ func TestBusyFollowsRunningDeploys(t *testing.T) {
 	d.endRun("web", r)
 	if d.Busy() {
 		t.Error("depois do fim")
+	}
+}
+
+func TestPlanDepsForAMonorepoApp(t *testing.T) {
+	repo := project(t, map[string]string{
+		"pnpm-lock.yaml": "x", "package.json": "{}", "node_modules/.bin/x": "x",
+		"apps/web/package.json": "{}",
+	})
+	proj := filepath.Join(repo, "apps", "web")
+	const build = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter 'web...' run build"
+	first := planDeps(build, proj, repo, "node=24", "")
+	if first.skip || first.step == nil || first.hash == "" || first.rest != "cd ../.. && pnpm --filter 'web...' run build" {
+		t.Fatalf("primeiro build: %+v", first)
+	}
+	again := planDeps(build, proj, repo, "node=24", first.hash)
+	if !again.skip || again.rest != first.rest {
+		t.Fatalf("mesmo lockfile na raiz do workspace deveria pular: %+v", again)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "pnpm-lock.yaml"), []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if planDeps(build, proj, repo, "node=24", first.hash).skip {
+		t.Error("lockfile da raiz alterado não pode pular")
+	}
+	// a cd that leaves the checkout is never fingerprinted
+	esc := planDeps("cd ../../../.. && pnpm install --frozen-lockfile", proj, repo, "", "x")
+	if esc.step != nil || esc.skip || esc.rest != "cd ../../../.. && pnpm install --frozen-lockfile" {
+		t.Errorf("cd para fora do repositório: %+v", esc)
+	}
+}
+
+func TestMonorepoSiblingsDeployOneAtATime(t *testing.T) {
+	d := &Deployer{}
+	web := store.App{Name: "web", Repo: "https://github.com/o/mono", RootDir: "apps/web"}
+	api := store.App{Name: "api", Repo: "https://github.com/o/mono", RootDir: "apps/api"}
+	other := store.App{Name: "other", Repo: "https://github.com/o/outro", RootDir: "x"}
+	whole := store.App{Name: "whole", Repo: "https://github.com/o/mono"} // no folder: never held up
+	ctx := context.Background()
+
+	var log bytes.Buffer
+	rel1, ok := d.waitSiblings(ctx, web, &log)
+	if !ok {
+		t.Fatal("o primeiro entra")
+	}
+	if rel, ok := d.waitSiblings(ctx, whole, &log); !ok {
+		t.Fatal("app sem pasta não espera")
+	} else {
+		rel()
+	}
+	if rel, ok := d.waitSiblings(ctx, other, &log); !ok {
+		t.Fatal("outro repositório não espera")
+	} else {
+		rel()
+	}
+
+	got := make(chan bool, 1)
+	go func() {
+		rel2, ok := d.waitSiblings(ctx, api, &log)
+		if ok {
+			rel2()
+		}
+		got <- ok
+	}()
+	select {
+	case <-got:
+		t.Fatal("o irmão do mesmo monorepo deveria esperar")
+	case <-time.After(100 * time.Millisecond):
+	}
+	rel1()
+	select {
+	case ok := <-got:
+		if !ok {
+			t.Error("deveria entrar depois que o primeiro terminou")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("o irmão não entrou")
+	}
+
+	// cancelled while waiting: gives up without taking the slot
+	hold, _ := d.waitSiblings(ctx, web, &log)
+	cctx, cancel := context.WithCancel(ctx)
+	res := make(chan bool, 1)
+	go func() { _, ok := d.waitSiblings(cctx, api, &log); res <- ok }()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	if ok := <-res; ok {
+		t.Error("cancelado na fila não pode entrar")
+	}
+	hold()
+	if rel, ok := d.waitSiblings(ctx, api, &log); !ok {
+		t.Error("a vaga deveria estar livre")
+	} else {
+		rel()
+	}
+	if !strings.Contains(log.String(), "aguardando outro deploy do mesmo repositório") {
+		t.Errorf("o log deveria explicar a espera: %q", log.String())
 	}
 }

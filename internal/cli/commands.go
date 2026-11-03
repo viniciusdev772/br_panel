@@ -214,7 +214,7 @@ func cmdAppsShow(x *call) error {
 	}
 	rows := [][]string{
 		{"nome:", a.Name}, {"estado:", dash(a.State)}, {"status do deploy:", dash(a.Status)}, {"último deploy:", dash(a.LastDeploy)},
-		{"repositório:", a.Repo}, {"branch:", a.Branch}, {"tipo detectado:", dash(a.Kind)},
+		{"repositório:", a.Repo}, {"branch:", a.Branch}, {"pasta no repositório:", dash(a.RootDir)}, {"pastas extras:", dash(strings.ReplaceAll(a.WatchPaths, "\n", ", "))}, {"tipo detectado:", dash(a.Kind)},
 		{"build:", dash(a.BuildCmd)}, {"início:", dash(a.StartCmd)}, {"porta:", strconv.Itoa(a.Port)},
 		{"domínio:", dash(a.Domain)}, {"url:", dash(a.URL)},
 		{"instâncias:", strconv.Itoa(a.Replicas)}, {"memória (MB):", strconv.Itoa(a.MemoryMB)}, {"cpu (%):", strconv.Itoa(a.CPUPercent)},
@@ -271,6 +271,8 @@ func appForm(x *call, b AppInfo) (url.Values, error) {
 	}
 	str("repo", "repo", b.Repo)
 	str("branch", "branch", b.Branch)
+	str("root_dir", "root", b.RootDir)
+	str("watch_paths", "watch", b.WatchPaths)
 	str("domain", "domain", b.Domain)
 	str("build_cmd", "build", b.BuildCmd)
 	str("start_cmd", "start", b.StartCmd)

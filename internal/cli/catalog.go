@@ -56,6 +56,8 @@ var globalFlags = []Flag{
 // appFlags are shared by `apps create` and `apps set`.
 var appFlags = []Flag{
 	{"branch", "BRANCH", "branch do Git (padrão main)"},
+	{"root", "PASTA", "monorepo: pasta da aplicação dentro do repositório, como apps/web (vazio = repositório inteiro)"},
+	{"watch", "PADROES", "monorepo: pastas extras que também publicam a app, separadas por vírgula (! no começo ignora), ex.: 'packages/ui/**,!**/*.md'"},
 	{"domain", "DOMINIO", "domínio do site; o painel configura Nginx e SSL"},
 	{"port", "PORTA", "porta do app (vazio = o painel escolhe)"},
 	{"build", "COMANDO", "comando de build (vazio = detectar sozinho)"},
@@ -99,10 +101,11 @@ var Catalog = []Cmd{
 			Flag{"timeout", "SEGUNDOS", "com --wait: tempo máximo (padrão 600)"}),
 		Examples: []string{
 			"brpanel apps create --repo https://github.com/exemplo/loja --name loja --domain loja.example.com",
+			"brpanel apps create --repo https://github.com/exemplo/mono --name mono-web --root apps/web --watch 'packages/ui/**' --auto-deploy",
 			"brpanel apps create --repo https://github.com/exemplo/api --env NODE_ENV=production --env 'DATABASE_URL=${{pg.DATABASE_URL}}'"}},
 	{Group: "Aplicações", Name: "apps set", Args: "NOME", Min: 1,
 		Summary: "Altera a configuração. Só o que você passar muda. Depois rode `apps deploy` para aplicar.",
-		Flags:   with(appFlags, Flag{"repo", "URL", "novo repositório Git"}), Examples: []string{"brpanel apps set loja --replicas 2 --memory-mb 512", "brpanel apps set loja --no-auto-deploy"}},
+		Flags:   with(appFlags, Flag{"repo", "URL", "novo repositório Git"}), Examples: []string{"brpanel apps set loja --replicas 2 --memory-mb 512", "brpanel apps set loja --no-auto-deploy", "brpanel apps set mono-web --root apps/web --watch 'packages/ui/**,!**/*.md'"}},
 	{Group: "Aplicações", Name: "apps deploy", Aliases: []string{"deploy", "redeploy"}, Args: "NOME", Min: 1,
 		Summary: "Baixa o código, faz o build e reinicia a app. Roda em segundo plano; use --wait para esperar.",
 		Flags: []Flag{{"wait", "", "espera o deploy terminar e diz se deu certo"}, {"timeout", "SEGUNDOS", "com --wait: tempo máximo (padrão 600)"},

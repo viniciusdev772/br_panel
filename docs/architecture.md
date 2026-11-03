@@ -17,6 +17,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `internal/monitor` | Amostrador de CPU/RAM por cgroup v2 → SQLite |
 | `internal/sysinfo` | Leitura de cgroup v2 e `/proc` (RAM, carga, disco, uptime) |
 | `internal/cloudflare` | Registro DNS A do domínio da app via API Token da Cloudflare (só biblioteca padrão) |
+| `internal/monorepo` | Monorepo: quais apps um push afeta (`Affected`, glob com `**` e `!`, arquivos globais da raiz) e a lista de arquivos alterados de um push (`ChangedPaths`); só biblioteca padrão |
 | `internal/buildcache` | Cache de pacotes dos builds em `<data>/cache` (npm, pnpm, Yarn, Bun, pip, Go, Cargo, Composer): variáveis de ambiente, tamanhos, limpeza por idade e total (só biblioteca padrão) |
 | `internal/nodeenv` | Instala o Node.js com o nvm (versão fixa) em `<data>/nvm` e liga node/npm/npx em `/usr/local/bin` |
 | `internal/githubapp` | Assinatura de webhooks, JWT de App, token de instalação por repositório, criação do App pelo fluxo de manifest |
@@ -82,6 +83,16 @@ Antes de escrever as units, `prepareMounts` valida as linhas de novo, cria as pa
 
 Backups de volume (mesmo padrão dos bancos): **agora** ou agenda (desligado/diário/semanal, goroutine `RunVolumeScheduler` no `server.Run`) escrevem `<data>/backups/volumes/<app>/<volume>-AAAA-MM-DD-hhmmss.tar.gz` — os 7 mais recentes de cada volume permanecem. Uma `restauração` descompacta em uma pasta temporária, recusa entradas que tentam sair da pasta (`../`, caminhos absolutos, links duros, dispositivos e um link plantado pelo próprio app), para as instâncias, troca a pasta e as inicia de novo.
 
+### Monorepo (`RootDir`, `WatchPaths`)
+
+Vários apps do painel podem apontar para o mesmo repositório; cada um tem `store.App.RootDir` (pasta dentro do repositório, validada por `validate.RootDir`: relativa, sem `..`, sem `.git`, só `[A-Za-z0-9._-]` e barras) e `WatchPaths` (padrões extras, `validate.WatchPaths`). Vazio mantém o comportamento de sempre.
+
+**Deploy.** Cada app clona o repositório inteiro (`--depth 1`) em `apps/<app>/src`; depois do checkout, `checkProjectDir` confirma que a pasta existe, é um diretório e que **nenhum trecho do caminho é link simbólico** (o repositório não é confiável e o painel age como root ao criar pontos de montagem). `ProjectDir(a)` (`src/<RootDir>`) é o diretório de trabalho do build (`sh -c`), da detecção (`detect.DetectApp`), das montagens de armazenamento (destinos relativos) e do `WorkingDirectory=` da unit. Os deploys de apps com `RootDir` do mesmo repositório rodam **um de cada vez** (`waitSiblings`, na fila; o limite de tempo só conta depois que entram), para um push que toca vários não fazer N clones e instalações ao mesmo tempo.
+
+**Detecção** (`detect/workspaces.go`, `detect.go`). `Workspaces(repo)` lê, sem executar nada, `workspaces` do package.json (lista ou `{packages}`), `pnpm-workspace.yaml` (globs e `!`), `go.work` e `[workspace]` do Cargo; sem workspaces, procura pastas com manifesto em até dois níveis (`apps/x`, `backend`). Cada candidata traz caminho, nome, tipo e `deployable` (bibliotecas ficam separadas); links simbólicos são ignorados. Para um app Node dentro de um workspace, o lockfile vem da raiz do workspace e o build é `cd ../.. && <install> && <build filtrado>`: pnpm `--filter '<nome>...' run build`, npm `--workspace='<nome>' --if-present`, Yarn 1 `workspace`, Yarn 2+ `workspaces foreach -Rt --from` (com `yarn install --immutable`), Bun `--filter`, e `turbo run build --filter='<nome>...'` ou `nx build` quando há `turbo.json`/`nx.json`. O nome só entra no comando se casar com a sintaxe de nomes do npm e vai entre aspas simples. Membro de workspace Cargo inicia por `../../target/release/<bin>`. A pulada de instalação (`depscache.go`) entende o `cd ../..` e calcula o fingerprint no lockfile da raiz do workspace, sem sair do checkout.
+
+**Webhook** (`server/webhook.go`). Une `added`, `modified` e `removed` de todos os commits do push (`monorepo.ChangedPaths`) e, para cada app ligado ao repositório e à branch, chama `monorepo.Affected`: sem pasta e sem padrões o app é o repositório inteiro e todo push conta; com pasta contam os arquivos dela e os arquivos globais da raiz (package.json, lockfiles, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig*.json`, `go.work`, `Cargo.toml`…); depois os `WatchPaths` são avaliados em ordem e **o último que casa vence** (`!` exclui), como no Coolify. Na dúvida deploya tudo: push forçado ou de branch nova (`forced`/`created`), sem commits, só commits sem arquivos ou com 2048 commits (o limite do payload). A resposta diz quantos deploys foram ignorados.
+
 ### Cache de builds (`buildcache`, `deploy`)
 
 `<data>/cache` é uma pasta só, do usuário das apps, para os pacotes de **todos** os builds: `buildEnv(a, useCache)` acrescenta `npm_config_cache`, `npm_config_store_dir` (pnpm), `YARN_CACHE_FOLDER`, `BUN_INSTALL_CACHE_DIR`, `XDG_CACHE_HOME` (pip e build do Go), `GOMODCACHE`, `CARGO_HOME` e `COMPOSER_CACHE_DIR` antes das variáveis da própria app (que podem sobrescrevê-las). Só o build recebe essas variáveis; o serviço em execução, não. Se a pasta não puder ser criada, o deploy avisa no log e as ferramentas usam o cache do `HOME` da app, como antes.
@@ -140,6 +151,7 @@ O checkout `<data>/apps/<app>/src` é reaproveitado (`git fetch --depth 1` + `re
 | `POST /databases/{name}/{start\|stop\|restart\|backup\|restore\|backup-delete\|schedule\|regenerate\|public\|delete}` | sessão+CSRF | Ações |
 | `POST /apps/{name}/env` | sessão+CSRF | Salvar variáveis (valida referências a bancos) |
 | `GET/POST /settings` | sessão (+CSRF) | Configurações |
+| `POST /apps/detect` | sessão + CSRF | Clona e analisa o repositório; aceita `root_dir` e devolve também as `apps` do monorepo |
 | `GET /api/cache` | sessão | JSON do cache de builds (total e por ferramenta) |
 | `POST /cache/prune`, `POST /cache/clear` | sessão + CSRF | Limpa os itens sem uso há N dias (`days`, padrão 30) ou esvazia o cache; recusam com deploy em andamento |
 | `GET /github` | sessão | Criação guiada do GitHub App e guia manual |
