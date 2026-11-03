@@ -19,6 +19,7 @@ import (
 
 	"github.com/viniciusdev772/br_panel/internal/auth"
 	"github.com/viniciusdev772/br_panel/internal/autoscale"
+	"github.com/viniciusdev772/br_panel/internal/buildcache"
 	"github.com/viniciusdev772/br_panel/internal/cli"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/deploy"
@@ -203,6 +204,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /setup", s.handleSetup)
 	mux.HandleFunc("GET /settings", s.protected(s.handleSettingsForm))
 	mux.HandleFunc("POST /settings", s.protected(s.handleSettings))
+	mux.HandleFunc("GET /api/cache", s.protected(s.handleAPICache))
+	mux.HandleFunc("POST /cache/prune", s.protected(s.handleCachePrune))
+	mux.HandleFunc("POST /cache/clear", s.protected(s.handleCacheClear))
 	mux.HandleFunc("POST /webhooks/github", s.handleGitHubWebhook)
 	mux.HandleFunc("GET /github", s.protected(s.handleGitHub))
 	mux.HandleFunc("POST /github/domain", s.protected(s.handleGitHubDomain))
@@ -290,6 +294,9 @@ type page struct {
 	GH      ghStatus
 
 	Bdg badge
+
+	CacheItems []buildcache.Item // build cache card on the settings page
+	CacheTotal int64
 
 	Cards  []card
 	Edges  []edge

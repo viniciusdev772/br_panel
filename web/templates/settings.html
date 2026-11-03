@@ -104,4 +104,25 @@
     <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Setup}}Começar a usar{{else}}Salvar{{end}}</span></button>
   </div>
 </form>
+
+{{if and (not .Setup) .CacheItems}}
+<h2 class="mdc-typography--subtitle1 section-title" id="cache">Cache de builds</h2>
+<div class="mdc-card"><div class="card-body">
+  <p>Os pacotes baixados pelos builds (npm, pnpm, Yarn, pip, Go, Cargo, Composer) ficam em uma pasta só, compartilhada por todas as aplicações. Cada pacote é baixado uma vez.</p>
+  <p><strong>Ocupa {{bytes .CacheTotal}}</strong></p>
+  <div class="checks">
+    {{range .CacheItems}}<div class="check"><span>{{.Label}}</span><span class="muted">{{bytes .Bytes}}</span></div>{{end}}
+  </div>
+  <div class="actions actions--start">
+    <form method="post" action="/cache/prune" data-confirm="Apagar os pacotes que nenhum build usa há mais de 30 dias?">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="days" value="30">
+      <button class="mdc-button mdc-button--outlined" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">cleaning_services</i><span class="mdc-button__label">Limpar itens antigos (30 dias)</span></button>
+    </form>
+    <form method="post" action="/cache/clear" data-confirm="Esvaziar o cache? O próximo build de cada aplicação baixa tudo de novo.">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="mdc-button mdc-button--outlined mdc-button--danger" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">delete_sweep</i><span class="mdc-button__label">Esvaziar tudo</span></button>
+    </form>
+  </div>
+</div></div>
+{{end}}
 {{end}}

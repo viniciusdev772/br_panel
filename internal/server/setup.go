@@ -196,8 +196,10 @@ func viewSettings(set settings.Settings) settings.Settings {
 
 func (s *Server) handleSettingsForm(w http.ResponseWriter, r *http.Request) {
 	cur := s.settings()
+	items := s.dep.Cache.Items()
 	s.render(w, r, "settings", page{Title: "Configurações", Set: viewSettings(cur), Checks: settings.CheckSystem(),
-		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Form: map[string]string{"username": cur.AdminUser}})
+		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Form: map[string]string{"username": cur.AdminUser},
+		CacheItems: items, CacheTotal: s.dep.Cache.Total()})
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {

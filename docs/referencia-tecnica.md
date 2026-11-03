@@ -89,6 +89,14 @@ Um `Procfile` (linha `web:`) define o comando de início, e um `brpanel.json` na
 (`{"build": "...", "start": "...", "port": 8080}`) sobrescreve tudo. Se faltar algum programa no servidor
 (node, go, python3…), o painel avisa com a sugestão de instalação antes de tentar compilar.
 
+## Cache de builds e deploys mais rápidos
+
+- **Código e dependências ficam entre deploys.** O código de cada app fica em `<data>/apps/<app>/src` e é atualizado com `git fetch --depth 1` e `reset --hard`: só a diferença é baixada, e `node_modules`, `.venv`, `target/` e `.next` continuam lá para builds incrementais.
+- **Cache de pacotes compartilhado.** `<data>/cache` (dono: usuário das apps) guarda os pacotes de npm, pnpm, Yarn, Bun, pip, Go, Cargo e Composer para todas as apps; o build recebe `npm_config_cache`, `npm_config_store_dir`, `YARN_CACHE_FOLDER`, `BUN_INSTALL_CACHE_DIR`, `XDG_CACHE_HOME`, `GOMODCACHE`, `CARGO_HOME` e `COMPOSER_CACHE_DIR`. As variáveis da própria app vêm depois e podem sobrescrever. O serviço em execução não recebe essas variáveis. As apps compartilham o mesmo usuário, então um build pode ler o que outro baixou (os gerenciadores conferem a integridade dos pacotes); se isso não serve para você, defina `npm_config_cache` etc. nas variáveis da app.
+- **Instalação pulada.** Se o comando de build começa com `npm ci`, `npm install`, `pnpm install --frozen-lockfile`, `yarn install --frozen-lockfile`, `bun install` ou `composer install --no-dev --optimize-autoloader` (o que a detecção escreve), e o manifesto, o lockfile, a versão do Node.js e as variáveis dos gerenciadores (`NODE_ENV`, `NPM_CONFIG_*`…) são os do último build que terminou bem, e a pasta instalada existe, o painel pula a instalação e roda o resto do comando. O log diz `dependências iguais às do último deploy: pulando "…"`. Sem lockfile nunca pula; comandos escritos de outro jeito (`npm ci --ignore-scripts`, `;`, `||`) também não.
+- **Refazer do zero.** Botão **Refazer do zero** na página da app ou `brpanel apps deploy NOME --clean`: apaga o código baixado, as dependências instaladas e os caches privados da app antes do build. Volumes e armazenamento não são tocados, nem o cache compartilhado. O site pode oscilar durante o build.
+- **Ver e limpar o cache.** **Configurações > Cache de builds** mostra o tamanho por ferramenta, com **Limpar itens antigos** (arquivos sem uso há 30 dias; o último uso é o maior entre modificação e acesso) e **Esvaziar tudo**. Na CLI: `brpanel cache status`, `brpanel cache prune --days 7`, `brpanel cache clear --yes`; `brpanel status` mostra o total. A limpeza recusa enquanto há um deploy em andamento. Apagar demais só custa baixar de novo.
+
 ## Tráfego alto: instâncias e limites
 
 Na etapa **Desempenho** do formulário da aplicação:

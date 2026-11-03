@@ -24,6 +24,7 @@
     </div>
     <div class="head-actions">
       {{template "action" dict "name" .App.Name "action" "deploy" "csrf" .CSRF "icon" "rocket_launch" "label" "Deploy" "raised" true "disabled" .App.Deploying}}
+      {{template "action" dict "name" .App.Name "action" "deploy-clean" "csrf" .CSRF "icon" "cleaning_services" "label" "Refazer do zero" "disabled" .App.Deploying "confirm" "Apagar o código baixado, as dependências instaladas e o cache deste app e refazer tudo? Demora mais que um deploy normal e o site pode oscilar durante o build. Os arquivos do Armazenamento não são apagados."}}
     </div>
   </div>
 

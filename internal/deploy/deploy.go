@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/viniciusdev772/br_panel/internal/buildcache"
 	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/execx"
@@ -87,6 +88,7 @@ type Deployer struct {
 	Settings func() settings.Settings
 	GitHub   func() *githubapp.Client
 	Node     *nodeenv.Installer // installs Node.js (nvm) when a project needs it; may be nil
+	Cache    *buildcache.Cache  // package cache shared by every build; nil leaves the tools on their own caches
 
 	pendMu  sync.Mutex
 	pending map[string]bool
@@ -100,7 +102,7 @@ type Deployer struct {
 
 // New returns a Deployer rooted at dataDir.
 func New(st *store.Store, dataDir string, set func() settings.Settings, gh func() *githubapp.Client) *Deployer {
-	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh,
+	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh, Cache: buildcache.New(dataDir),
 		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}}
 }
 
@@ -188,7 +190,7 @@ func (d *Deployer) envPairs(a store.App) ([][2]string, error) {
 	return kv, nil
 }
 
-func (d *Deployer) buildEnv(a store.App) ([]string, error) {
+func (d *Deployer) buildEnv(a store.App, useCache bool) ([]string, error) {
 	kv, err := d.envPairs(a)
 	if err != nil {
 		return nil, err
@@ -205,6 +207,9 @@ func (d *Deployer) buildEnv(a store.App) ([]string, error) {
 		env = append(env, fmt.Sprintf("PORT=%d", a.Port))
 	}
 	env = append(env, "HOST="+ListenHost(a))
+	if useCache {
+		env = append(env, d.Cache.Env()...)
+	}
 	for _, p := range kv {
 		env = append(env, p[0]+"="+p[1])
 	}
@@ -252,7 +257,21 @@ func (d *Deployer) cancelRun(name string) bool {
 }
 
 // Start launches a deploy in the background; false if one is already running.
-func (d *Deployer) Start(name, reason string) bool {
+func (d *Deployer) Start(name, reason string) bool { return d.start(name, reason, false) }
+
+// StartClean is Start, but first throws away the downloaded code, the installed dependencies and the
+// app's private caches, so everything is rebuilt from scratch. The shared package cache stays
+// (Cache.Clear empties it); a push received meanwhile triggers a normal deploy.
+func (d *Deployer) StartClean(name, reason string) bool { return d.start(name, reason, true) }
+
+// Busy reports whether any deploy is running: the shared cache must not be pruned meanwhile.
+func (d *Deployer) Busy() bool {
+	d.runMu.Lock()
+	defer d.runMu.Unlock()
+	return len(d.runs) > 0
+}
+
+func (d *Deployer) start(name, reason string, clean bool) bool {
 	a, ok := d.Store.BeginDeploy(name)
 	if !ok {
 		return false
@@ -281,7 +300,7 @@ func (d *Deployer) Start(name, reason string) bool {
 		defer lf.Close()
 		fmt.Fprintf(lf, "== deploy de %s iniciado em %s (%s) ==\n", name, time.Now().Format(time.RFC3339), reason)
 		d.Store.AddEvent("deploy", name, "Deploy iniciado ("+reason+")")
-		if err := d.deploy(ctx, a, lf); err != nil {
+		if err := d.deploy(ctx, a, lf, clean); err != nil {
 			if errors.Is(ctx.Err(), context.Canceled) { // the app is being deleted: nothing left to record
 				fmt.Fprintln(lf, "\n== CANCELADO: a aplicação foi excluída ==")
 				return
@@ -298,9 +317,17 @@ func (d *Deployer) Start(name, reason string) bool {
 	return true
 }
 
-func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error {
+func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean bool) error {
 	a.Replicas = max(a.Replicas, 1)
-	env, err := d.buildEnv(a)
+	useCache := false
+	if d.Cache != nil {
+		if err := d.Cache.Ensure(d.Settings().AppUser); err != nil {
+			fmt.Fprintf(log, "AVISO: não consegui preparar o cache compartilhado (%v); as ferramentas usarão o cache do próprio app\n", err)
+		} else {
+			useCache = true
+		}
+	}
+	env, err := d.buildEnv(a, useCache)
 	if err != nil {
 		return err
 	}
@@ -315,6 +342,9 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 		}
 	}
 
+	if clean {
+		d.cleanApp(a.Name, log)
+	}
 	tpl, fromTemplate := templates.ForRepo(a.Repo)
 	switch {
 	case strings.HasPrefix(a.Repo, templates.RefPrefix) && !fromTemplate:
@@ -338,14 +368,26 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer) error
 	if a, err2 = d.autoConfigure(ctx, a, src, log); err2 != nil {
 		return err2
 	}
-	if env, err = d.buildEnv(a); err != nil {
+	if env, err = d.buildEnv(a, useCache); err != nil {
 		return err
 	}
 
-	if a.BuildCmd != "" {
-		if err := d.run(ctx, log, src, env, "/bin/sh", "-c", a.BuildCmd); err != nil {
+	build := a.BuildCmd
+	plan := planDeps(build, src, depsExtra(d.Settings().NodeVersion, env), d.savedDeps(a.Name))
+	switch {
+	case plan.skip:
+		fmt.Fprintf(log, "dependências iguais às do último deploy: pulando \"%s\"\n", plan.step.cmd)
+		build = plan.rest
+	case plan.step != nil:
+		_ = os.Remove(d.depsFile(a.Name)) // a build that fails halfway must not be trusted next time
+	}
+	if build != "" {
+		if err := d.run(ctx, log, src, env, "/bin/sh", "-c", build); err != nil {
 			return err
 		}
+	}
+	if plan.step != nil && !plan.skip && plan.hash != "" {
+		_ = os.WriteFile(d.depsFile(a.Name), []byte(plan.hash+"\n"), 0o600)
 	}
 
 	// Service definition: one unit and one environment file per instance.
@@ -402,6 +444,22 @@ func (d *Deployer) fetchGit(ctx context.Context, a store.App, appDir, src string
 		return err
 	}
 	return d.run(ctx, log, src, gitEnv, "git", "reset", "--hard", "FETCH_HEAD")
+}
+
+// privateCaches are the folders the build tools used under the app's HOME before the shared cache
+// existed (and still use when it cannot be written).
+var privateCaches = []string{".npm", ".cache", ".cargo", "go", ".yarn", ".bun", ".composer", ".pnpm-store", filepath.Join(".local", "share", "pnpm")}
+
+// cleanApp throws away the downloaded code (with node_modules, .venv, target/... inside it), the
+// fingerprint of the installed dependencies and the app's private caches, in the background.
+func (d *Deployer) cleanApp(name string, log io.Writer) {
+	fmt.Fprintln(log, "limpando o código baixado, as dependências e o cache do app (build do zero)")
+	dirs := []string{d.Paths.SrcDir(name)}
+	for _, p := range privateCaches {
+		dirs = append(dirs, filepath.Join(d.Paths.AppDir(name), p))
+	}
+	d.discard(name, dirs...)
+	_ = os.Remove(d.depsFile(name))
 }
 
 // writeTemplateFiles lays the template's own files over the project folder. They are rewritten on

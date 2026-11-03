@@ -6,15 +6,15 @@ Direção das dependências (só para a direita/baixo; nunca o contrário):
 
 ```
 cmd/brpanel → server, store, cli      cmd/brpanel-cli → cli (só a CLI; compila em Windows/macOS)
-server      → auth, autoscale, cli, templates, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, volume, web
-deploy      → templates, cloudflare, nodeenv, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate, volume
+server      → auth, autoscale, buildcache, cli, templates, cloudflare, nodeenv, dbengine, deploy, detect, githubapp, monitor, nginx, settings, store, sysinfo, systemd, validate, volume, web
+deploy      → templates, buildcache, cloudflare, nodeenv, dbengine, detect, execx, githubapp, nginx, settings, store, systemd, validate, volume
 dbengine    → execx, settings, store, systemd, validate
 monitor     → store, sysinfo, systemd
 autoscale   → store
 nginx       → execx, settings          store → settings → cloudflare, githubapp, validate
 systemd     → sysinfo                  detect → validate
 volume      → biblioteca padrão
-folhas      : auth, cli, templates, cloudflare, nodeenv, execx, githubapp, sysinfo, validate, volume
+folhas      : auth, buildcache, cli, templates, cloudflare, nodeenv, execx, githubapp, sysinfo, validate, volume
 ```
 
 - `server` é a única camada HTTP; não coloque regra de negócio nela. Se um handler precisa de mais que validar → chamar → renderizar, mova a lógica para o pacote de domínio.

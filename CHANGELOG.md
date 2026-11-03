@@ -4,12 +4,17 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- **Cache de builds compartilhado** em `<data>/cache`: npm, pnpm, Yarn, Bun, pip, Go, Cargo e Composer baixam cada pacote uma vez para todas as aplicações (antes cada app tinha o seu cache). As ferramentas são apontadas para ele por variáveis de ambiente só durante o build; as variáveis da própria app podem sobrescrevê-las.
+- **Instalação de dependências pulada** quando nada mudou: se o build começa com `npm ci`, `npm install`, `pnpm install --frozen-lockfile`, `yarn install --frozen-lockfile`, `bun install` ou `composer install`, e o manifesto, o lockfile, a versão do Node.js e as variáveis dos gerenciadores são os mesmos do último build que passou (e a pasta instalada existe), o painel pula a instalação e roda o resto. Sem lockfile, nunca pula.
+- **Deploy do zero**: botão **Refazer do zero** na página da aplicação e `brpanel apps deploy NOME --clean`. Apaga o código baixado, as dependências e o cache privado da app antes do build; volumes e armazenamento ficam.
+- **Tamanho do cache e limpeza**: card **Cache de builds** em Configurações (tamanho por ferramenta, **Limpar itens antigos** e **Esvaziar tudo**), `brpanel cache status|prune|clear`, linha de cache em `brpanel status` e rotas `GET /api/cache`, `POST /cache/prune` e `POST /cache/clear`. A limpeza recusa enquanto há deploy em andamento.
+
+- `scripts/release.sh vX.Y.Z`: publica a release à mão, sem GitHub Actions.
+
 ### Alterado
 - README reescrito para quem não é técnico, com imagens do painel; o texto técnico anterior (com a tabela de downloads dos binários) está em `docs/referencia-tecnica.md`. Novo guia `docs/funcionalidades.md`.
 - O script de capturas (`make screenshots`) roda em cerca de 40 s: bancos sobem em paralelo, esperas por condição no lugar de pausas fixas, e telas de bancos não instalados são puladas.
-
-### Adicionado
-- `scripts/release.sh vX.Y.Z`: publica a release à mão, sem GitHub Actions.
 
 ## [0.3.1] - 2026-11-03
 

@@ -60,6 +60,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"host":   sysinfo.ReadHost(s.cfg.DataDir, runtime.NumCPU()),
 		"res":    s.overview(),
+		"cache":  s.dep.Cache.Total(),
 		"events": s.store.Events(30),
 	})
 }
