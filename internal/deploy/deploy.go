@@ -457,6 +457,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean
 	if a, err2 = d.autoConfigure(ctx, a, src, log); err2 != nil {
 		return err2
 	}
+	d.checkRepo(a, src, log)
 	if env, err = d.buildEnv(a, useCache); err != nil {
 		return err
 	}

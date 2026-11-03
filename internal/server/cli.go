@@ -75,6 +75,18 @@ func (s *Server) appInfo(a store.App) cli.AppInfo {
 	if a.Domain != "" {
 		info.URL = "https://" + a.Domain
 	}
+	scan := s.dep.RepoScan(a.Name)
+	info.Monorepo = scan.Monorepo
+	for _, c := range scan.Apps {
+		info.MonorepoApps = append(info.MonorepoApps, c.Path)
+	}
+	missing, optional := s.dep.MissingEnv(a)
+	for _, v := range missing {
+		info.MissingEnv = append(info.MissingEnv, v.Name)
+	}
+	for _, v := range optional {
+		info.OptionalEnv = append(info.OptionalEnv, v.Name)
+	}
 	if !a.LastDeploy.IsZero() {
 		info.LastDeploy = a.LastDeploy.Format(time.RFC3339)
 	}

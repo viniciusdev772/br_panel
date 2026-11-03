@@ -9,7 +9,7 @@ O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações co
 | `cmd/brpanel` | Flags (`-addr`, `-data`), diretórios, abertura do banco, ciclo de vida |
 | `internal/server` | Camada HTTP: rotas, templates, setup inicial, login, apps, monitoramento, webhook |
 | `internal/deploy` | Pipeline de deploy: git → detecção → build → unit → Nginx/SSL; layout em disco; escolha de porta |
-| `internal/detect` | Detecta Node, Go, Rust, Python, Ruby, PHP e estáticos; lê `Procfile` e `brpanel.json` |
+| `internal/detect` | Detecta Node, Go, Rust, Python, Ruby, PHP e estáticos; lê `Procfile` e `brpanel.json`; `Classify` (monorepo declarado ou projeto na raiz com subprojetos) e `EnvVars` (variáveis lidas pelo código e pelo `.env.example`) |
 | `internal/dbengine` | Bancos de dados: motores (Postgres, MySQL/MariaDB, MongoDB, Redis), provisionamento, backups, dados, referências `${{db.VAR}}` |
 | `internal/volume` | Volumes das aplicações: `tar.gz` (criar e extrair) e arquivos de backup, sem programa externo |
 | `internal/nginx` | Vhosts reverse-proxy, `nginx -t` com rollback, certbot (webroot) |

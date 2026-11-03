@@ -566,7 +566,9 @@
         parent.appendChild(b);
       };
       var p = document.createElement('p');
-      p.textContent = 'Este repositório tem vários projetos. Escolha o que esta aplicação vai publicar:';
+      p.textContent = d.kind && !cur
+        ? 'Este repositório é um monorepo: a raiz é um projeto e há outros em pastas. Sem escolher nada, esta aplicação publica a raiz; para publicar uma pasta, escolha-a:'
+        : 'Este repositório tem vários projetos. Escolha o que esta aplicação vai publicar:';
       monoBox.appendChild(p);
       var list = document.createElement('div');
       list.className = 'mono-list';
@@ -610,6 +612,12 @@
         (d.notes || []).forEach(function (n) { html += '<br>' + esc(n); });
         var warn = false;
         var needsNode = false;
+        var envReq = (d.env_vars || []).filter(function (v) { return v.required; });
+        if (envReq.length) {
+          warn = true;
+          html += '<br>O projeto usa variáveis de ambiente que você precisa preencher na aba Variáveis depois de criar a aplicação: ' +
+            envReq.map(function (v) { return '<code>' + esc(v.name) + '</code>'; }).join(', ') + '.';
+        }
         if (d.missing && d.missing.length) {
           warn = true;
           html += '<br>Falta instalar no servidor: ' + d.missing.map(esc).join(', ') + '.';

@@ -24,6 +24,12 @@ type AppInfo struct {
 	Deploying  bool   `json:"deploying"`
 	LastDeploy string `json:"last_deploy,omitempty"`
 
+	// From the last deploy's look at the repository.
+	Monorepo     bool     `json:"monorepo"`                // the repository holds more than one project
+	MonorepoApps []string `json:"monorepo_apps,omitempty"` // their folders
+	MissingEnv   []string `json:"missing_env,omitempty"`   // variables the code needs and the app does not set
+	OptionalEnv  []string `json:"optional_env,omitempty"`  // read with a default: may be left out
+
 	Domains     []DomainInfo `json:"extra_domains"`
 	AuthUsers   []string     `json:"auth_users"`
 	Maintenance bool         `json:"maintenance"`

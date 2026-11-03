@@ -42,6 +42,12 @@ Cada projeto tem a sua página: estado atual, histórico de publicações, vari�
 
 Alguns repositórios guardam mais de um projeto, como um site, uma API e bibliotecas em pastas separadas. O painel publica cada um como uma aplicação própria: você escolhe a pasta, e o botão de descoberta lista as que parecem aplicações. Cada aplicação tem o seu endereço, as suas variáveis e os seus gráficos.
 
+O painel também reconhece o caso em que o projeto principal fica na raiz e há outros em pastas (por exemplo, uma API na raiz e `web/`, `video/` e `android/` ao lado). Ele avisa que o repositório é um monorepo, na tela de descoberta, na página da aplicação e no registro do deploy, e mostra as pastas para você criar uma aplicação para cada uma.
+
+## Variáveis que faltam
+
+A cada publicação o painel lê, sem executar nada, o `.env.example` e o código (`process.env.NOME` em JavaScript e TypeScript, `os.environ`/`os.getenv` em Python, `os.Getenv` em Go) e compara com as variáveis da aplicação. O que o código lê sem valor padrão e você não definiu aparece como **obrigatório**: num aviso no topo da página da aplicação, na aba Variáveis, no registro do deploy e em `brpanel apps show`. O que tem valor padrão aparece como opcional. Ao salvar as variáveis, o aviso some sem nova publicação. É uma leitura do texto do código, então pode errar para mais ou para menos; trate como um alerta, não como garantia.
+
 Quando você envia uma mudança ao GitHub, só as aplicações afetadas são publicadas de novo. Uma mudança em `apps/web` publica a aplicação do site e deixa a API quieta. Mudanças em arquivos que todos usam, como o arquivo de versões das dependências, publicam todas. Para uma aplicação que usa um pacote de outra pasta, você lista essa pasta nos caminhos extras, e pode pedir para ignorar arquivos como os de documentação.
 
 ## Publicações mais rápidas

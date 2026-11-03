@@ -17,7 +17,10 @@ type detectResponse struct {
 	Root    string             `json:"root,omitempty"` // folder the detection ran in (monorepo)
 	Apps    []detect.Candidate `json:"apps,omitempty"` // apps found when the repository is a monorepo
 	Missing []string           `json:"missing,omitempty"`
-	Error   string             `json:"error,omitempty"`
+	// Monorepo is true for a root project that also holds other projects (the list is in Apps).
+	Monorepo bool            `json:"monorepo,omitempty"`
+	Env      []detect.EnvVar `json:"env_vars,omitempty"` // variables the code reads: set them after creating the app
+	Error    string          `json:"error,omitempty"`
 }
 
 // handleDetect powers the "Detectar automaticamente" button of the new-app form.
@@ -58,7 +61,7 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 	case res.Det == nil:
 		reply(http.StatusOK, detectResponse{Name: name, Root: root, Apps: res.Apps, Error: "não reconheci o tipo do projeto; informe os comandos manualmente"})
 	default:
-		reply(http.StatusOK, detectResponse{Detection: res.Det, Name: name, Root: root, Apps: res.Apps, Missing: res.Missing})
+		reply(http.StatusOK, detectResponse{Detection: res.Det, Name: name, Root: root, Apps: res.Apps, Missing: res.Missing, Monorepo: res.Monorepo, Env: res.Env})
 	}
 }
 

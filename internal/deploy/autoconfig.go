@@ -202,6 +202,9 @@ type RepoDetection struct {
 	Det     *detect.Detection  // nil for projects it does not recognise
 	Missing []string           // programs the suggested commands need that this server lacks
 	Apps    []detect.Candidate // the apps of a monorepo (empty for a single project)
+	// Monorepo is true when the repository holds more than one project, even if the root is one too.
+	Monorepo bool
+	Env      []detect.EnvVar // variables the project reads, to be set once the app exists
 }
 
 // DetectRepo makes a shallow, temporary clone of repo@branch and reports what detect finds in
@@ -241,7 +244,9 @@ func (d *Deployer) DetectRepo(ctx context.Context, repo, branch, root string) (R
 			return res, fmt.Errorf("o diretório raiz %q não existe neste repositório (branch %s)", root, branch)
 		}
 	}
-	res.Apps = detect.Workspaces(src)
+	l := detect.Classify(src)
+	res.Apps, res.Monorepo = l.Apps, l.Monorepo
+	res.Env = detect.Undefined(detect.EnvVars(filepath.Join(src, filepath.FromSlash(root)), src), nil)
 	if res.Det = detect.DetectApp(src, root); res.Det != nil {
 		res.Missing = detect.MissingRequirements(res.Det, exec.LookPath)
 	}

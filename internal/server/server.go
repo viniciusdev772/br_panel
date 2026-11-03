@@ -23,6 +23,7 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/cli"
 	"github.com/viniciusdev772/br_panel/internal/dbengine"
 	"github.com/viniciusdev772/br_panel/internal/deploy"
+	"github.com/viniciusdev772/br_panel/internal/detect"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/monitor"
 	"github.com/viniciusdev772/br_panel/internal/nodeenv"
@@ -317,6 +318,10 @@ type page struct {
 	Busy           string
 	UsedBy         []string
 	VarGroups      []varGroup
+
+	EnvMissing  []detect.EnvVar // variables the code reads and the app does not set (app page)
+	EnvOptional []detect.EnvVar
+	Mono        deploy.RepoScan // what the last deploy saw in the repository
 
 	Mounts         []store.Mount
 	VolumeBackups  []volume.Info

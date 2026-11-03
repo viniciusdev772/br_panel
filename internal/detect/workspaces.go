@@ -26,7 +26,7 @@ const (
 )
 
 // manifests whose presence makes a folder worth offering when no workspace file lists the apps.
-var manifests = []string{"package.json", "go.mod", "Cargo.toml", "requirements.txt", "pyproject.toml", "Pipfile", "Gemfile", "composer.json", "Procfile", "brpanel.json", "index.html"}
+var manifests = []string{"package.json", "go.mod", "Cargo.toml", "requirements.txt", "pyproject.toml", "Pipfile", "Gemfile", "composer.json", "Procfile", "brpanel.json", "index.html", "build.gradle", "build.gradle.kts", "pom.xml", "pubspec.yaml"}
 
 // skipDirs are never entered or offered.
 var skipDirs = map[string]bool{"node_modules": true, "vendor": true, "dist": true, "build": true, "target": true, "coverage": true, "__pycache__": true}
@@ -363,6 +363,8 @@ func describe(repo, d string) Candidate {
 			}
 		}
 		c.Deployable = app
+	case exists(dir, "build.gradle") || exists(dir, "build.gradle.kts") || exists(dir, "pom.xml") || exists(dir, "pubspec.yaml"):
+		c.Kind, c.Deployable = "Android/Java/Flutter", false // built elsewhere: there is nothing to run as a service
 	case exists(dir, "go.mod"):
 		if m := goModuleRe.FindStringSubmatch(readSmall(dir, "go.mod")); m != nil {
 			c.Name = m[1]

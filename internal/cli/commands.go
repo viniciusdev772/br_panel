@@ -223,6 +223,15 @@ func cmdAppsShow(x *call) error {
 		{"upload máx (MB):", strconv.Itoa(a.UploadMB)}, {"timeout leitura (s):", strconv.Itoa(a.ReadTimeout)},
 		{"usuários com senha:", dash(strings.Join(a.AuthUsers, ", "))},
 	}
+	if a.Monorepo {
+		rows = append(rows, []string{"monorepo:", "sim; outras pastas: " + strings.Join(a.MonorepoApps, ", ")})
+	}
+	if len(a.MissingEnv) > 0 {
+		rows = append(rows, []string{"variáveis faltando:", strings.Join(a.MissingEnv, ", ") + "  (defina com: brpanel apps env-set " + a.Name + " CHAVE=valor)"})
+	}
+	if len(a.OptionalEnv) > 0 {
+		rows = append(rows, []string{"variáveis opcionais:", strings.Join(a.OptionalEnv, ", ")})
+	}
 	for _, d := range a.Domains {
 		kind := "alias"
 		if d.To != "" {
