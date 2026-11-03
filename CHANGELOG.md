@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-11-03
+
 ### Adicionado
 - **Monorepo**: várias aplicações do painel no mesmo repositório, cada uma com a sua **Pasta do projeto no repositório** (`RootDir`, `--root` na CLI). O build, a detecção, as montagens de armazenamento e o serviço usam essa pasta; `brpanel.json` e `Procfile` são lidos dela. A pasta é validada (relativa, sem `..`, `.git` ou caracteres de shell) e conferida depois do clone, sem links simbólicos no caminho. Migração nova: colunas `root_dir` e `watch_paths`.
 - **Descoberta de apps do monorepo**: o botão de detecção lista as pastas que parecem aplicações (`workspaces` do package.json, `pnpm-workspace.yaml`, `go.work`, `[workspace]` do Cargo ou pastas com manifesto; bibliotecas em separado) e preenche pasta, nome e comandos ao escolher uma. Nada é criado sozinho.
@@ -21,8 +23,6 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 - README: seção sobre publicações mais rápidas (cache e Refazer do zero), em linguagem simples.
 - README reescrito para quem não é técnico, com imagens do painel; o texto técnico anterior (com a tabela de downloads dos binários) está em `docs/referencia-tecnica.md`. Novo guia `docs/funcionalidades.md`.
 - O script de capturas (`make screenshots`) roda em cerca de 40 s: bancos sobem em paralelo, esperas por condição no lugar de pausas fixas, e telas de bancos não instalados são puladas.
-
-## [0.3.1] - 2026-11-03
 
 ### Corrigido
 - A CLI não instalava no Termux (Android): o binário Linux estático falhava com `unexpected e_type: 2`, porque o Android só executa binários PIE. A release agora publica `brpanel-cli-android-arm64` (compilado com `GOOS=android`), o `install-cli.sh` detecta o Termux e instala em `$PREFIX/bin`, e a CLI usa os DNS do Termux (não há `/etc/resolv.conf` no Android). O instalador também acrescenta o PATH ao `~/.bashrc` e ao `~/.profile` (uma vez só) quando a pasta não está no PATH.
