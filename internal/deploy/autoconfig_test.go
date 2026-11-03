@@ -122,6 +122,21 @@ func TestEnvPairsResolveDatabaseReferences(t *testing.T) {
 	}
 }
 
+// A system user has no real home: without HOME in the unit, corepack/npm fail with EACCES
+// creating ~/.cache and the service restarts forever.
+func TestEnvFileSetsHomeToAppDirUnlessOverridden(t *testing.T) {
+	d := &Deployer{Paths: Paths{Data: "/srv/brp"}}
+	got := d.envFileContent(store.App{Name: "web"}, 3001, mountSetup{})
+	want := `HOME="` + d.Paths.AppDir("web") + `"`
+	if !strings.Contains(got, want) {
+		t.Errorf("falta %s:\n%s", want, got)
+	}
+	got = d.envFileContent(store.App{Name: "web", Env: "HOME=/x"}, 3001, mountSetup{})
+	if strings.Index(got, `HOME="/x"`) < strings.Index(got, want) {
+		t.Errorf("HOME da app deve vir depois do padrão:\n%s", got)
+	}
+}
+
 func TestPickPortRangeReservesEveryInstance(t *testing.T) {
 	s := openTestStore(t)
 	d := &Deployer{Store: s}

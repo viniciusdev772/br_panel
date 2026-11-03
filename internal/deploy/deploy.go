@@ -774,6 +774,9 @@ func (d *Deployer) envFileContent(a store.App, port int, m mountSetup) string {
 		b.WriteString(systemd.EnvFileLine("PORT", fmt.Sprint(port)))
 	}
 	b.WriteString(systemd.EnvFileLine("HOST", ListenHost(a)))
+	// systemd would use the account's /home/<user>, which does not exist for a system user, and
+	// corepack/npm/pip fail with EACCES creating their cache there (same reason as buildEnv).
+	b.WriteString(systemd.EnvFileLine("HOME", d.Paths.AppDir(a.Name)))
 	kv, _ := d.envPairs(a) // validated on save
 	for _, p := range kv {
 		b.WriteString(systemd.EnvFileLine(p[0], p[1]))
