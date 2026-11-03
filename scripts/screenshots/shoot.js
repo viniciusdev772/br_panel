@@ -13,12 +13,18 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1360, height: 820 } });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(10000); // missing database servers must not stall the run
   const shot = async (name, p = page) => {
     await sleep(900);
-    await p.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
-    console.log('ok', name);
+    try {
+      await p.screenshot({ path: `${OUT}/${name}.png`, fullPage: true, animations: 'disabled', timeout: 30000 });
+      console.log('ok', name);
+    } catch (e) { console.log('pulado:', name, '-', e.message.split('\n')[0]); }
   };
   const idle = () => page.waitForLoadState('networkidle');
+  // Fields can sit in collapsed sections or other wizard steps: set them straight in the DOM.
+  const setv = (n, v) => page.evaluate(([n, v]) => { const e = document.querySelector('[name=' + n + ']'); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, [n, v]);
+  const send = () => page.evaluate(() => document.querySelector('main form').requestSubmit());
   const tab = async (name) => { await page.click(`.tab-btn[data-tab="${name}"]`); await sleep(700); };
 
   // ---- first run ----
@@ -32,9 +38,9 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
 
   // ---- settings (point the system dirs at the temp area) ----
   await page.goto(B + '/settings'); await idle();
-  await page.fill('[name=nginx_dir]', `${WORK}/nginx`); await page.fill('[name=acme_root]', `${WORK}/acme`);
-  await page.fill('[name=cert_dir]', `${WORK}/certs`); await page.fill('[name=unit_dir]', `${WORK}/units`);
-  await page.click(SUBMIT); await idle();
+  await setv('nginx_dir', `${WORK}/nginx`); await setv('acme_root', `${WORK}/acme`);
+  await setv('cert_dir', `${WORK}/certs`); await setv('unit_dir', `${WORK}/units`);
+  await send(); await idle();
   await shot('03-configuracoes');
 
   // ---- login ----
@@ -51,40 +57,43 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await page.goto(B + '/databases/new?kind=mongodb'); await idle();
   await shot('06-novo-banco-mongodb-nao-instalado');
 
-  const createDB = async (kind, name) => {
-    await page.goto(B + `/databases/new?kind=${kind}`); await idle();
-    await page.fill('[name=name]', name);
-    await page.click(SUBMIT); await idle();
-    await page.waitForFunction(() => document.querySelector('[data-sheet="db"]') && document.querySelector('[data-sheet="db"]').dataset.status === 'ready', null, { timeout: 180000 }).catch(() => {});
-    await page.goto(B + `/databases/${name}`); await idle();
+  // Provisions a database and waits (up to `secs`) until it is ready; false if the server is not installed here.
+  const ready = new Set();
+  const createDB = async (kind, name, secs = 90) => {
+    try {
+      await page.goto(B + `/databases/new?kind=${kind}`); await idle();
+      await page.fill('[name=name]', name);
+      await send(); await idle();
+      for (let i = 0; i < secs / 3; i++) {
+        await page.goto(B + `/databases/${name}`); await idle();
+        if (await page.locator('[data-sheet="db"][data-status="ready"]').count()) { ready.add(name); return true; }
+        await sleep(3000);
+      }
+    } catch (e) { console.log('pulado: banco', name, '-', e.message.split('\n')[0]); }
+    return false;
   };
   await page.goto(B + '/databases/new?kind=postgres'); await idle();
   await shot('07-novo-banco-postgres');
-  await page.fill('[name=name]', 'postgres');
-  await page.click(SUBMIT); await idle();
-  await shot('08-banco-provisionando');
-  for (let i = 0; i < 90; i++) {
-    await page.goto(B + '/databases/postgres'); await idle();
-    if (await page.locator('[data-sheet="db"][data-status="ready"]').count()) break;
-    await sleep(2000);
-  }
-  await createDB('redis', 'redis');
-  await createDB('mysql', 'mysql');
+  await createDB('postgres', 'postgres');
+  await createDB('redis', 'redis', 30);
+  await createDB('mysql', 'mysql', 30);
+  console.log('bancos prontos:', [...ready].join(', ') || 'nenhum');
   execFileSync('python3', [SEED_DATA, `${WORK}/data/brpanel.db`]);
 
   // ---- apps that reference the databases ----
+  const refs = (...l) => l.filter(([db]) => ready.has(db)).map(([db, v, k = v]) => `${v}=\${{${db}.${k}}}`).join('\n');
   const createApp = async (fields, env) => {
     await page.goto(B + '/apps/new'); await idle();
-    for (const [k, v] of Object.entries(fields)) await page.fill(`[name=${k}]`, v);
-    if (env) await page.fill('[name=env]', env);
-    await page.click(SUBMIT); await idle();
+    for (const [k, v] of Object.entries(fields)) await setv(k, v);
+    if (env) await setv('env', env);
+    await send(); await idle();
   };
   await createApp({ name: 'loja', repo: 'https://github.com/heroku/node-js-getting-started.git', build_cmd: 'echo instalando && sleep 1', start_cmd: 'sleep 100000', domain: 'loja.exemplo.com' },
-    'DATABASE_URL=${{postgres.DATABASE_URL}}\nREDIS_URL=${{redis.REDIS_URL}}');
+    refs(['postgres', 'DATABASE_URL'], ['redis', 'REDIS_URL']));
   await createApp({ name: 'api', repo: 'https://github.com/octocat/Hello-World.git', branch: 'master', build_cmd: 'echo ok', start_cmd: 'sleep 100000', domain: 'api.exemplo.com' },
-    'DATABASE_URL=${{postgres.DATABASE_URL}}\nMYSQL_URL=${{mysql.DATABASE_URL}}');
+    refs(['postgres', 'DATABASE_URL'], ['mysql', 'MYSQL_URL', 'DATABASE_URL']));
   await createApp({ name: 'worker', repo: 'https://github.com/octocat/Hello-World.git', branch: 'master', build_cmd: 'echo ok', start_cmd: 'sleep 100000' },
-    'REDIS_URL=${{redis.REDIS_URL}}');
+    refs(['redis', 'REDIS_URL']));
   await sleep(9000);
   execFileSync('python3', [SEED, `${WORK}/data/brpanel.db`]);
   await sleep(1500);
@@ -96,7 +105,9 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await shot('10-arquitetura-tema-claro');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 
-  // ---- database sheet ----
+  // ---- database sheet (needs real database servers) ----
+  try {
+  if (!ready.has('postgres')) throw new Error('PostgreSQL não ficou pronto neste ambiente');
   await page.goto(B + '/databases/postgres'); await idle();
   await shot('11-banco-conectar');
   await page.click('[data-reveal]'); await sleep(300);
@@ -122,7 +133,11 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await page.click('#dblist button >> nth=0'); await sleep(1200);
   await shot('19-mysql-dados');
 
+  } catch (e) { console.log('pulado: telas do banco:', e.message.split('\n')[0]); }
+
   // ---- app sheet with variables ----
+  const soft = async (label, fn) => { try { await fn(); } catch (e) { console.log('pulado:', label, '-', e.message.split('\n')[0]); } };
+  await soft('telas do app', async () => {
   await page.goto(B + '/apps/loja'); await idle();
   await shot('20-app-deploy');
   await tab('variaveis');
@@ -130,20 +145,27 @@ const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logou
   await shot('21-app-variaveis');
   await tab('metricas'); await sleep(1500);
   await shot('22-app-metricas');
+  });
+  await soft('nova aplicação', async () => {
   await page.goto(B + '/apps/new'); await idle();
   await page.fill('[name=repo]', 'https://github.com/heroku/node-js-getting-started.git');
   await page.click('#wz-next'); // step 2 holds the detection
   await page.click('#detect-btn');
   await page.waitForFunction(() => !document.querySelector('#detect-btn').disabled && document.querySelector('#detect-result').textContent.includes('Encontrei'), null, { timeout: 90000 });
   await shot('23-nova-app-detectada');
+  });
   await page.goto(B + '/github'); await idle();
   await shot('24-github');
+  await page.goto(B + '/templates'); await idle();
+  await shot('28-templates');
+  await page.goto(B + '/cli'); await idle();
+  await shot('29-cli');
 
   // ---- mobile ----
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await m.addCookies(await ctx.cookies());
   const mp = await m.newPage();
-  for (const [name, path] of [['25-mobile-arquitetura', '/'], ['26-mobile-banco', '/databases/postgres'], ['27-mobile-app', '/apps/loja']]) {
+  for (const [name, path] of [['25-mobile-arquitetura', '/'], ['27-mobile-app', '/apps/loja'], ['30-mobile-templates', '/templates']]) {
     await mp.goto(B + path); await mp.waitForLoadState('networkidle'); await sleep(2000);
     await shot(name, mp);
   }
