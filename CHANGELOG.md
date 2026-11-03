@@ -4,6 +4,10 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Corrigido
+- Excluir uma aplicação não espera mais o deploy terminar (antes respondia "Aguarde o deploy terminar antes de excluir"): o deploy em andamento é cancelado, com toda a árvore de processos do build (o `runuser` os põe em outra sessão, e o `npm` ficava órfão), a repetição pendente é descartada e as pastas são só renomeadas e apagadas em segundo plano. Apagar o `node_modules` de 2,5 GB do n8n levava mais de um minuto; agora a exclusão responde em cerca de 3 s e o nome já pode ser reutilizado.
+- A pasta `volumes/<app>` era criada `root:root 0750`, então a aplicação não conseguia abrir seu armazenamento pelo caminho real (`$VOLUME_<NOME>`) e falhava com EACCES. Agora fica 0711 em todo deploy, o que também conserta volumes já existentes.
+
 ### Adicionado
 - **Templates de um clique, sem Docker**: página **Templates** (menu Criar), rotas `/templates` e `/api/templates` e, na CLI, `brpanel templates list|show|install` (atalho `brpanel install n8n`). Primeiros templates: **n8n** (pacote npm oficial), **Uptime Kuma** (tag do repositório oficial) e **Gitea** (binário oficial com SHA-256 conferido). Cada instalação cria uma aplicação comum com armazenamento persistente, segredos aleatórios próprios, variáveis certas para o domínio (webhooks do n8n, cookie seguro) e instalação automática do Node.js; um novo deploy atualiza para a versão escolhida. Apps de template usam `template:<id>` como repositório, aceito pela validação.
 

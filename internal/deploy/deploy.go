@@ -91,6 +91,9 @@ type Deployer struct {
 	pendMu  sync.Mutex
 	pending map[string]bool
 
+	runMu sync.Mutex // guards runs: the deploys in progress, by app
+	runs  map[string]*run
+
 	volMu   sync.Mutex // guards the volume backup/restore running on each app
 	volBusy map[string]string
 }
@@ -98,7 +101,7 @@ type Deployer struct {
 // New returns a Deployer rooted at dataDir.
 func New(st *store.Store, dataDir string, set func() settings.Settings, gh func() *githubapp.Client) *Deployer {
 	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh,
-		pending: map[string]bool{}, volBusy: map[string]string{}}
+		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}}
 }
 
 func (d *Deployer) unitFile(app string, k int) string {
@@ -146,7 +149,10 @@ func (d *Deployer) command(ctx context.Context, dir string, env []string, name s
 	c.Dir = dir
 	c.Env = env
 	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	c.Cancel = func() error { return syscall.Kill(-c.Process.Pid, syscall.SIGKILL) }
+	c.Cancel = func() error {
+		killTree(c.Process.Pid) // runuser starts the build in a session of its own: the group kill alone misses it
+		return syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
+	}
 	c.WaitDelay = 5 * time.Second
 	return c
 }
@@ -205,12 +211,59 @@ func (d *Deployer) buildEnv(a store.App) ([]string, error) {
 	return env, nil
 }
 
+// run is a deploy in progress: cancel stops it, done closes when its goroutine has finished.
+type run struct {
+	cancel context.CancelFunc
+	done   chan struct{}
+}
+
+func (d *Deployer) beginRun(name string, cancel context.CancelFunc) *run {
+	r := &run{cancel: cancel, done: make(chan struct{})}
+	d.runMu.Lock()
+	d.runs[name] = r
+	d.runMu.Unlock()
+	return r
+}
+
+func (d *Deployer) endRun(name string, r *run) {
+	d.runMu.Lock()
+	if d.runs[name] == r {
+		delete(d.runs, name)
+	}
+	d.runMu.Unlock()
+	close(r.done)
+}
+
+// cancelRun stops the deploy of name, if one is running, and waits for it to let go of the files
+// (the build runs in its own process group, which is killed). It reports whether one was running.
+func (d *Deployer) cancelRun(name string) bool {
+	d.runMu.Lock()
+	r := d.runs[name]
+	d.runMu.Unlock()
+	if r == nil {
+		return false
+	}
+	r.cancel()
+	select {
+	case <-r.done:
+	case <-time.After(20 * time.Second):
+	}
+	return true
+}
+
 // Start launches a deploy in the background; false if one is already running.
 func (d *Deployer) Start(name, reason string) bool {
 	a, ok := d.Store.BeginDeploy(name)
 	if !ok {
 		return false
 	}
+	timeout := deployTimeout
+	if _, isTemplate := templates.ForRepo(a.Repo); isTemplate {
+		timeout = templateDeployTimeout // n8n alone is more than 2 GB of npm packages
+	}
+	// Registered before the goroutine starts, so Remove can always cancel a deploy it finds running.
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	run := d.beginRun(name, cancel)
 	go func() {
 		// A push that arrived during this deploy triggers one more run afterwards.
 		defer func() {
@@ -218,11 +271,7 @@ func (d *Deployer) Start(name, reason string) bool {
 				d.Start(name, "push recebido durante o deploy anterior")
 			}
 		}()
-		timeout := deployTimeout
-		if _, isTemplate := templates.ForRepo(a.Repo); isTemplate {
-			timeout = templateDeployTimeout // n8n alone is more than 2 GB of npm packages
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer d.endRun(name, run)
 		defer cancel()
 		lf, err := os.OpenFile(d.Paths.LogFile(name), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640)
 		if err != nil {
@@ -233,6 +282,10 @@ func (d *Deployer) Start(name, reason string) bool {
 		fmt.Fprintf(lf, "== deploy de %s iniciado em %s (%s) ==\n", name, time.Now().Format(time.RFC3339), reason)
 		d.Store.AddEvent("deploy", name, "Deploy iniciado ("+reason+")")
 		if err := d.deploy(ctx, a, lf); err != nil {
+			if errors.Is(ctx.Err(), context.Canceled) { // the app is being deleted: nothing left to record
+				fmt.Fprintln(lf, "\n== CANCELADO: a aplicação foi excluída ==")
+				return
+			}
 			fmt.Fprintf(lf, "\n== FALHOU: %v ==\n", err)
 			d.Store.FinishDeploy(name, false)
 			d.Store.AddEvent("deploy", name, "Deploy falhou")
@@ -607,10 +660,20 @@ func writeFile(path, content string, mode os.FileMode) error {
 // Remove stops the service and deletes the app, its files, unit and vhost. The volumes and the
 // stored files go too; the screen asks for confirmation before calling this.
 func (d *Deployer) Remove(name string) error {
+	// Deleting never waits for a deploy: drop the queued re-run, stop the one in progress (and its
+	// build processes) and only then take the files away from under it.
+	d.takePending(name)
+	d.cancelRun(name)
 	paths := []string{d.Paths.LogFile(name), d.Paths.VolumeLogFile(name)}
+	disable := []string{"disable", "--now"}
 	for k := 0; k < validate.MaxReplicas; k++ { // every instance that may exist, whatever the saved count says
-		_, _ = systemd.Ctl("disable", "--now", systemd.ReplicaUnitName(name, k))
+		if _, err := os.Stat(d.unitFile(name, k)); err == nil {
+			disable = append(disable, systemd.ReplicaUnitName(name, k))
+		}
 		paths = append(paths, d.unitFile(name, k), d.Paths.EnvFileN(name, k))
+	}
+	if len(disable) > 2 { // one systemctl for all of them, and none for units that were never written
+		_, _ = systemd.Ctl(disable...)
 	}
 	for _, p := range paths {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
@@ -619,12 +682,29 @@ func (d *Deployer) Remove(name string) error {
 	}
 	_, _ = systemd.Ctl("daemon-reload")
 	_ = d.nginx().Remove(context.Background(), io.Discard, name)
-	for _, dir := range []string{d.Paths.AppDir(name), d.Paths.VolumesDir(name), d.Paths.FilesDir(name), d.Paths.VolumeBackupDir(name)} {
-		if err := os.RemoveAll(dir); err != nil {
-			return err
-		}
-	}
+	d.discard(name, d.Paths.AppDir(name), d.Paths.VolumesDir(name), d.Paths.FilesDir(name), d.Paths.VolumeBackupDir(name))
 	return d.Store.Delete(name)
+}
+
+// discard takes directories out of the way at once and deletes them in the background: a renaming
+// is instant, while erasing something like n8n's 2.5 GB of node_modules takes a minute. The name is
+// free again immediately. Anything left over is swept when the panel starts (it empties tmp).
+func (d *Deployer) discard(name string, dirs ...string) {
+	trash := filepath.Join(d.DataDir, "tmp", fmt.Sprintf("trash-%s-%d", name, time.Now().UnixNano()))
+	moved := false
+	for i, dir := range dirs {
+		if _, err := os.Stat(dir); err != nil {
+			continue
+		}
+		if err := os.MkdirAll(trash, 0o700); err == nil && os.Rename(dir, filepath.Join(trash, strconv.Itoa(i))) == nil {
+			moved = true
+			continue
+		}
+		_ = os.RemoveAll(dir) // could not rename (other filesystem?): erase it here, as before
+	}
+	if moved {
+		go func() { _ = os.RemoveAll(trash) }()
+	}
 }
 
 // TailFile returns up to max trailing bytes of a file ("" if missing).

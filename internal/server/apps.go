@@ -324,11 +324,7 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		tabFlash("Agendamento salvo.", "armazenamento")
 		return
 	case "delete":
-		if a.Deploying() {
-			msg = "Aguarde o deploy terminar antes de excluir."
-			break
-		}
-		if err := s.dep.Remove(a.Name); err != nil {
+		if err := s.dep.Remove(a.Name); err != nil { // cancels a deploy in progress, never waits for it
 			msg = "Falha ao excluir: " + err.Error()
 			break
 		}
