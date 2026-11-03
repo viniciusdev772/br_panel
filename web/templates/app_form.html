@@ -16,6 +16,8 @@
     {{end}}
     {{template "field" dict "name" "repo" "label" "Endereço do repositório" "value" .App.Repo "required" true "hint" "Cole o link do GitHub, como https://github.com/voce/projeto.git. Endereços no formato git@servidor:org/repo também funcionam."}}
     {{template "field" dict "name" "branch" "label" "Branch" "value" .App.Branch "hint" "A versão do código que será publicada. Quase sempre é main."}}
+    {{template "field" dict "name" "root_dir" "label" "Pasta do projeto no repositório (monorepo)" "value" .App.RootDir "hint" "Só para repositórios com vários projetos. Exemplo: apps/web. Em branco, o painel usa o repositório inteiro."}}
+    <div class="detect-result" id="mono-box" hidden></div>
     {{template "field" dict "name" "name" "label" "Nome da aplicação" "value" .App.Name "required" .Editing "readonly" .Editing "hint" (or (and .Editing "O nome não pode ser alterado.") "Opcional. Se ficar em branco, usamos o nome do repositório.")}}
   </section>
 
@@ -74,6 +76,7 @@
   <section class="step" data-title="Ajustes">
     <h2 class="step-title">Últimos ajustes</h2>
     <p class="step-lead">Tudo aqui é opcional e pode ser mudado depois.</p>
+    {{template "area" dict "name" "watch_paths" "label" "Outras pastas que também publicam esta aplicação (monorepo)" "value" .App.WatchPaths "rows" 3 "hint" "Uma por linha, como packages/ui/**. Comece com ! para ignorar, por exemplo !**/*.md. Em branco, só mudanças na pasta do projeto e nos arquivos de configuração da raiz (como pnpm-lock.yaml) publicam esta aplicação."}}
     {{template "area" dict "name" "env" "label" "Variáveis de ambiente" "value" .App.Env "rows" 6 "hint" "Uma por linha, no formato CHAVE=valor. Para usar um banco criado no painel, escreva ${{nome-do-banco.DATABASE_URL}}."}}
     <div class="mdc-form-field">
       <div class="mdc-checkbox">

@@ -11,6 +11,7 @@ Ele foi pensado para quem tem um servidor (uma VPS) e quer cuidar dele sem virar
 - Publicar um projeto a partir do GitHub, sem preencher formulário comprido. O painel olha o projeto e descobre sozinho como ele funciona.
 - Ter um endereço próprio (como `loja.seusite.com.br`) com cadeado de segurança, emitido e renovado sem você pedir.
 - Atualizar o site a cada vez que você salva uma mudança no GitHub.
+- Publicar vários projetos de um mesmo repositório, cada um como uma aplicação, e atualizar só os que mudaram.
 - Publicar de novo em menos tempo: o painel guarda o que já baixou e não repete trabalho quando nada mudou.
 - Acompanhar quanto de processador e de memória cada projeto usa, em gráficos das últimas 24 horas.
 - Instalar programas prontos, como n8n, Uptime Kuma e Gitea, com um clique.
@@ -41,6 +42,10 @@ curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/script
 No final, ele mostra um link. Abra esse link no navegador, crie o seu usuário e pronto. Para atualizar o painel mais tarde, rode o mesmo comando de novo. Os seus projetos e dados ficam como estão.
 
 Quer ler o comando antes de executar? Ele está em [`scripts/install.sh`](scripts/install.sh).
+
+## Vários projetos no mesmo repositório
+
+Se o seu repositório guarda um site, uma API e outras partes em pastas separadas, crie uma aplicação para cada parte e escolha a pasta dela. O painel mostra as pastas que parecem aplicações e já sugere nome e configuração. Quando você envia uma mudança ao GitHub, só as aplicações que mudaram são atualizadas.
 
 ## Publicações mais rápidas
 

@@ -546,16 +546,60 @@
           .catch(function () { btn.disabled = false; logEl.textContent = 'Falha ao iniciar a instalação.'; });
       });
     };
+    // Monorepo: the apps found in the repository, to pick the folder of this one. Built with DOM
+    // calls on purpose: folder names come from the repository and are not trusted.
+    var monoBox = $('#mono-box'), lastName = '';
+    var showApps = function (d) {
+      if (!monoBox) { return; }
+      var apps = d.apps || [];
+      monoBox.textContent = '';
+      monoBox.hidden = !apps.length;
+      if (!apps.length) { return; }
+      var cur = fields.root_dir ? fields.root_dir.value.trim() : '';
+      var add = function (parent, label, root, current, title) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mdc-button ' + (current ? 'mdc-button--raised' : 'mdc-button--outlined');
+        b.textContent = label;
+        if (title) { b.title = title; }
+        b.addEventListener('click', function () { fields.root_dir.value = root; detect(); });
+        parent.appendChild(b);
+      };
+      var p = document.createElement('p');
+      p.textContent = 'Este repositório tem vários projetos. Escolha o que esta aplicação vai publicar:';
+      monoBox.appendChild(p);
+      var list = document.createElement('div');
+      list.className = 'mono-list';
+      var libs = [];
+      apps.forEach(function (a) {
+        if (!a.deployable) { libs.push(a); return; }
+        add(list, a.path + (a.kind ? ' (' + a.kind + ')' : ''), a.path, a.path === cur, a.name || '');
+      });
+      if (cur) { add(list, 'Repositório inteiro', '', false, 'Sem pasta: usar a raiz do repositório'); }
+      monoBox.appendChild(list);
+      if (libs.length) {
+        var q = document.createElement('p');
+        q.className = 'muted';
+        q.textContent = 'Bibliotecas e pacotes compartilhados (em geral não são publicados sozinhos):';
+        monoBox.appendChild(q);
+        var l2 = document.createElement('div');
+        l2.className = 'mono-list';
+        libs.forEach(function (a) { add(l2, a.path, a.path, a.path === cur, a.name || ''); });
+        monoBox.appendChild(l2);
+      }
+    };
     var detect = function () {
       var repo = fields.repo.value.trim();
       if (!repo) { fields.repo.valid = false; return; }
       detectBtn.disabled = true;
       box.hidden = false; box.className = 'detect-result'; box.textContent = 'Baixando e analisando o projeto…';
-      var body = new URLSearchParams({ csrf: csrf, repo: repo, branch: fields.branch.value.trim() });
+      var body = new URLSearchParams({ csrf: csrf, repo: repo, branch: fields.branch.value.trim(), root_dir: fields.root_dir ? fields.root_dir.value.trim() : '' });
       fetch('/apps/detect', { method: 'POST', credentials: 'same-origin', body: body }).then(function (r) { return r.json(); }).then(function (d) {
         detectBtn.disabled = false;
-        setField('name', d.name, true);
-        if (d.error && !d.kind) { box.className = 'detect-result bad'; box.textContent = d.error; return; }
+        if (d.name && (!fields.name.value || fields.name.value === lastName)) { fields.name.value = d.name; }
+        lastName = d.name || lastName;
+        showApps(d);
+        if (d.error && !d.kind) { box.className = 'detect-result ' + (d.apps && d.apps.length ? 'warn' : 'bad'); box.textContent = d.error; return; }
         setField('build_cmd', d.build); setField('start_cmd', d.start);
         var man = $('#manual');
         if (man) { man.open = true; } // show what was filled in
@@ -614,6 +658,9 @@
       picker.addEventListener('change', pick);
     }
     $('input[name=repo]').addEventListener('change', function () {
+      if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
+    });
+    $('input[name=root_dir]').addEventListener('change', function () {
       if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
     });
   }

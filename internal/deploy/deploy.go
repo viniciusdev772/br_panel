@@ -4,6 +4,7 @@ package deploy
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -40,8 +41,36 @@ const (
 // Paths is the on-disk layout of the data directory.
 type Paths struct{ Data string }
 
-func (p Paths) AppDir(n string) string  { return filepath.Join(p.Data, "apps", n) }
-func (p Paths) SrcDir(n string) string  { return filepath.Join(p.AppDir(n), "src") }
+func (p Paths) AppDir(n string) string { return filepath.Join(p.Data, "apps", n) }
+func (p Paths) SrcDir(n string) string { return filepath.Join(p.AppDir(n), "src") }
+
+// ProjectDir is where the app's code lives: the checkout, or the app's RootDir folder inside it
+// (a monorepo). Builds run there and so does the service. RootDir is validated when the app is
+// saved; checkProjectDir verifies the folder after every checkout.
+func (d *Deployer) ProjectDir(a store.App) string {
+	return filepath.Join(d.Paths.SrcDir(a.Name), filepath.FromSlash(a.RootDir))
+}
+
+// checkProjectDir makes sure the app's RootDir exists in the checkout, is a real folder and is
+// not reached through a symbolic link: the repository is not trusted, and the panel (root)
+// creates mount points inside the project.
+func (d *Deployer) checkProjectDir(a store.App) error {
+	if a.RootDir == "" {
+		return nil
+	}
+	if _, err := validate.RootDir(a.RootDir); err != nil {
+		return err
+	}
+	src, proj := d.Paths.SrcDir(a.Name), d.ProjectDir(a)
+	if err := noSymlinks(src, proj); err != nil {
+		return fmt.Errorf("diretório raiz %q: %w", a.RootDir, err)
+	}
+	if fi, err := os.Stat(proj); err != nil || !fi.IsDir() {
+		return fmt.Errorf("o diretório raiz %q não existe no repositório (branch %s); confira o nome da pasta", a.RootDir, a.Branch)
+	}
+	return nil
+}
+
 func (p Paths) LogFile(n string) string { return filepath.Join(p.Data, "logs", n+".log") }
 func (p Paths) EnvFile(n string) string { return filepath.Join(p.Data, "env", n+".env") }
 
@@ -96,6 +125,11 @@ type Deployer struct {
 	runMu sync.Mutex // guards runs: the deploys in progress, by app
 	runs  map[string]*run
 
+	gitProtocols string // GIT_ALLOW_PROTOCOL of the build environment; tests set it to reach a local repository
+
+	repoMu  sync.Mutex // guards repoSem: one deploy at a time per monorepo
+	repoSem map[string]chan struct{}
+
 	volMu   sync.Mutex // guards the volume backup/restore running on each app
 	volBusy map[string]string
 }
@@ -103,7 +137,7 @@ type Deployer struct {
 // New returns a Deployer rooted at dataDir.
 func New(st *store.Store, dataDir string, set func() settings.Settings, gh func() *githubapp.Client) *Deployer {
 	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh, Cache: buildcache.New(dataDir),
-		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}}
+		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}, repoSem: map[string]chan struct{}{}}
 }
 
 func (d *Deployer) unitFile(app string, k int) string {
@@ -200,7 +234,7 @@ func (d *Deployer) buildEnv(a store.App, useCache bool) ([]string, error) {
 		"HOME=" + d.Paths.AppDir(a.Name),
 		"LANG=C.UTF-8",
 		"GIT_TERMINAL_PROMPT=0",
-		"GIT_ALLOW_PROTOCOL=https:ssh",
+		"GIT_ALLOW_PROTOCOL=" + cmp.Or(d.gitProtocols, "https:ssh"),
 		"GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
 	}
 	if a.Port > 0 {
@@ -281,7 +315,8 @@ func (d *Deployer) start(name, reason string, clean bool) bool {
 		timeout = templateDeployTimeout // n8n alone is more than 2 GB of npm packages
 	}
 	// Registered before the goroutine starts, so Remove can always cancel a deploy it finds running.
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	// The time limit only starts once the deploy gets to run (it may wait for its monorepo siblings).
+	ctx, cancel := context.WithCancel(context.Background())
 	run := d.beginRun(name, cancel)
 	go func() {
 		// A push that arrived during this deploy triggers one more run afterwards.
@@ -300,6 +335,21 @@ func (d *Deployer) start(name, reason string, clean bool) bool {
 		defer lf.Close()
 		fmt.Fprintf(lf, "== deploy de %s iniciado em %s (%s) ==\n", name, time.Now().Format(time.RFC3339), reason)
 		d.Store.AddEvent("deploy", name, "Deploy iniciado ("+reason+")")
+		if release, ok := d.waitSiblings(ctx, a, lf); ok {
+			defer release()
+		} else {
+			fmt.Fprintln(lf, "\n== CANCELADO enquanto esperava na fila ==")
+			return
+		}
+		// The app may have been edited, or deleted, while this deploy waited its turn.
+		fresh, found := d.Store.Get(name)
+		if !found {
+			fmt.Fprintln(lf, "\n== CANCELADO: a aplicação foi excluída ==")
+			return
+		}
+		a = fresh
+		ctx, stop := context.WithTimeout(ctx, timeout)
+		defer stop()
 		if err := d.deploy(ctx, a, lf, clean); err != nil {
 			if errors.Is(ctx.Err(), context.Canceled) { // the app is being deleted: nothing left to record
 				fmt.Fprintln(lf, "\n== CANCELADO: a aplicação foi excluída ==")
@@ -315,6 +365,38 @@ func (d *Deployer) start(name, reason string, clean bool) bool {
 		d.Store.AddEvent("deploy", name, "Deploy concluído")
 	}()
 	return true
+}
+
+// waitSiblings makes the apps of one monorepo deploy one at a time: a push that touches several of
+// them would otherwise run that many clones and installs of the same repository at once. Apps
+// without a RootDir are not held up. It returns the function that lets the next one in, or false
+// when the deploy was cancelled while waiting.
+func (d *Deployer) waitSiblings(ctx context.Context, a store.App, log io.Writer) (release func(), ok bool) {
+	if a.RootDir == "" {
+		return func() {}, true
+	}
+	key := strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(a.Repo, "/"), ".git")) // x.git and x are one repository
+	d.repoMu.Lock()
+	if d.repoSem == nil {
+		d.repoSem = map[string]chan struct{}{}
+	}
+	sem := d.repoSem[key]
+	if sem == nil {
+		sem = make(chan struct{}, 1)
+		d.repoSem[key] = sem
+	}
+	d.repoMu.Unlock()
+	select {
+	case sem <- struct{}{}:
+	default:
+		fmt.Fprintln(log, "aguardando outro deploy do mesmo repositório terminar (aplicações de um monorepo publicam uma de cada vez)…")
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return nil, false
+		}
+	}
+	return func() { <-sem }, true
 }
 
 func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean bool) error {
@@ -358,10 +440,17 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean
 			return err
 		}
 	}
+	if err := d.checkProjectDir(a); err != nil {
+		return err
+	}
 	if fromTemplate {
 		if err := d.ensureRequires(ctx, tpl.Requires, log); err != nil {
 			return err
 		}
+	}
+	proj := d.ProjectDir(a)
+	if a.RootDir != "" {
+		fmt.Fprintf(log, "monorepo: a aplicação vive em %s\n", a.RootDir)
 	}
 
 	var err2 error
@@ -373,7 +462,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean
 	}
 
 	build := a.BuildCmd
-	plan := planDeps(build, src, depsExtra(d.Settings().NodeVersion, env), d.savedDeps(a.Name))
+	plan := planDeps(build, proj, src, depsExtra(d.Settings().NodeVersion, env), d.savedDeps(a.Name))
 	switch {
 	case plan.skip:
 		fmt.Fprintf(log, "dependências iguais às do último deploy: pulando \"%s\"\n", plan.step.cmd)
@@ -382,7 +471,7 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean
 		_ = os.Remove(d.depsFile(a.Name)) // a build that fails halfway must not be trusted next time
 	}
 	if build != "" {
-		if err := d.run(ctx, log, src, env, "/bin/sh", "-c", build); err != nil {
+		if err := d.run(ctx, log, proj, env, "/bin/sh", "-c", build); err != nil {
 			return err
 		}
 	}
@@ -521,7 +610,7 @@ func (d *Deployer) writeInstance(a store.App, k int, m mountSetup) error {
 	if err := writeFile(d.Paths.EnvFileN(a.Name, k), d.envFileContent(a, a.Port+k, m), 0o600); err != nil {
 		return err
 	}
-	unit := systemd.Unit{App: a.Name, WorkDir: d.Paths.SrcDir(a.Name), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
+	unit := systemd.Unit{App: a.Name, WorkDir: d.ProjectDir(a), EnvFile: d.Paths.EnvFileN(a.Name, k), StartCmd: a.StartCmd, User: d.Settings().AppUser,
 		MemoryMB: a.MemoryMB, CPUPercent: a.CPUPercent, NoFile: 65536,
 		BindPaths: m.Bind, BindReadOnlyPaths: m.ReadOnly}
 	if k > 0 {

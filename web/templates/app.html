@@ -42,6 +42,7 @@
     <div class="mdc-card"><div class="card-body">
       <dl class="meta">
         <dt>Repositório</dt><dd>{{.App.Repo}} <span class="muted">({{.App.Branch}})</span></dd>
+        {{if .App.RootDir}}<dt>Pasta no repositório</dt><dd><code>{{.App.RootDir}}</code>{{if .App.WatchPaths}} <span class="muted">· também publica por mudanças em {{range $i, $p := .App.WatchLines}}{{if $i}}, {{end}}<code>{{$p}}</code>{{end}}</span>{{end}}</dd>{{end}}
         <dt>Build</dt><dd><code>{{or .App.BuildCmd "—"}}</code></dd>
         <dt>Início</dt><dd><code>{{or .App.StartCmd "—"}}</code></dd>
         {{if .App.Port}}<dt>Porta</dt><dd>{{.App.Port}}{{if gt .App.Replicas 1}} a {{.App.LastPort}}{{end}}</dd>{{end}}

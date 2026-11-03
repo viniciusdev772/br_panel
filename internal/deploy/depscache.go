@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -24,6 +25,7 @@ var depSteps = []depStep{
 	{"npm install", "package.json", []string{"package-lock.json", "npm-shrinkwrap.json"}, "node_modules"},
 	{"pnpm install --frozen-lockfile", "package.json", []string{"pnpm-lock.yaml"}, "node_modules"},
 	{"yarn install --frozen-lockfile", "package.json", []string{"yarn.lock"}, "node_modules"},
+	{"yarn install --immutable", "package.json", []string{"yarn.lock"}, "node_modules"},
 	{"bun install", "package.json", []string{"bun.lockb", "bun.lock"}, "node_modules"},
 	{"composer install --no-dev --optimize-autoloader", "composer.json", []string{"composer.lock"}, "vendor"},
 }
@@ -36,28 +38,44 @@ type depsPlan struct {
 	skip bool     // the last successful build had the same fingerprint and the folder exists
 }
 
-// splitInstall finds the known install command at the start of a build command. Only the literal
-// command followed by "&&" (or alone) matches, so nothing the admin wrote is reinterpreted.
-func splitInstall(build string) (*depStep, string) {
+// cdUpRe is the "cd ../.. && " a monorepo build starts with to reach the workspace root.
+var cdUpRe = regexp.MustCompile(`^cd ((?:\.\./)*\.\.) && `)
+
+// splitInstall finds the known install command at the start of a build command, optionally after
+// the "cd ../.. &&" of a monorepo app. Only the literal command followed by "&&" (or alone)
+// matches, so nothing the admin wrote is reinterpreted. up is the folder the install runs in,
+// relative to the app ("" = the app's own folder), and rest keeps the "cd" so that what is left
+// still runs from the workspace root.
+func splitInstall(build string) (s *depStep, up, rest string) {
 	build = strings.TrimSpace(build)
+	prefix := ""
+	if m := cdUpRe.FindStringSubmatch(build); m != nil {
+		up, prefix = m[1], m[0]
+		build = strings.TrimPrefix(build, prefix)
+	}
 	for i := range depSteps {
-		s := &depSteps[i]
+		st := &depSteps[i]
 		switch {
-		case build == s.cmd:
-			return s, ""
-		case strings.HasPrefix(build, s.cmd+" && "):
-			return s, strings.TrimSpace(strings.TrimPrefix(build, s.cmd+" && "))
+		case build == st.cmd:
+			return st, up, ""
+		case strings.HasPrefix(build, st.cmd+" && "):
+			return st, up, prefix + strings.TrimSpace(strings.TrimPrefix(build, st.cmd+" && "))
 		}
 	}
-	return nil, build
+	return nil, "", prefix + build
 }
 
 // depsHash fingerprints an install: the command, the manifest, the lockfiles and extra (what else
 // changes the result: the Node.js version and the variables the package managers read). It is
 // empty when no lockfile exists.
-func depsHash(src string, s *depStep, extra string) string {
+func depsHash(src, app string, s *depStep, extra string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "v1\x00%s\x00%s\x00", s.cmd, extra)
+	fmt.Fprintf(h, "v2\x00%s\x00%s\x00", s.cmd, extra)
+	if app != src { // an app inside a workspace: its own dependency list counts too
+		b, _ := os.ReadFile(filepath.Join(app, s.manifest))
+		fmt.Fprintf(h, "app:%s\x00%d\x00", s.manifest, len(b))
+		h.Write(b)
+	}
 	locked := false
 	for _, f := range append([]string{s.manifest}, s.locks...) {
 		b, err := os.ReadFile(filepath.Join(src, f))
@@ -79,14 +97,20 @@ func depsHash(src string, s *depStep, extra string) string {
 
 // planDeps decides whether the install step of build can be skipped. saved is the fingerprint
 // stored by the last successful build ("" if none).
-func planDeps(build, src, extra, saved string) depsPlan {
-	s, rest := splitInstall(build)
+func planDeps(build, proj, repo, extra, saved string) depsPlan {
+	s, up, rest := splitInstall(build)
 	p := depsPlan{step: s, rest: rest}
 	if s == nil {
 		return p
 	}
-	p.hash = depsHash(src, s, extra)
-	if fi, err := os.Stat(filepath.Join(src, s.dir)); err == nil && fi.IsDir() && p.hash != "" && p.hash == saved {
+	base := filepath.Join(proj, filepath.FromSlash(up)) // where the install runs (the workspace root)
+	if rel, err := filepath.Rel(repo, base); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		p.step = nil // a "cd" out of the checkout is not ours to fingerprint
+		p.rest = build
+		return p
+	}
+	p.hash = depsHash(base, proj, s, extra)
+	if fi, err := os.Stat(filepath.Join(base, s.dir)); err == nil && fi.IsDir() && p.hash != "" && p.hash == saved {
 		p.skip = true
 	}
 	return p

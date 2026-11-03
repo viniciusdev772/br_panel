@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -251,5 +253,61 @@ func TestAppScaleFieldsAndPortRanges(t *testing.T) {
 	}
 	if again, _ := s.Get("api"); again.Replicas != 1 || again.MemoryMB != 0 {
 		t.Errorf("%+v", again)
+	}
+}
+
+func TestAppRootDirAndWatchPathsRoundTrip(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	a := App{Name: "web", Repo: "https://github.com/o/mono", Branch: "main", StartCmd: "x", Port: 3001, RootDir: "apps/web", WatchPaths: "packages/ui/**\npackages/config/**"}
+	if err := s.Create(a); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := s.Get("web")
+	if !ok || got.RootDir != "apps/web" || got.WatchPaths != a.WatchPaths {
+		t.Fatalf("Create/Get: %+v", got)
+	}
+	got.RootDir, got.WatchPaths = "apps/site", ""
+	if err := s.UpdateConfig(got); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := s.Get("web"); again.RootDir != "apps/site" || again.WatchPaths != "" {
+		t.Fatalf("UpdateConfig: %+v", again)
+	}
+}
+
+// A database created before monorepo support gets the new columns, empty: the app keeps deploying
+// the whole repository.
+func TestMigrationAddsRootDirToExistingApps(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	old, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := len(migrations) - 1 // the monorepo migration is the newest one
+	for _, m := range migrations[:last] {
+		if _, err := old.Exec(m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := old.Exec(fmt.Sprintf("PRAGMA user_version = %d", last)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.Exec(`INSERT INTO apps (name, repo, branch, build_cmd, start_cmd, port, domain, auto_deploy, env, status, created_at) VALUES ('velho', 'https://github.com/o/r', 'main', '', 'x', 3001, '', 0, '', 'idle', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	old.Close()
+
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	a, ok := s.Get("velho")
+	if !ok || a.RootDir != "" || a.WatchPaths != "" {
+		t.Fatalf("app antigo: %+v ok=%v", a, ok)
 	}
 }

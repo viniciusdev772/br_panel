@@ -5,6 +5,8 @@ type AppInfo struct {
 	Name       string `json:"name"`
 	Repo       string `json:"repo"`
 	Branch     string `json:"branch"`
+	RootDir    string `json:"root_dir"`    // folder of the app inside the repository (monorepo); "" = whole repository
+	WatchPaths string `json:"watch_paths"` // extra paths that redeploy the app, one per line
 	BuildCmd   string `json:"build_cmd"`
 	StartCmd   string `json:"start_cmd"`
 	Port       int    `json:"port"`
