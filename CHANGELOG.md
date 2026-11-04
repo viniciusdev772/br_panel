@@ -4,6 +4,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- Removidos os workflows do GitHub Actions (CI e release) e a atualização do Dependabot para actions. A verificação é `make check` local e a release sai de `scripts/release.sh`. `CONTRIBUTING.md` e README explicam o novo fluxo para quem quer contribuir.
+
 ## [0.5.0] - 2026-11-03
 
 ### Adicionado

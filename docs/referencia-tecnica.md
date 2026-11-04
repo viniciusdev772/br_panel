@@ -320,7 +320,7 @@ nova execução ao final.
 
 ```sh
 make help     # lista os alvos
-make check    # formatação + vet + testes com -race (o mesmo que o CI)
+make check    # formatação + vet + testes com -race (rode antes de abrir o PR; não há CI)
 make run      # executa localmente
 ```
 
