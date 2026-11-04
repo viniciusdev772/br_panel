@@ -73,4 +73,4 @@ O acesso é protegido por usuário e senha, e o painel bloqueia quem erra a senh
 
 - Encontrou uma falha de segurança? Leia o [`SECURITY.md`](SECURITY.md) antes de contar a alguém.
 - Dúvidas e ideias: abra uma conversa na aba Issues do GitHub.
-- Quem programa e quer mexer no painel encontra tudo em [Documentação técnica](docs/README.md) e em [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Quem programa e quer mexer no painel encontra tudo em [Documentação técnica](docs/README.md) e em [`CONTRIBUTING.md`](CONTRIBUTING.md). Não há verificação automática: rode `make check` antes de abrir o PR.

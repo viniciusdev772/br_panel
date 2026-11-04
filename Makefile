@@ -37,7 +37,7 @@ fmt: ## Formata o código
 fmt-check: ## Falha se algo não estiver formatado
 	@test -z "$$(gofmt -l cmd internal web)" || { echo "arquivos fora do padrão:"; gofmt -l cmd internal web; exit 1; }
 
-check: fmt-check vet race ## Tudo que o CI roda
+check: fmt-check vet race ## Formatação + vet + testes (rode antes de abrir o PR)
 
 tidy: ## go mod tidy
 	$(GO) mod tidy
