@@ -84,6 +84,9 @@ var Catalog = []Cmd{
 		Flags: []Flag{{"limit", "N", "quantos eventos mostrar (padrão 20)"}}, Examples: []string{"brpanel events --limit 5"}},
 	{Group: "Geral", Name: "guide", Summary: "Imprime o guia completo para agentes de IA (texto puro). Cole no prompt do agente.",
 		Examples: []string{"brpanel guide"}},
+	{Group: "Geral", Name: "skills install", Summary: "Grava os skills para agentes de IA (Claude Code e similares) na pasta de skills do agente. Rode de novo para atualizar.",
+		Flags:    []Flag{{"dir", "PASTA", "pasta de skills do agente (padrão ~/.claude/skills)"}},
+		Examples: []string{"brpanel skills install", "brpanel skills install --dir ~/.config/opencode/skills"}},
 	{Group: "Geral", Name: "help", Args: "[COMANDO]", Summary: "Lista os comandos, ou explica um comando em detalhe.",
 		Examples: []string{"brpanel help", "brpanel help apps deploy"}},
 

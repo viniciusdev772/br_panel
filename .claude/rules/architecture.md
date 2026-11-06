@@ -14,7 +14,7 @@ autoscale   → store
 nginx       → execx, settings          store → settings → cloudflare, githubapp, validate
 systemd     → sysinfo                  detect → validate
 volume      → biblioteca padrão
-folhas      : auth, buildcache, cli, monorepo, templates, cloudflare, nodeenv, execx, githubapp, sysinfo, validate, volume
+folhas      : auth, buildcache, cli (+ skills), monorepo, templates, cloudflare, nodeenv, execx, githubapp, sysinfo, validate, volume
 ```
 
 - `server` é a única camada HTTP; não coloque regra de negócio nela. Se um handler precisa de mais que validar → chamar → renderizar, mova a lógica para o pacote de domínio.

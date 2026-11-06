@@ -107,6 +107,6 @@ Confirme o resultado depois (veja o skill da tarefa).
 
 ## Referências
 
-- [references/comandos.md](references/comandos.md): os 46 comandos, opções e exemplos.
+- [references/comandos.md](references/comandos.md): os 47 comandos, opções e exemplos.
 - [references/erros.md](references/erros.md): cada mensagem de erro e o que fazer.
 - `brpanel guide`: o guia oficial em texto puro, gerado pelo próprio programa (sempre atual).

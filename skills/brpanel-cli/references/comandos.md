@@ -22,6 +22,7 @@ Convenção: em `NOME` você coloca o nome da app ou do banco; `--opção VALOR`
 | `status` | Servidor (CPU, memória, disco) e estado de cada app e banco | | `brpanel status` |
 | `events` | Últimos acontecimentos (deploys, backups, criações) | `--limit N` (até 30) | `brpanel events --limit 5` |
 | `guide` | Guia completo em texto puro, sempre atual | | `brpanel guide` |
+| `skills install` | Grava os skills de agente em `~/.claude/skills`; rode de novo para atualizar | `--dir PASTA` | `brpanel skills install` |
 | `help` | Lista os comandos ou explica um | | `brpanel help apps deploy` |
 
 ## Aplicações

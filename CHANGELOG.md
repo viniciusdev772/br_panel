@@ -4,10 +4,13 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- **`brpanel skills install [--dir PASTA]`**: grava os skills para agentes de IA em `~/.claude/skills` (ou na pasta dada), sem precisar clonar o repositório. Os skills passam a ir embutidos nos binários (`skills/embed.go`); rodar o comando de novo atualiza só as pastas `brpanel-*`.
+
 ## [0.6.0] - 2026-11-06
 
 ### Adicionado
-- **Skills para agentes de IA que usam a CLI** (`skills/`): sete skills em `SKILL.md` — `brpanel-cli` (comece aqui: regras, leitura de `OK:`/`ERRO:`/`DICA:`, referência dos 46 comandos, tabela de erros e um `verificar.sh`), `brpanel-deploy`, `brpanel-dados`, `brpanel-site`, `brpanel-templates`, `brpanel-remoto` e `brpanel-diagnostico`. Escritos em passos curtos e com exemplos concretos para funcionarem até com modelos pequenos. Um teste novo (`internal/cli/skills_test.go`) confere que todo comando dos skills é aceito pelo parser da CLI, que o que apaga dados traz `--yes`, que os links existem e que cada comando e opção do catálogo está na referência.
+- **Skills para agentes de IA que usam a CLI** (`skills/`): sete skills em `SKILL.md` — `brpanel-cli` (comece aqui: regras, leitura de `OK:`/`ERRO:`/`DICA:`, referência dos 47 comandos, tabela de erros e um `verificar.sh`), `brpanel-deploy`, `brpanel-dados`, `brpanel-site`, `brpanel-templates`, `brpanel-remoto` e `brpanel-diagnostico`. Escritos em passos curtos e com exemplos concretos para funcionarem até com modelos pequenos. Um teste novo (`internal/cli/skills_test.go`) confere que todo comando dos skills é aceito pelo parser da CLI, que o que apaga dados traz `--yes`, que os links existem e que cada comando e opção do catálogo está na referência.
 
 ### Corrigido
 - O texto de `brpanel apps delete` (e o guia para agentes, que o repete) dizia que as pastas de armazenamento não eram apagadas, mas a exclusão remove também os volumes, os arquivos guardados e os backups de volume da aplicação; só os bancos ficam. Um agente que confiasse no texto perderia dados. A ajuda de `--replicas` dizia "1 a 8", mas o limite é 16.

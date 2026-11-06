@@ -22,13 +22,17 @@ cabeçalho `name` e `description`) e, quando útil, `references/` e `scripts/`.
 
 ## Como instalar
 
-**Claude Code** (ou outro agente que leia skills no formato `SKILL.md`): copie as pastas para onde o
-agente procura skills, no projeto de quem usa o painel ou na pasta pessoal.
+**Claude Code** (ou outro agente que leia skills no formato `SKILL.md`): a própria CLI grava os
+skills, que vêm embutidos no binário (não precisa clonar o repositório). Rode de novo depois de
+atualizar o `brpanel` para trazer a versão nova.
 
 ```sh
-mkdir -p ~/.claude/skills
-cp -r skills/brpanel-* ~/.claude/skills/
+brpanel skills install
+brpanel skills install --dir ~/.config/opencode/skills
 ```
+
+O padrão é `~/.claude/skills`; `--dir` aponta para a pasta de skills de outro agente. Sem a CLI,
+copie à mão as pastas `skills/brpanel-*` para essa pasta.
 
 **OpenCode, Codex e outros** (leem `AGENTS.md`): ponha no `AGENTS.md` do projeto o conteúdo de
 `brpanel-cli/SKILL.md` (sem o cabeçalho `---`) e, se o agente aceitar arquivos de apoio, copie a
