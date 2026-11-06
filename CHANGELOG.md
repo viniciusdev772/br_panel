@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.8.0] - 2026-11-06
+
 ### Adicionado
 - **`brpanel version` e `brpanel update`**: a CLI sabe a própria versão (os binários da release passam a levá-la) e consegue ver se há uma release nova. `update --check` só informa; `update` pergunta antes de atualizar, baixa o binário da plataforma, confere o SHA-256 e troca o programa (guarda o anterior em `.bak`; no servidor reinicia o painel). `--yes` atualiza sem perguntar. Em terminal, a CLI mostra um aviso de versão nova no máximo uma vez por dia (nunca com `--json`); `update --notice off` desliga. Binários anteriores à 0.8.0 não têm versão: reinstale uma vez para ganhar o comando.
 
