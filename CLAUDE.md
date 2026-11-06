@@ -40,4 +40,4 @@ Architecture & dependency direction, Go style, security, testing, database, fron
 
 ## Claude Code setup in this repo
 
-Only rules (`.claude/rules/`). No custom agents, skills, slash commands, hooks or `settings.json` — do not add any. Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).
+Only rules (`.claude/rules/`). No custom agents, skills, slash commands, hooks or `settings.json` — do not add any. The root `skills/` folder is not part of this setup: it is product content (skills for AI agents that *use* the `brpanel` CLI, see `skills/README.md`). `internal/cli/skills_test.go` runs every command written in it through the CLI parser and requires each catalog command and flag to appear in `skills/brpanel-cli/references/comandos.md`, so a change to `internal/cli/catalog.go` also means updating `skills/` in the same commit. Personal overrides go in `.claude/settings.local.json` / `CLAUDE.local.md` (git-ignored).

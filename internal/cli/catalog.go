@@ -62,7 +62,7 @@ var appFlags = []Flag{
 	{"port", "PORTA", "porta do app (vazio = o painel escolhe)"},
 	{"build", "COMANDO", "comando de build (vazio = detectar sozinho)"},
 	{"start", "COMANDO", "comando de início; use $PORT e $HOST (vazio = detectar sozinho)"},
-	{"replicas", "N", "quantidade de instâncias (1 a 8)"},
+	{"replicas", "N", "quantidade de instâncias (1 a 16)"},
 	{"memory-mb", "MB", "limite de memória por instância (0 = sem limite)"},
 	{"cpu-percent", "PCT", "limite de CPU por instância (100 = uma CPU, 0 = sem limite)"},
 	{"rate-limit", "REQ_S", "requisições por segundo por IP no Nginx (0 = desligado)"},
@@ -121,7 +121,7 @@ var Catalog = []Cmd{
 		Flags:    []Flag{{"kind", "service|deploy", "qual log (padrão service)"}, {"lines", "N", "quantas linhas (10 a 5000, padrão 200)"}},
 		Examples: []string{"brpanel apps logs loja", "brpanel apps logs loja --kind deploy --lines 100"}},
 	{Group: "Aplicações", Name: "apps delete", Aliases: []string{"delete", "rm"}, Args: "NOME", Min: 1, Danger: true,
-		Summary:  "Exclui a aplicação, o serviço e o site. Não apaga bancos nem as pastas de armazenamento.",
+		Summary:  "Exclui a aplicação, o serviço, o site e as pastas de armazenamento (volumes) com os backups delas. Não apaga bancos.",
 		Examples: []string{"brpanel apps delete loja --yes"}},
 
 	{Group: "Variáveis", Name: "apps env", Args: "NOME", Min: 1, Summary: "Mostra as variáveis de ambiente (cuidado: podem ter segredos).", Examples: []string{"brpanel apps env loja"}},

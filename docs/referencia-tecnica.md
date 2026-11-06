@@ -208,7 +208,7 @@ Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limit
 
 ## CLI e agentes de IA
 
-O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpanel apps deploy loja --wait`, `sudo brpanel dbs create --kind postgres --name pg`… São 40 comandos (aplicações, variáveis, site/Nginx, bancos, status, eventos), listados na página **CLI** do painel e em `brpanel help`. Sem argumentos de comando, `brpanel` continua iniciando o servidor.
+O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpanel apps deploy loja --wait`, `sudo brpanel dbs create --kind postgres --name pg`… São 46 comandos (aplicações, variáveis, site/Nginx, bancos, status, eventos), listados na página **CLI** do painel e em `brpanel help`. Sem argumentos de comando, `brpanel` continua iniciando o servidor.
 
 - **No servidor, sem senha nem token.** A CLI fala com o painel em execução por um socket Unix (`<data>/brpanel.sock`, modo 0600, só root), e cada pedido passa pelas mesmas rotas e validações da interface web. Se a pasta de dados não for a padrão, use `--data PASTA`.
 - **De qualquer lugar (acesso remoto).** Instale só a CLI no seu computador e conecte com um token:
@@ -238,6 +238,7 @@ O mesmo binário é uma linha de comando: `sudo brpanel apps list`, `sudo brpane
   Os tokens (`brp_` + 256 bits) valem o mesmo que a tela: só o hash SHA-256 fica no banco, o segredo aparece uma única vez, há até 20, e revogar corta o acesso na hora. Tentativas com token errado bloqueiam o IP por um minuto.
 - **Feita para agentes de IA, até os pequenos (4B).** Toda resposta começa com `OK:` ou `ERRO:` e traz linhas `DICA:`, `USO:` e `EXEMPLO:` com o próximo passo; códigos de saída 0 (certo), 1 (o painel recusou) e 2 (comando mal escrito). Erros de digitação sugerem o comando certo, plural/singular e sinônimos funcionam (`app ls`, `apps rm`, `apps env set`), opções desconhecidas listam as válidas e o que apaga dados exige `--yes`. Senhas nunca vão na linha de comando (`--password-stdin`). `--json` em qualquer comando; `--wait` espera o deploy e diz se deu certo.
 - **Um catálogo só.** `internal/cli/catalog.go` gera o `--help`, a página `/cli` e o guia para agentes (`brpanel guide`, também em `/cli/guide.txt`), e um teste confere que todo exemplo documentado é aceito pelo parser. Para um agente, cole o bloco da página **CLI** no prompt do sistema ou salve o guia como `AGENTS.md`/`CLAUDE.md` do projeto.
+- **Skills para agentes.** A pasta [`skills/`](../skills/README.md) traz sete skills no formato `SKILL.md` (`brpanel-cli`, `-deploy`, `-dados`, `-site`, `-templates`, `-remoto`, `-diagnostico`) com regras, receitas, uma tabela de erros e a referência de todos os comandos, escritas para funcionar até com modelos pequenos. Copie-as para `~/.claude/skills/` (ou para a pasta de skills do seu agente). Um teste (`internal/cli/skills_test.go`) passa todo comando citado por elas no parser da CLI e exige que cada comando e opção do catálogo esteja na referência, então elas não ensinam comando que não existe.
 
 ## Monitoramento e logs
 
