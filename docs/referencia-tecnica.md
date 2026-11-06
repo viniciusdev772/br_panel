@@ -212,7 +212,16 @@ Alguns projetos escrevem `host: "localhost"` (porta 3306) e a própria porta HTT
 
 O resultado fica em `apps/<app>/portcheck.json` e aparece em `apps show` (`aviso de porta`), na página do app e na saída de `apps deploy --wait`. Quando provado que o app **ignora `PORT`** (escuta só em outra porta, ou duas instâncias dele brigam), o autoscale e `Scale` recusam criar mais instâncias, em vez de criar unidades que só poderiam cair. A verificação espera até 25 s com domínio (o Nginx depende da porta) e 6 s sem; um app saudável a conclui assim que abre a porta.
 
-Limitação: a porta fixa no código só some de verdade quando o código lê `PORT`. Isolar cada instância em uma rede própria (namespace) resolveria sem mexer no código, mas exige NAT, acesso aos bancos em `127.0.0.1` e testes em um servidor real, e por isso não foi feito.
+O aviso se corrige sozinho: o relatório guarda cada instância que estava errada e, quando a página do app, `apps show` ou o autoscale o consultam, o painel confere de novo. Se todas já escutam onde devem (um app lento que abriu a porta depois do prazo, ou um app corrigido e reiniciado), o relatório é descartado e a trava do autoscale cai.
+
+**Por que não há rede isolada por instância.** A porta fixa no código só some de verdade quando o código lê `PORT`. Isolar cada instância em um namespace de rede (como o Docker faz) deixaria rodar duas cópias na mesma porta sem mexer no código, e funciona: num protótipo descartável no servidor, duas cópias na porta 39191 responderam cada uma na sua rede e a porta continuou livre no host. Mas o protótipo também mostrou o custo, e ele recai sobre a produção:
+
+- o app isolado **não alcança os bancos do painel**, que escutam só em `127.0.0.1` (nem pelo IP do host na veth); alcançá-los exigiria `route_localnet` com DNAT, que guias de hardening (CIS) classificam como risco por poder expor serviços de localhost à rede, ou mudar onde os bancos escutam;
+- sem NAT o app **não tem saída para a internet**, e o servidor de teste tinha `net.ipv4.ip_forward=0`: seria preciso ligar o encaminhamento do kernel e criar regras de NAT, mudanças de sistema que o painel hoje não faz;
+- Docker e UFW alteram a política `FORWARD` do firewall e quebram o roteamento de namespaces próprios; o Nomad, que faz isso sem Docker, depende dos plugins CNI `bridge`, `firewall` e `portmap` e trata portas estáticas em modo bridge como um caso problemático;
+- o Nginx passaria a apontar para IPs de veth, e cada instância precisaria de sub-rede, ciclo de vida (criar e desfazer a rede, inclusive depois de queda e de reinício do servidor) e referências `${{db.VAR}}` reescritas.
+
+Cada item é um jeito novo de errar em produção, e nenhum dá para validar sem um servidor de cada tipo (com e sem Docker, UFW, nftables). Por isso o painel **diagnostica** (com o arquivo, a linha e o dono da porta) e protege (sem instâncias extras), em vez de esconder o problema com uma rede por instância.
 
 Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limitados a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`): o painel gera credenciais próprias, e o código usa as dele.
 

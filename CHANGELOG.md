@@ -8,6 +8,11 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 - **Verificação de porta depois de cada deploy.** Muito projeto escreve a porta no código (`const port = 3090`) e ignora a variável `PORT`; duas cópias dele, ou duas instâncias, brigavam pela porta e o systemd reiniciava a perdedora sem parar, enquanto o deploy dizia "concluído". Agora o painel confere em que porta cada instância escuta (lendo `/proc` do cgroup da unit) e se ela cai sozinha, e escreve no log do deploy o que achou: em que outra porta o app escuta, **quem segura a porta** em uso (outra aplicação, banco ou instância do mesmo app), em que arquivo e linha o número aparece no código e como corrigir. O resumo aparece em `apps show` (`aviso de porta`), na página do app, na saída de `apps deploy --wait` e é entendido pelo assistente de IA. Só avisa: o deploy não é reprovado (um worker sem porta é legítimo), e apps saudáveis não mudam nada nem demoram mais.
 - Um app que comprovadamente ignora `PORT` não ganha instâncias extras: o autoscale e o escalonamento recusam com a explicação, em vez de criar units que só poderiam cair.
 
+- O aviso de porta **se corrige sozinho**: se o app só abriu a porta depois do prazo da verificação (aplicação lenta), ou foi corrigido e reiniciado, o painel percebe, descarta o aviso e libera o autoscale, em vez de manter um alarme que já não é verdade.
+
+### Corrigido
+- Os testes `TestPickPort*` do pacote `deploy` dependiam das portas 3001 a 3003 do computador onde rodavam e falhavam em um servidor com aplicações nessas portas. "Porta ocupada" agora é injetável e os testes são herméticos (a sondagem real continua testada à parte).
+
 ### Alterado
 - O pacote `sysinfo` ganhou a leitura de portas em escuta e de quem as segura (`/proc/net/tcp` e `tcp6`, ligando pelo inode dos descritores de arquivo).
 

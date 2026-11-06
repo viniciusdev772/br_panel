@@ -260,9 +260,16 @@ const fixHint = "O código precisa ler a porta da variável PORT, que o painel d
 // ---- the report ----
 
 type portReport struct {
-	At      time.Time `json:"at"`
-	Ignored bool      `json:"ignores_port"` // the app listens where it likes: it cannot have more than one instance
-	Note    string    `json:"note"`         // one line for the panel's screens
+	At       time.Time `json:"at"`
+	Ignored  bool      `json:"ignores_port"` // the app listens where it likes: it cannot have more than one instance
+	Note     string    `json:"note"`         // one line for the panel's screens
+	Problems []problem `json:"problems"`     // the instances that were not right, to look at again later
+}
+
+// problem is an instance that did not listen on its port when the deploy checked.
+type problem struct {
+	Unit string `json:"unit"`
+	Port int    `json:"port"`
 }
 
 func (d *Deployer) reportFile(app string) string {
@@ -277,11 +284,28 @@ func (d *Deployer) loadReport(app string) portReport {
 	return r
 }
 
+// current is the saved report, unless every instance it complained about now listens on its port:
+// a slow app that opened the port after the deploy stopped waiting, or one the person fixed and
+// restarted, must not keep a warning (or a locked autoscaler) that is no longer true.
+func (d *Deployer) current(app string) portReport {
+	r := d.loadReport(app)
+	if len(r.Problems) == 0 || d.probe == nil {
+		return r
+	}
+	for _, p := range r.Problems {
+		if !contains(d.probe.ports(p.Unit), p.Port) {
+			return r
+		}
+	}
+	_ = os.Remove(d.reportFile(app))
+	return portReport{}
+}
+
 // PortNote is the one-line warning left by the last deploy's port check (empty when all is well).
-func (d *Deployer) PortNote(app string) string { return d.loadReport(app).Note }
+func (d *Deployer) PortNote(app string) string { return d.current(app).Note }
 
 // IgnoresPort is true when the last check found that the app does not listen on the PORT it was given.
-func (d *Deployer) IgnoresPort(app string) bool { return d.loadReport(app).Ignored }
+func (d *Deployer) IgnoresPort(app string) bool { return d.current(app).Ignored }
 
 func (d *Deployer) saveReport(app string, r portReport) {
 	if r.Note == "" && !r.Ignored {
@@ -306,7 +330,8 @@ func (d *Deployer) verifyPorts(ctx context.Context, a store.App, log io.Writer) 
 	}()
 	a.Replicas = max(a.Replicas, 1)
 	var rep portReport
-	record := func(f finding) {
+	record := func(f finding, unit string, port int) {
+		rep.Problems = append(rep.Problems, problem{Unit: unit, Port: port})
 		fmt.Fprintln(log, strings.Join(f.lines, "\n"))
 		if rep.Note == "" {
 			rep.Note = f.note
@@ -320,16 +345,16 @@ func (d *Deployer) verifyPorts(ctx context.Context, a store.App, log io.Writer) 
 		case vInterrupted:
 			return
 		case vCrash:
-			record(d.explainCrash(a, k, unit, port, v))
+			record(d.explainCrash(a, k, unit, port, v), unit, port)
 		case vElsewhere:
 			if a.Domain == "" && a.Slots() < 2 { // nothing depends on that port: no warning, and no verdict on weak evidence
 				continue
 			}
-			record(d.explainElsewhere(a, k, port, v.got))
+			record(d.explainElsewhere(a, k, port, v.got), unit, port)
 		case vSilent:
 			if a.Domain != "" {
 				note := fmt.Sprintf("a instância %d está ativa, mas ainda não abriu a porta %d", k, port)
-				record(finding{note: note, lines: []string{"AVISO: " + note + "; o Nginx responde 502 até ela abrir (aplicações lentas podem demorar; um worker sem porta não deveria ter domínio)."}})
+				record(finding{note: note, lines: []string{"AVISO: " + note + "; o Nginx responde 502 até ela abrir (aplicações lentas podem demorar; um worker sem porta não deveria ter domínio)."}}, unit, port)
 			}
 		}
 	}

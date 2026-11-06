@@ -33,6 +33,20 @@ const (
 	lastAutoPort  = 3999
 )
 
+// portBusy reports whether something on this host already listens on a port. It is a variable so
+// tests do not depend on what the machine they run on happens to be serving.
+var portBusy = listenBusy
+
+// listenBusy tries to listen on the port: if that fails, someone else has it.
+func listenBusy(port int) bool {
+	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return true
+	}
+	l.Close()
+	return false
+}
+
 // PickPort returns a free port not used by another app and not currently listening.
 func (d *Deployer) PickPort(except string) int { return d.PickPortRange(except, 1) }
 
@@ -54,12 +68,9 @@ func (d *Deployer) PickPortRange(except string, n int) int {
 				ok = false
 				continue
 			}
-			l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p+k))
-			if err != nil {
+			if portBusy(p + k) {
 				ok = false
-				continue
 			}
-			l.Close()
 		}
 		if ok {
 			return p

@@ -385,3 +385,59 @@ func TestVerifyPortsNeverPanics(t *testing.T) {
 	d.probe = nil
 	d.verifyPorts(context.Background(), a, &log) // a deployer built by hand, without a probe: does nothing
 }
+
+// A warning describes what the deploy saw; if the app later does the right thing (it was only slow,
+// or the person fixed it and restarted), the screens and the autoscaler must stop believing it.
+func TestStaleWarningsHealThemselves(t *testing.T) {
+	// A slow app: nothing listened while the deploy waited.
+	a := store.App{Name: "slow", StartCmd: "x", Port: 3001, Domain: "s.example.com"}
+	p := &scripted{steps: []step{up}}
+	d, a := portApp(t, a, p)
+	var log bytes.Buffer
+	d.verifyPorts(context.Background(), a, &log)
+	if !strings.Contains(d.PortNote("slow"), "ainda não abriu a porta 3001") {
+		t.Fatalf("o deploy deveria ter avisado: %q", d.PortNote("slow"))
+	}
+	if d.PortNote("slow") == "" {
+		t.Error("ainda não escuta: o aviso continua")
+	}
+	p.steps, p.i = []step{upOn(3001)}, 0 // the app finally opens its port
+	if d.PortNote("slow") != "" {
+		t.Error("o app abriu a porta depois: o aviso deveria sumir")
+	}
+	if _, err := os.Stat(d.reportFile("slow")); err == nil {
+		t.Error("o relatório antigo deveria ser apagado")
+	}
+
+	// The lock on more instances lifts when the app starts listening where it should.
+	a2 := store.App{Name: "legacy", StartCmd: "x", Port: 3010, Domain: "l.example.com"}
+	p2 := &scripted{steps: []step{upOn(3090)}}
+	d2, a2 := portApp(t, a2, p2)
+	d2.verifyPorts(context.Background(), a2, &bytes.Buffer{})
+	if !d2.IgnoresPort("legacy") {
+		t.Fatal("escutar só em outra porta trava as instâncias extras")
+	}
+	p2.steps, p2.i = []step{upOn(3090, 3010)}, 0
+	if d2.IgnoresPort("legacy") {
+		t.Error("o app passou a escutar a porta do painel: a trava deveria cair")
+	}
+
+	// Two instances were wrong: one fixed is not enough.
+	a3 := store.App{Name: "two", StartCmd: "x", Port: 3020, Domain: "t.example.com", Replicas: 2}
+	u0 := &scripted{steps: []step{upOn(9999)}}
+	u1 := &scripted{steps: []step{upOn(9998)}}
+	d3, a3 := portApp(t, a3, u0)
+	d3.probe = &perUnit{units: map[string]*scripted{"brpanel-two.service": u0, "brpanelr1-two.service": u1}}
+	d3.verifyPorts(context.Background(), a3, &bytes.Buffer{})
+	if len(d3.loadReport("two").Problems) != 2 {
+		t.Fatalf("as duas instâncias estão erradas: %+v", d3.loadReport("two"))
+	}
+	u0.steps, u0.i = []step{upOn(3020)}, 0
+	if d3.PortNote("two") == "" || !d3.IgnoresPort("two") {
+		t.Error("com uma instância ainda errada, o aviso e a trava continuam")
+	}
+	u1.steps, u1.i = []step{upOn(3021)}, 0
+	if d3.PortNote("two") != "" || d3.IgnoresPort("two") {
+		t.Error("com as duas certas, tudo se limpa")
+	}
+}

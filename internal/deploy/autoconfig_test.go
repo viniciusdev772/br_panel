@@ -38,14 +38,13 @@ func TestPickPortSkipsUsedAndBusy(t *testing.T) {
 	if p := srv.PickPort(""); p != firstAutoPort+1 {
 		t.Errorf("deveria pular a porta de outro app: %d", p)
 	}
-	l, err := net.Listen("tcp", "127.0.0.1:3002")
-	if err == nil {
-		defer l.Close()
-		if p := srv.PickPort(""); p != 3003 {
-			t.Errorf("deveria pular porta em uso: %d", p)
-		}
+	old := portBusy
+	portBusy = func(p int) bool { return p == 3002 } // something else listens on 3002
+	t.Cleanup(func() { portBusy = old })
+	if p := srv.PickPort(""); p != 3003 {
+		t.Errorf("deveria pular porta em uso: %d", p)
 	}
-	if p := srv.PickPort("a"); p != firstAutoPort && err == nil {
+	if p := srv.PickPort("a"); p != firstAutoPort {
 		t.Errorf("a própria porta do app conta como livre: %d", p)
 	}
 }
@@ -188,5 +187,21 @@ func TestEnvFileContentUsesTheInstancePort(t *testing.T) {
 	p := Paths{Data: "/d"}
 	if p.EnvFileN("api", 0) != p.EnvFile("api") || p.EnvFileN("api", 2) != "/d/env/api.r2.env" {
 		t.Errorf("%s %s", p.EnvFileN("api", 0), p.EnvFileN("api", 2))
+	}
+}
+
+// The real probe (the other tests replace it): a port somebody listens on is busy, a free one is not.
+func TestListenBusyOnARealPort(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skip(err)
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	if !listenBusy(port) {
+		t.Errorf("a porta %d está em uso por este teste", port)
+	}
+	l.Close()
+	if listenBusy(port) {
+		t.Errorf("a porta %d foi liberada", port)
 	}
 }
