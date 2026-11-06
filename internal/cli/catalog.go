@@ -87,6 +87,11 @@ var Catalog = []Cmd{
 	{Group: "Geral", Name: "skills install", Summary: "Grava os skills para agentes de IA (Claude Code e similares) na pasta de skills do agente. Rode de novo para atualizar.",
 		Flags:    []Flag{{"dir", "PASTA", "pasta de skills do agente (padrão ~/.claude/skills)"}},
 		Examples: []string{"brpanel skills install", "brpanel skills install --dir ~/.config/opencode/skills"}},
+	{Group: "Geral", Name: "version", Summary: "Mostra a versão deste programa.", Examples: []string{"brpanel version"}},
+	{Group: "Geral", Name: "update", Summary: "Vê se há versão nova e, se você aceitar, baixa, confere o SHA-256 e atualiza este programa (no servidor, reinicia o painel). Sem --yes, pergunta antes.",
+		Flags: []Flag{{"check", "", "só diz se há versão nova, sem atualizar"},
+			{"notice", "on|off", "liga ou desliga o aviso de versão nova que aparece, no máximo uma vez por dia, ao usar a CLI no terminal"}},
+		Examples: []string{"brpanel update", "brpanel update --check", "brpanel update --yes", "brpanel update --notice off"}},
 	{Group: "Geral", Name: "help", Args: "[COMANDO]", Summary: "Lista os comandos, ou explica um comando em detalhe.",
 		Examples: []string{"brpanel help", "brpanel help apps deploy"}},
 

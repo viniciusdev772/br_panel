@@ -18,14 +18,14 @@ sed -n "/^## \[$VER\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d' >dist-notes.md.tmp
 
 rm -rf dist && mkdir dist
 for arch in amd64 arm64; do
-	CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-linux-$arch ./cmd/brpanel
+	CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X github.com/viniciusdev772/br_panel/internal/cli.Version=$TAG" -o dist/brpanel-linux-$arch ./cmd/brpanel
 	for os in linux darwin windows; do
 		ext=""; [ "$os" = windows ] && ext=.exe
-		CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/brpanel-cli-$os-$arch$ext ./cmd/brpanel-cli
+		CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X github.com/viniciusdev772/br_panel/internal/cli.Version=$TAG" -o dist/brpanel-cli-$os-$arch$ext ./cmd/brpanel-cli
 	done
 done
 # Termux (Android) só executa binários PIE; GOOS=android gera um sem cgo.
-CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o dist/brpanel-cli-android-arm64 ./cmd/brpanel-cli
+CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -ldflags "-s -w -X github.com/viniciusdev772/br_panel/internal/cli.Version=$TAG" -o dist/brpanel-cli-android-arm64 ./cmd/brpanel-cli
 (cd dist && for f in brpanel-*; do sha256sum "$f" >"$f.sha256"; done)
 
 git tag -a "$TAG" -m "$TAG"

@@ -23,6 +23,8 @@ Convenção: em `NOME` você coloca o nome da app ou do banco; `--opção VALOR`
 | `events` | Últimos acontecimentos (deploys, backups, criações) | `--limit N` (até 30) | `brpanel events --limit 5` |
 | `guide` | Guia completo em texto puro, sempre atual | | `brpanel guide` |
 | `skills install` | Grava os skills de agente em `~/.claude/skills`; rode de novo para atualizar | `--dir PASTA` | `brpanel skills install` |
+| `version` | Mostra a versão deste programa | | `brpanel version` |
+| `update` | Vê se há versão nova e pergunta antes de atualizar (no servidor reinicia o painel) | `--check`, `--notice on\|off` | `brpanel update --check` |
 | `help` | Lista os comandos ou explica um | | `brpanel help apps deploy` |
 
 ## Aplicações

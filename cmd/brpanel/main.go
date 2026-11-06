@@ -21,6 +21,7 @@ import (
 func main() {
 	// `brpanel apps list` is the CLI; the server only ever takes flags.
 	if cli.IsCommand(os.Args[1:]) {
+		cli.Server = true
 		os.Exit(cli.Run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 	}
 	var cfg server.Config

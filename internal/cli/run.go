@@ -147,6 +147,7 @@ func run(rt http.RoundTripper, args []string, in io.Reader, out, errw io.Writer)
 	if err := handlers[cmd.Name](x); err != nil {
 		return report(errw, err, asJSON)
 	}
+	notice(x, errw)
 	return 0
 }
 
@@ -168,7 +169,7 @@ func report(w io.Writer, err error, asJSON bool) int {
 }
 
 // offline commands never contact a server (login builds its own client).
-var offline = map[string]bool{"help": true, "guide": true, "skills install": true, "login": true, "logout": true, "whoami": true}
+var offline = map[string]bool{"help": true, "guide": true, "skills install": true, "version": true, "update": true, "login": true, "logout": true, "whoami": true}
 
 func newClient(rt http.RoundTripper, base string, remote bool) *client {
 	return &client{base: base, remote: remote, hc: &http.Client{Transport: rt, Timeout: 2 * time.Minute,

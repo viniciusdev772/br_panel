@@ -13,7 +13,7 @@ help: ## Lista os alvos
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  \033[36m%-12s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 build: ## Compila para bin/brpanel (sempre com -o: nunca deixe binários na raiz)
-	$(GO) build -trimpath -ldflags "-s -w" -o $(BIN) ./cmd/brpanel
+	$(GO) build -trimpath -ldflags "-s -w -X github.com/viniciusdev772/br_panel/internal/cli.Version=$(VERSION)" -o $(BIN) ./cmd/brpanel
 
 run: build ## Executa localmente (DATA=./data ADDR=127.0.0.1:8080)
 	$(BIN) -data $(DATA) -addr $(ADDR)
