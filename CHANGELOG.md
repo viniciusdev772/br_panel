@@ -4,6 +4,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.10.0] - 2026-11-06
+
+### Alterado
+- **Interface mais bonita**: barra superior translúcida com desfoque e aba ativa em destaque, cards que sobem e ganham brilho ao passar o mouse, botões principais com degradê e sombra, anel de foco visível para quem usa o teclado, indicador pulsante nos deploys em andamento, rolagem fina nas caixas de log e de chat, entrada suave das páginas e respeito a `prefers-reduced-motion`. As mensagens simples de confirmação somem sozinhas depois de alguns segundos (erros e tokens ficam). No celular a barra mostra só o ícone da marca.
+- **Assistente de IA mais agradável**: respostas aparecem com Markdown (negrito, `código` e blocos), cursor piscando enquanto o modelo trabalha e bolhas diferentes para você e para o assistente. O comando pedido para aprovação aparece sem o separador `--` quando ele não é necessário.
+- **Mais rápido**: os arquivos estáticos (CSS e JS) agora são servidos com versão no endereço, `ETag`, compressão gzip e cache de um ano. No primeiro acesso saem de 79,6 KB para 21 KB e, nos seguintes, não baixam de novo (antes eram baixados inteiros a cada página, sem compressão). Os scripts carregam com `defer`, as conexões com a CDN e o Google Fonts são abertas antes (`preconnect`) e os ícones não piscam mais como texto antes da fonte chegar. A página para de consultar o servidor enquanto a aba está escondida.
+
+### Corrigido
+- A validação dos caminhos das Configurações (Nginx, ACME, certificados, units) usava as regras de caminho do sistema onde o painel foi compilado e recusava `/etc/nginx/conf.d` no Windows. Agora usa regras de caminho Linux em qualquer sistema (no servidor o resultado é o mesmo).
+
+### Interno
+- O painel passa a compilar também no Windows e no macOS (as chamadas exclusivas do Linux ficaram em arquivos por plataforma: `sysinfo`, `buildcache`, `deploy`). Isso permite rodar a suíte do pacote `server` e ver a interface localmente; em produção nada muda.
+
 ## [0.9.0] - 2026-11-06
 
 ### Adicionado

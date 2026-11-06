@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path/filepath"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -142,7 +142,8 @@ var (
 )
 
 func validateAbsDir(label, p string) error {
-	if p == "" || !filepath.IsAbs(p) || strings.ContainsAny(p, "\x00\r\n\"';{}$ ") || filepath.Clean(p) != p {
+	// path, not filepath: these are paths on the Linux server, whatever system the panel is built on.
+	if p == "" || !path.IsAbs(p) || strings.ContainsAny(p, "\x00\r\n\"';{}$ ") || path.Clean(p) != p {
 		return fmt.Errorf("%s: informe um caminho absoluto simples (sem espaços ou caracteres especiais)", label)
 	}
 	return nil

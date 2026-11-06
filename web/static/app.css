@@ -401,3 +401,86 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 .ai-call--bad { border-color: var(--bad); }
 .ai-call .codeblock { margin-top: 8px; max-height: 280px; overflow-y: auto; }
 .ai-form { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- polish: depth, motion and focus (kept last so it layers over the base rules) ---------- */
+:root {
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  --radius: 12px;
+}
+html { scroll-behavior: smooth; scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
+::selection { background: color-mix(in srgb, var(--accent) 40%, transparent); }
+body { text-rendering: optimizeLegibility; }
+.stat-value, .rcard-metrics, .host-strip b, .logview, .meta dd { font-variant-numeric: tabular-nums; }
+
+/* The bar blurs what scrolls under it. */
+.topbar { background: color-mix(in srgb, var(--surface) 80%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px);
+  box-shadow: 0 1px 0 var(--border), 0 8px 24px -16px rgba(0, 0, 0, .5); }
+.brand-mark { box-shadow: 0 4px 14px -4px rgba(139, 92, 246, .7); }
+.topnav a { position: relative; border-bottom: 0; border-radius: 8px; height: 36px; align-self: center; transition: color .15s, background-color .15s; }
+.topnav a:hover { background: var(--surface-2); }
+.topnav a.active { background: var(--accent-soft); }
+.topnav a.active::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -10px; height: 2px; border-radius: 2px; background: var(--accent); }
+
+/* A page eases in instead of snapping. */
+.content { animation: rise .28s var(--ease) both; }
+.content--wide { animation: none; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Visible keyboard focus everywhere. */
+a:focus-visible, button:focus-visible, summary:focus-visible, select:focus-visible, input[type=checkbox]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.mdc-button:focus-visible { box-shadow: var(--ring); outline: 0; }
+
+/* Cards and buttons get a little life. */
+.mdc-card { border-radius: var(--radius); transition: border-color .2s, box-shadow .2s; }
+.mdc-card:hover { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
+.mdc-button { transition: transform .12s var(--ease), box-shadow .2s, filter .15s; letter-spacing: .6px; }
+.mdc-button:not(:disabled):active { transform: translateY(1px) scale(.985); }
+.mdc-button--raised:not(:disabled) { background-image: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, 0)); box-shadow: 0 6px 16px -8px rgba(124, 58, 237, .8); }
+.mdc-button--raised:not(:disabled):hover { filter: brightness(1.1); box-shadow: 0 8px 20px -8px rgba(124, 58, 237, .9); }
+.icon-btn { transition: background-color .15s, color .15s, transform .12s; }
+.icon-btn:active { transform: scale(.92); }
+.rcard { transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
+.rcard:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: var(--shadow); }
+.tpl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.tab-btn, .sw-tab { transition: color .15s, background-color .15s, border-color .15s; }
+.tab-btn:hover { color: var(--text); }
+.login-card { box-shadow: var(--shadow); border-radius: 16px; }
+
+/* Messages slide in, plain confirmations leave on their own (app.js). */
+.notice { animation: rise .25s var(--ease) both; transition: opacity .4s, transform .4s; display: flex; flex-direction: column; gap: 8px; }
+.notice.is-leaving { opacity: 0; transform: translateY(-6px); }
+
+/* A deploy or a start in progress shows a pulsing dot. */
+.chip--deploying::before, .chip--activating::before, .chip--provisioning::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%;
+  background: currentColor; vertical-align: 1px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+
+/* Slim, themed scrollbars on the scrollable boxes. */
+.logview, .activity, .ai-log, .tabs, .codeblock { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.logview, .codeblock { border-radius: 10px; }
+
+/* Long lists are only painted when they reach the screen. */
+.activity li, .tokens-table tbody tr { content-visibility: auto; contain-intrinsic-size: auto 56px; }
+
+/* ---------- assistant: nicer chat ---------- */
+.ai-log { padding: 2px 2px 6px; }
+.ai-msg { animation: rise .2s var(--ease) both; line-height: 1.55; box-shadow: 0 1px 0 rgba(0, 0, 0, .12); }
+.ai-msg--user { border-radius: 14px 14px 4px 14px; max-width: min(85%, 640px); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, transparent), var(--accent-soft)); }
+.ai-msg--assistant { border-radius: 14px 14px 14px 4px; max-width: min(92%, 760px); }
+.ai-msg code { font-size: .9em; }
+.ai-msg .codeblock { margin: 8px 0; white-space: pre; }
+.ai-msg--live::after { content: "▍"; color: var(--accent); margin-left: 2px; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.ai-call { transition: border-color .2s; background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.ai-call summary::marker { color: var(--accent); }
+.ai-call[open] { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.ai-ask { animation: rise .2s var(--ease) both, askglow 2s ease-in-out 2; }
+@keyframes askglow { 50% { box-shadow: 0 0 0 4px rgba(245, 185, 66, .18); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 600px) { .topnav a.active::after { left: 6px; right: 6px; } .ai-msg--user, .ai-msg--assistant { max-width: 100%; } }
+.brand > span:last-child { white-space: nowrap; }
+@media (max-width: 480px) { .brand > span:last-child { display: none; } .topbar { gap: 8px; padding: 0 12px; } }

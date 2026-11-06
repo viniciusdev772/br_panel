@@ -2,6 +2,8 @@
   'use strict';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  // The panel polls every few seconds: its timers sleep while the tab is hidden, so a page nobody sees makes no requests.
+  var setInterval = function (fn, ms) { return window.setInterval(function () { if (!document.hidden) { fn(); } }, ms); };
 
   // ---- Material components ----
   var fields = {}, allFields = [];
@@ -686,15 +688,38 @@
     };
     var aiBottom = function () { aiLog.scrollTop = aiLog.scrollHeight; };
     var aiAdd = function (cls, text) { var d = mk('div', 'ai-msg ' + cls, text); aiLog.appendChild(d); aiBottom(); return d; };
+    // A small, safe markdown: code fences, `code` and **bold**, built as DOM nodes (never innerHTML).
+    var aiRender = function (el, text) {
+      el.textContent = '';
+      var parts = text.split(/```[a-z]*\n?/);
+      parts.forEach(function (part, i) {
+        if (i % 2) { el.appendChild(mk('pre', 'codeblock', part.replace(/\n$/, ''))); return; }
+        // the blank lines around a fence would double the gap the block already has
+        if (i > 0) { part = part.replace(/^\n+/, ''); }
+        if (i < parts.length - 1) { part = part.replace(/\n+$/, ''); }
+        part.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).forEach(function (tok) {
+          if (/^`[^`]+`$/.test(tok)) { el.appendChild(mk('code', '', tok.slice(1, -1))); }
+          else if (/^\*\*[^*]+\*\*$/.test(tok)) { el.appendChild(mk('strong', '', tok.slice(2, -2))); }
+          else if (tok) { el.appendChild(document.createTextNode(tok)); }
+        });
+      });
+    };
+    // Streaming repaints at most once per frame.
+    var aiPaint = function (el) {
+      if (el.painting) { return; }
+      el.painting = true;
+      requestAnimationFrame(function () { el.painting = false; aiRender(el, el.raw); aiBottom(); });
+    };
     var aiHandle = function (line) {
       if (!line.trim()) { return; }
       var e;
       try { e = JSON.parse(line); } catch (x) { return; }
       if (e.t === 'text') {
-        if (!aiCur) { aiCur = aiAdd('ai-msg--assistant', ''); }
-        aiCur.textContent += e.text;
-        aiBottom();
+        if (!aiCur) { aiCur = aiAdd('ai-msg--assistant ai-msg--live', ''); }
+        aiCur.raw = (aiCur.raw || '') + e.text;
+        aiPaint(aiCur);
       } else if (e.t === 'call') {
+        if (aiCur && !aiCur.raw) { aiCur.remove(); }
         aiCur = null;
         var box = mk('details', 'ai-call'), sum = mk('summary', '', e.cmd || e.name), out = mk('pre', 'codeblock', 'executando…');
         box.appendChild(sum); box.appendChild(out); aiLog.appendChild(box);
@@ -731,7 +756,8 @@
       aiLog.appendChild(ask); aiBottom();
     };
     var aiPost = function (approve) {
-      aiBusy = true; aiSend.disabled = true; aiCur = null; aiPend = [];
+      aiBusy = true; aiSend.disabled = true; aiPend = [];
+      aiCur = aiAdd('ai-msg--assistant ai-msg--live', ''); // the blinking cursor shows the model is working
       var body = new URLSearchParams({ csrf: aiCsrf, payload: JSON.stringify({ messages: aiHist, approve: approve || {} }) });
       return fetch('/ai/chat', { method: 'POST', credentials: 'same-origin', body: body }).then(function (resp) {
         var type = resp.headers.get('Content-Type') || '';
@@ -755,6 +781,8 @@
         aiAdd('ai-msg--error', err.message || 'Falha ao falar com o servidor.');
       }).then(function () {
         aiBusy = false; aiSend.disabled = false;
+        if (aiCur && !aiCur.raw) { aiCur.remove(); }
+        $$('.ai-msg--live', aiLog).forEach(function (m) { m.classList.remove('ai-msg--live'); });
         if (aiPend.length) { aiAsk(); }
       });
     };
@@ -774,6 +802,15 @@
       if (aiBusy) { return; }
       aiHist = []; aiPend = []; aiOut = {}; aiLog.textContent = '';
     });
+  }
+
+  // ---- a plain confirmation fades away on its own (errors, tokens and anything with a button stay) ----
+  var flash = $('.notice[role=status]');
+  if (flash && !$('pre, button, a', flash)) {
+    setTimeout(function () {
+      flash.classList.add('is-leaving');
+      setTimeout(function () { flash.remove(); }, 400);
+    }, 7000);
   }
 
   // ---- pages waiting for a background job reload themselves ----

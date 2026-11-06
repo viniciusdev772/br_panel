@@ -47,8 +47,11 @@ func TestArgv(t *testing.T) {
 	if _, err := Argv("raw", nil, false); err == nil {
 		t.Error("raw não deve ser oferecido ao modelo")
 	}
-	if d := Describe("apps_env-set", json.RawMessage(`{"args":["loja","A=a b"]}`)); d != "brpanel apps env-set -- loja 'A=a b'" {
+	if d := Describe("apps_env-set", json.RawMessage(`{"args":["loja","A=a b"]}`)); d != "brpanel apps env-set loja 'A=a b'" {
 		t.Errorf("describe = %q", d)
+	}
+	if d := Describe("apps_set", json.RawMessage(`{"args":["-x"],"replicas":2}`)); d != "brpanel apps set --replicas=2 -- -x" {
+		t.Errorf("o separador fica quando um valor parece opção: %q", d)
 	}
 }
 

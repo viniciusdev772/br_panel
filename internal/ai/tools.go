@@ -3,6 +3,7 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -164,6 +165,9 @@ func Describe(tool string, args json.RawMessage) string {
 	argv, err := Argv(tool, args, false)
 	if err != nil {
 		return tool
+	}
+	if i := slices.Index(argv, "--"); i >= 0 && !slices.ContainsFunc(argv[i+1:], func(a string) bool { return strings.HasPrefix(a, "-") }) {
+		argv = slices.Delete(argv, i, i+1) // the separator only matters for values that look like options
 	}
 	for i, a := range argv {
 		if strings.ContainsAny(a, " \t'\"$&;|<>()*?!{}") || a == "" {

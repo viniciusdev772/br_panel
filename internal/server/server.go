@@ -52,6 +52,7 @@ type Server struct {
 	store *store.Store
 	auth  *auth.Auth
 	tmpl  map[string]*template.Template
+	assets assets // embedded static files, hashed and pre-compressed at start
 
 	setMu sync.RWMutex
 	set   settings.Settings
@@ -171,7 +172,15 @@ func (s *Server) applySettings(set settings.Settings) error {
 
 func (s *Server) loadTemplates() error {
 	s.tmpl = map[string]*template.Template{}
+	static, err := fs.Sub(web.FS, "static")
+	if err == nil {
+		s.assets, err = loadAssets(static)
+	}
+	if err != nil {
+		return err
+	}
 	funcs := template.FuncMap{
+		"asset": s.assets.url, // versioned address of a static file (cached for a year, see static.go)
 		"dict": func(kv ...any) map[string]any {
 			m := map[string]any{}
 			for i := 0; i+1 < len(kv); i += 2 {
@@ -195,9 +204,8 @@ func (s *Server) loadTemplates() error {
 }
 
 func (s *Server) routes() http.Handler {
-	static, _ := fs.Sub(web.FS, "static")
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	mux.Handle("GET /static/", s.assets.handler())
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.protected(s.handleLogout))

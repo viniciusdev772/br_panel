@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/viniciusdev772/br_panel/internal/buildcache"
@@ -184,11 +183,7 @@ func (d *Deployer) command(ctx context.Context, dir string, env []string, name s
 	c := exec.CommandContext(ctx, name, args...)
 	c.Dir = dir
 	c.Env = env
-	c.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	c.Cancel = func() error {
-		killTree(c.Process.Pid) // runuser starts the build in a session of its own: the group kill alone misses it
-		return syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
-	}
+	ownGroup(c)
 	c.WaitDelay = 5 * time.Second
 	return c
 }

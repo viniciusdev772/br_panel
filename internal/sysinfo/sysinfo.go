@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 // ReadCgroup reads CPU time (µs) and working-set memory (bytes) of a cgroup v2 directory.
@@ -89,10 +88,6 @@ func ReadHost(dataDir string, cpus int) HostStats {
 		fmt.Sscanf(string(b), "%f %f %f", &h.Load[0], &h.Load[1], &h.Load[2])
 	}
 	h.Uptime = int64(Uptime())
-	var st syscall.Statfs_t
-	if syscall.Statfs(dataDir, &st) == nil {
-		h.DiskTotal = int64(st.Blocks) * int64(st.Bsize)
-		h.DiskUsed = h.DiskTotal - int64(st.Bavail)*int64(st.Bsize)
-	}
+	h.DiskTotal, h.DiskUsed = diskUsage(dataDir)
 	return h
 }

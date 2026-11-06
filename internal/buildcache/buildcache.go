@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -189,10 +188,8 @@ func (c *Cache) Clear() (int64, error) {
 // lastUsed is the later of the modification and access times.
 func lastUsed(info fs.FileInfo) time.Time {
 	t := info.ModTime()
-	if st, ok := info.Sys().(*syscall.Stat_t); ok {
-		if a := time.Unix(int64(st.Atim.Sec), int64(st.Atim.Nsec)); a.After(t) {
-			t = a
-		}
+	if a, ok := accessTime(info); ok && a.After(t) {
+		t = a
 	}
 	return t
 }
