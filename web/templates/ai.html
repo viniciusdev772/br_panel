@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="page-head"><h1 class="mdc-typography--headline5">Assistente</h1></div>
+
+{{if not .AIReady}}
+<div class="mdc-card empty"><div class="card-body">
+  <p>O assistente ainda não foi configurado.</p>
+  <p class="muted">Informe o formato da API, o endereço, o modelo e a chave (OpenRouter, OpenAI, Anthropic ou um servidor local).</p>
+  <div class="actions"><a class="mdc-button mdc-button--raised" href="/settings#ia"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Configurar a IA</span></a></div>
+</div></div>
+{{else}}
+<div class="mdc-card"><div class="card-body" id="ai" data-model="{{.Set.AIModel}}">
+  <p class="muted">Modelo <b>{{.Set.AIModel}}</b>. O assistente usa os comandos da CLI: consultas rodam sozinhas e o que altera o servidor espera a sua aprovação. A conversa fica só nesta página.</p>
+  <div id="ai-log" class="ai-log" aria-live="polite"></div>
+  <form id="ai-form" class="ai-form">
+    {{template "area" dict "name" "ai_prompt" "label" "Peça algo (ex.: por que o deploy da loja falhou?)" "rows" 3}}
+    <div class="actions">
+      <button class="mdc-button" type="button" id="ai-clear"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Nova conversa</span></button>
+      <button class="mdc-button mdc-button--raised" type="submit" id="ai-send"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">send</i><span class="mdc-button__label">Enviar</span></button>
+    </div>
+  </form>
+</div></div>
+{{end}}
+{{end}}

@@ -184,7 +184,7 @@ func (s *Server) loadTemplates() error {
 		"join":  strings.Join,
 		"split": strings.Split,
 	}
-	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new", "cli", "templates", "template"} {
+	for _, page := range []string{"login", "apps", "app_form", "app", "github", "github_create", "github_done", "settings", "database", "database_new", "cli", "templates", "template", "ai"} {
 		t, err := template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+page+".html")
 		if err != nil {
 			return err
@@ -205,6 +205,8 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /setup", s.handleSetup)
 	mux.HandleFunc("GET /settings", s.protected(s.handleSettingsForm))
 	mux.HandleFunc("POST /settings", s.protected(s.handleSettings))
+	mux.HandleFunc("GET /ai", s.protected(s.handleAIPage))
+	mux.HandleFunc("POST /ai/chat", s.protected(s.handleAIChat))
 	mux.HandleFunc("GET /api/cache", s.protected(s.handleAPICache))
 	mux.HandleFunc("POST /cache/prune", s.protected(s.handleCachePrune))
 	mux.HandleFunc("POST /cache/clear", s.protected(s.handleCacheClear))
@@ -347,7 +349,9 @@ type page struct {
 	HasKey         bool
 	HasSecret      bool
 	HasCF          bool
-	Checks         []settings.Check
+	HasAI          bool // an API key for the assistant is saved
+	AIReady        bool // the assistant has a model and can be used
+	Checks        []settings.Check
 	Form           map[string]string // submitted values to refill on errors
 }
 

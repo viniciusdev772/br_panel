@@ -119,6 +119,12 @@ O painel também responde a comandos escritos, como `brpanel apps list`. Dá par
 
 As respostas são escritas de forma simples, com dicas do próximo passo, e funcionam bem com assistentes de inteligência artificial. Você pode copiar o guia da página e colar no seu assistente, para ele cuidar do servidor por você. Comandos que apagam dados sempre pedem confirmação.
 
+## Assistente de IA dentro do painel
+
+A aba IA é um chat que cuida do servidor por você: "por que o deploy da loja falhou?", "aumenta para 2 instâncias". O assistente usa os mesmos comandos da linha de comando. Consultas (estado, logs, bancos) ele faz sozinho; qualquer coisa que altere o servidor aparece na tela como um comando, e só roda depois que você aprova. Variáveis de ambiente, senhas e tokens não são mostrados a ele.
+
+Em Configurações você escolhe o provedor: OpenRouter (um só acesso a vários modelos), OpenAI, Anthropic ou um servidor local como o Ollama. O painel fala os três formatos de API (Chat Completions, Responses e Messages), então basta informar o formato, o endereço, o modelo e a chave. O modelo precisa suportar chamada de ferramentas. O que você escreve, incluindo trechos de logs que ele leia, vai para o provedor escolhido.
+
 ## No celular
 
 Todas as telas se ajustam ao celular.

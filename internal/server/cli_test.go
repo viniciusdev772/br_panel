@@ -15,15 +15,6 @@ import (
 	"github.com/viniciusdev772/br_panel/internal/store"
 )
 
-// handlerRT sends the CLI's requests straight into the CLI-side handler, as the Unix socket would.
-type handlerRT struct{ h http.Handler }
-
-func (t handlerRT) RoundTrip(r *http.Request) (*http.Response, error) {
-	w := httptest.NewRecorder()
-	t.h.ServeHTTP(w, r)
-	return w.Result(), nil
-}
-
 func runCLI(t *testing.T, s *Server, stdin string, args ...string) (code int, out, errs string) {
 	t.Helper()
 	var o, e bytes.Buffer

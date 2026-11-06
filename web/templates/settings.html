@@ -78,6 +78,31 @@
     {{end}}
   </div></div>
 
+  <h2 class="mdc-typography--subtitle1 section-title" id="ia">Assistente de IA (opcional)</h2>
+  <div class="mdc-card"><div class="card-body">
+    <p class="muted">Um assistente na aba <a href="/ai">IA</a> que opera o painel pelos mesmos comandos da CLI. Funciona com OpenRouter, OpenAI, Anthropic ou um servidor local (Ollama). Ações que alteram o servidor só rodam depois que você aprova na tela. Os textos da conversa, incluindo trechos de logs, são enviados ao provedor escolhido.</p>
+    <label class="select-label">Formato da API
+      <select name="ai_format">
+        <option value="chat" {{if eq .Set.AIFormat "chat"}}selected{{end}}>Chat Completions (/chat/completions): o mais compatível</option>
+        <option value="responses" {{if eq .Set.AIFormat "responses"}}selected{{end}}>Responses (/responses)</option>
+        <option value="messages" {{if eq .Set.AIFormat "messages"}}selected{{end}}>Messages, formato da Anthropic (/messages)</option>
+      </select>
+    </label>
+    {{template "field" dict "name" "ai_base_url" "label" "Endereço da API" "value" .Set.AIBaseURL "autocomplete" "off" "hint" "OpenRouter: https://openrouter.ai/api/v1 · OpenAI: https://api.openai.com/v1 · Anthropic: https://api.anthropic.com/v1 · Ollama: http://localhost:11434/v1"}}
+    {{template "field" dict "name" "ai_model" "label" "Modelo" "value" .Set.AIModel "autocomplete" "off" "hint" "Ex.: anthropic/claude-sonnet-4.5 (OpenRouter). Precisa suportar chamada de ferramentas. Vazio mantém o assistente desligado."}}
+    {{template "field" dict "name" "ai_key" "label" "Chave da API" "type" "password" "autocomplete" "off" "hint" (or (and .HasAI "Chave já configurada — preencha para substituir.") "Pode ficar em branco para um servidor local.")}}
+    {{if .HasAI}}
+    <div class="mdc-form-field">
+      <div class="mdc-checkbox">
+        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_ai" name="clear_ai">
+        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
+        <div class="mdc-checkbox__ripple"></div>
+      </div>
+      <label for="clear_ai">Remover a chave e desligar o assistente</label>
+    </div>
+    {{end}}
+  </div></div>
+
   <h2 class="mdc-typography--subtitle1 section-title">Alterar senha</h2>
   <div class="mdc-card"><div class="card-body">
     <p class="muted">Usuário: <b>{{.Form.username}}</b>. Deixe em branco para manter a senha atual. Ao trocar, todas as sessões são encerradas.</p>

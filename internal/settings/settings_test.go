@@ -64,3 +64,29 @@ func TestValidateSettings(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestValidateAI(t *testing.T) {
+	if err := validateAI(Default()); err != nil {
+		t.Fatalf("o padrão (IA desligada) precisa valer: %v", err)
+	}
+	mut := func(f func(*Settings)) Settings { s := Default(); f(&s); return s }
+	for name, s := range map[string]Settings{
+		"formato":        mut(func(s *Settings) { s.AIFormat = "xml" }),
+		"formato vazio":  mut(func(s *Settings) { s.AIFormat = "" }),
+		"http remoto":    mut(func(s *Settings) { s.AIBaseURL = "http://openrouter.ai/api/v1" }),
+		"credencial/url": mut(func(s *Settings) { s.AIBaseURL = "https://u:p@openrouter.ai/api/v1" }),
+		"modelo injeção": mut(func(s *Settings) { s.AIModel = "m; id" }),
+		"chave com nl":   mut(func(s *Settings) { s.AIKey = "sk-x\nX: y" }),
+		"chave gigante":  mut(func(s *Settings) { s.AIKey = strings.Repeat("k", 300) }),
+	} {
+		if validateAI(s) == nil {
+			t.Errorf("%s deveria falhar", name)
+		}
+	}
+	ok := mut(func(s *Settings) {
+		s.AIFormat, s.AIBaseURL, s.AIModel, s.AIKey = "messages", "http://localhost:11434/v1", "anthropic/claude-sonnet-4.5", "sk-or-v1-abc"
+	})
+	if err := validateAI(ok); err != nil {
+		t.Error(err)
+	}
+}

@@ -136,6 +136,8 @@ O checkout `<data>/apps/<app>/src` é reaproveitado (`git fetch --depth 1` + `re
 | `GET /api/overview` | sessão | JSON do canvas (host, recursos, atividade) |
 | `GET /api/apps`, `GET /api/apps/{name}`, `GET /api/databases` | sessão | JSON das aplicações e bancos (sem senhas de banco nem hashes); usados pela CLI |
 | `GET /cli`, `GET /cli/guide.txt` | sessão | Página da CLI e guia em texto puro para agentes de IA |
+| `GET /ai` | sessão | Página do assistente de IA (chat) |
+| `POST /ai/chat` | sessão + CSRF (nunca por token ou socket da CLI) | Roda o assistente: recebe a conversa (`payload` JSON) e devolve eventos em linhas JSON (`text`, `call`, `result`, `confirm`, `state`, `error`). Ações que alteram o servidor esperam a aprovação (`approve`) |
 | `GET /templates`, `GET /templates/{id}` | sessão | Catálogo de templates de um clique e o formulário de instalação |
 | `POST /templates/{id}` | sessão+CSRF ou token | Instala o template como aplicação nova (nome, domínio, versão) e inicia o deploy |
 | `GET /api/templates` | sessão ou token | JSON do catálogo (usado pela CLI) |

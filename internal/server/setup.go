@@ -172,6 +172,16 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 			}
 		}
 	}
+	if !setup && r.PostForm.Has("ai_model") { // the AI card was part of the submitted form
+		if r.PostFormValue("clear_ai") == "on" {
+			set.AIKey, set.AIModel = "", ""
+		} else {
+			set.AIFormat, set.AIBaseURL, set.AIModel = v("ai_format"), strings.TrimRight(v("ai_base_url"), "/"), v("ai_model")
+			if k := v("ai_key"); k != "" {
+				set.AIKey = k
+			}
+		}
+	}
 	if !setup && r.PostFormValue("clear_github") == "on" {
 		set.GitHubAppID, set.GitHubKey, set.GitHubWebhookSecret, set.GitHubAppSlug = "", "", "", ""
 		return set
@@ -190,7 +200,7 @@ func readSettingsForm(r *http.Request, cur settings.Settings, setup bool) settin
 
 // viewSettings hides stored secrets before they are sent to the browser.
 func viewSettings(set settings.Settings) settings.Settings {
-	set.AdminHash, set.GitHubKey, set.GitHubWebhookSecret, set.CloudflareToken = "", "", "", ""
+	set.AdminHash, set.GitHubKey, set.GitHubWebhookSecret, set.CloudflareToken, set.AIKey = "", "", "", "", ""
 	return set
 }
 
@@ -198,7 +208,7 @@ func (s *Server) handleSettingsForm(w http.ResponseWriter, r *http.Request) {
 	cur := s.settings()
 	items := s.dep.Cache.Items()
 	s.render(w, r, "settings", page{Title: "Configurações", Set: viewSettings(cur), Checks: settings.CheckSystem(),
-		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Form: map[string]string{"username": cur.AdminUser},
+		HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", HasAI: cur.AIKey != "", Form: map[string]string{"username": cur.AdminUser},
 		CacheItems: items, CacheTotal: s.dep.Cache.Total()})
 }
 
@@ -207,7 +217,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	fail := func(code int, msg string) {
 		w.WriteHeader(code)
 		s.render(w, r, "settings", page{Title: "Configurações", Set: viewSettings(readSettingsForm(r, cur, false)), Checks: settings.CheckSystem(),
-			HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", Error: msg, Form: map[string]string{"username": cur.AdminUser}})
+			HasKey: cur.GitHubKey != "", HasSecret: cur.GitHubWebhookSecret != "", HasCF: cur.CloudflareToken != "", HasAI: cur.AIKey != "", Error: msg, Form: map[string]string{"username": cur.AdminUser}})
 	}
 	set := readSettingsForm(r, cur, false)
 	passwordChanged := false

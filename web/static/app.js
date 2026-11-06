@@ -673,6 +673,109 @@
     });
   }
 
+  // ---- assistant (aba IA): the browser keeps the conversation, the server streams JSON lines ----
+  var aiBox = $('#ai');
+  if (aiBox) {
+    var aiLog = $('#ai-log'), aiForm = $('#ai-form'), aiSend = $('#ai-send');
+    var aiCsrf = $('input[name=csrf]').value, aiHist = [], aiBusy = false, aiCur = null, aiPend = [], aiOut = {};
+    var mk = function (tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) { e.className = cls; }
+      if (text) { e.textContent = text; }
+      return e;
+    };
+    var aiBottom = function () { aiLog.scrollTop = aiLog.scrollHeight; };
+    var aiAdd = function (cls, text) { var d = mk('div', 'ai-msg ' + cls, text); aiLog.appendChild(d); aiBottom(); return d; };
+    var aiHandle = function (line) {
+      if (!line.trim()) { return; }
+      var e;
+      try { e = JSON.parse(line); } catch (x) { return; }
+      if (e.t === 'text') {
+        if (!aiCur) { aiCur = aiAdd('ai-msg--assistant', ''); }
+        aiCur.textContent += e.text;
+        aiBottom();
+      } else if (e.t === 'call') {
+        aiCur = null;
+        var box = mk('details', 'ai-call'), sum = mk('summary', '', e.cmd || e.name), out = mk('pre', 'codeblock', 'executando…');
+        box.appendChild(sum); box.appendChild(out); aiLog.appendChild(box);
+        aiOut[e.id] = { box: box, out: out, sum: sum };
+        aiBottom();
+      } else if (e.t === 'result') {
+        var o = aiOut[e.id];
+        if (o) { o.out.textContent = e.text || '(sem saída)'; o.box.classList.toggle('ai-call--bad', /^(ERRO|RECUSADO)/.test(e.text)); }
+      } else if (e.t === 'confirm') {
+        aiPend.push(e);
+        if (aiOut[e.id]) { aiOut[e.id].out.textContent = 'aguardando a sua aprovação'; }
+      } else if (e.t === 'state') {
+        aiHist = e.messages || aiHist;
+      } else if (e.t === 'error') {
+        aiAdd('ai-msg--error', e.text);
+      }
+    };
+    var aiAsk = function () {
+      var ask = mk('div', 'ai-msg ai-ask');
+      ask.appendChild(mk('p', '', 'O assistente quer executar:'));
+      aiPend.forEach(function (p) { ask.appendChild(mk('pre', 'codeblock', p.cmd)); });
+      var row = mk('div', 'actions actions--start');
+      var answer = function (yes) {
+        var map = {};
+        aiPend.forEach(function (p) { map[p.id] = yes; });
+        ask.remove();
+        aiPost(map);
+      };
+      var no = mk('button', 'mdc-button', 'Recusar'), yes = mk('button', 'mdc-button mdc-button--raised', 'Aprovar e executar');
+      no.type = yes.type = 'button';
+      no.addEventListener('click', function () { answer(false); });
+      yes.addEventListener('click', function () { answer(true); });
+      row.appendChild(no); row.appendChild(yes); ask.appendChild(row);
+      aiLog.appendChild(ask); aiBottom();
+    };
+    var aiPost = function (approve) {
+      aiBusy = true; aiSend.disabled = true; aiCur = null; aiPend = [];
+      var body = new URLSearchParams({ csrf: aiCsrf, payload: JSON.stringify({ messages: aiHist, approve: approve || {} }) });
+      return fetch('/ai/chat', { method: 'POST', credentials: 'same-origin', body: body }).then(function (resp) {
+        var type = resp.headers.get('Content-Type') || '';
+        if (type.indexOf('ndjson') < 0) {
+          if (type.indexOf('json') < 0) { throw new Error('Sessão expirada: recarregue a página.'); }
+          return resp.json().then(function (j) { throw new Error(j.error || ('Erro ' + resp.status)); });
+        }
+        var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '';
+        var pump = function () {
+          return reader.read().then(function (r) {
+            if (r.done) { aiHandle(buf); return; }
+            buf += dec.decode(r.value, { stream: true });
+            var lines = buf.split('\n');
+            buf = lines.pop();
+            lines.forEach(aiHandle);
+            return pump();
+          });
+        };
+        return pump();
+      }).catch(function (err) {
+        aiAdd('ai-msg--error', err.message || 'Falha ao falar com o servidor.');
+      }).then(function () {
+        aiBusy = false; aiSend.disabled = false;
+        if (aiPend.length) { aiAsk(); }
+      });
+    };
+    aiForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var text = (fields.ai_prompt.value || '').trim();
+      if (!text || aiBusy) { return; }
+      fields.ai_prompt.value = '';
+      aiHist.push({ role: 'user', text: text });
+      aiAdd('ai-msg--user', text);
+      aiPost();
+    });
+    $('textarea', aiForm).addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); aiForm.requestSubmit(); }
+    });
+    $('#ai-clear').addEventListener('click', function () {
+      if (aiBusy) { return; }
+      aiHist = []; aiPend = []; aiOut = {}; aiLog.textContent = '';
+    });
+  }
+
   // ---- pages waiting for a background job reload themselves ----
   var refresher = $('[data-refresh]');
   if (refresher) { setTimeout(function () { location.reload(); }, (+refresher.dataset.refresh || 5) * 1000); }

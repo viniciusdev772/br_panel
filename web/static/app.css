@@ -387,3 +387,17 @@ textarea.code { width: 100%; min-height: 220px; resize: vertical; font: 13px/1.6
 /* monorepo: apps found in the repository */
 .mono-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
 #mono-box { margin-bottom: 12px; }
+
+/* assistant (IA tab) */
+.ai-log { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.ai-log:empty { display: none; }
+.ai-msg { padding: 10px 14px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; max-width: 100%; }
+.ai-msg--user { align-self: flex-end; background: var(--accent-soft); border: 1px solid var(--accent); }
+.ai-msg--assistant { background: var(--surface-2); border: 1px solid var(--border); }
+.ai-msg--error { background: rgba(248, 113, 113, .12); border: 1px solid var(--bad); }
+.ai-ask { border: 1px solid var(--warn); background: rgba(245, 185, 66, .08); }
+.ai-call { border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px; }
+.ai-call summary { cursor: pointer; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
+.ai-call--bad { border-color: var(--bad); }
+.ai-call .codeblock { margin-top: 8px; max-height: 280px; overflow-y: auto; }
+.ai-form { display: flex; flex-direction: column; gap: 8px; }

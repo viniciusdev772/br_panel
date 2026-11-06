@@ -14,10 +14,12 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 
+	"github.com/viniciusdev772/br_panel/internal/ai"
 	"github.com/viniciusdev772/br_panel/internal/cloudflare"
 	"github.com/viniciusdev772/br_panel/internal/githubapp"
 	"github.com/viniciusdev772/br_panel/internal/nodeenv"
@@ -50,6 +52,11 @@ type Settings struct {
 
 	CloudflareEmail string // set only when CloudflareToken is the Global API Key
 	CloudflareToken string // scoped API token (Zone:Read + DNS:Edit) or Global API Key; empty disables DNS automation
+
+	AIFormat  string // wire format of the assistant's API: chat | responses | messages (ai.Formats)
+	AIBaseURL string // API root, e.g. https://openrouter.ai/api/v1
+	AIKey     string // API key; may be empty for a local server such as Ollama
+	AIModel   string // model id; empty keeps the assistant off
 }
 
 func Default() Settings {
@@ -60,6 +67,8 @@ func Default() Settings {
 		UnitDir:     "/etc/systemd/system",
 		DBUser:      "brdb",
 		NodeVersion: nodeenv.DefaultVersion,
+		AIFormat:    ai.FormatChat,
+		AIBaseURL:   "https://openrouter.ai/api/v1",
 	}
 }
 
@@ -71,6 +80,7 @@ func (s *Settings) Fields() map[string]*string {
 		"nginx_dir": &s.NginxDir, "acme_root": &s.AcmeRoot, "cert_dir": &s.CertDir, "unit_dir": &s.UnitDir,
 		"github_app_id": &s.GitHubAppID, "github_key": &s.GitHubKey, "github_webhook_secret": &s.GitHubWebhookSecret, "github_app_slug": &s.GitHubAppSlug,
 		"cloudflare_token": &s.CloudflareToken, "node_version": &s.NodeVersion, "cloudflare_email": &s.CloudflareEmail,
+		"ai_format": &s.AIFormat, "ai_base_url": &s.AIBaseURL, "ai_key": &s.AIKey, "ai_model": &s.AIModel,
 	}
 }
 
@@ -128,6 +138,7 @@ var (
 	sysUserRe  = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 	appIDRe    = regexp.MustCompile(`^[A-Za-z0-9._-]{1,40}$`)
 	cfTokenRe  = regexp.MustCompile(`^[A-Za-z0-9_-]{20,128}$`)
+	aiModelRe  = regexp.MustCompile(`^[A-Za-z0-9._:/@+-]{1,100}$`)
 )
 
 func validateAbsDir(label, p string) error {
@@ -193,6 +204,23 @@ func Validate(s Settings) error {
 	}
 	if cloudflare.GlobalKeyRe.MatchString(s.CloudflareToken) && s.CloudflareEmail == "" {
 		return errors.New("Cloudflare: a Global API Key exige o e-mail da conta (um API Token não precisa)")
+	}
+	return validateAI(s)
+}
+
+// validateAI checks the assistant's settings; the key and the model may stay empty (assistant off).
+func validateAI(s Settings) error {
+	if !slices.Contains(ai.Formats, s.AIFormat) {
+		return errors.New("formato da API de IA inválido (use chat, responses ou messages)")
+	}
+	if err := ai.ValidBaseURL(s.AIBaseURL); err != nil {
+		return err
+	}
+	if s.AIModel != "" && !aiModelRe.MatchString(s.AIModel) {
+		return errors.New("modelo de IA inválido (ex.: anthropic/claude-sonnet-4.5)")
+	}
+	if len(s.AIKey) > 256 || strings.ContainsAny(s.AIKey, " \t\r\n\"'") {
+		return errors.New("chave da API de IA inválida (sem espaços, até 256 caracteres)")
 	}
 	return nil
 }
