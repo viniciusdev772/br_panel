@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.11.0] - 2026-11-06
+
 ### Adicionado
 - **Verificação de porta depois de cada deploy.** Muito projeto escreve a porta no código (`const port = 3090`) e ignora a variável `PORT`; duas cópias dele, ou duas instâncias, brigavam pela porta e o systemd reiniciava a perdedora sem parar, enquanto o deploy dizia "concluído". Agora o painel confere em que porta cada instância escuta (lendo `/proc` do cgroup da unit) e se ela cai sozinha, e escreve no log do deploy o que achou: em que outra porta o app escuta, **quem segura a porta** em uso (outra aplicação, banco ou instância do mesmo app), em que arquivo e linha o número aparece no código e como corrigir. O resumo aparece em `apps show` (`aviso de porta`), na página do app, na saída de `apps deploy --wait` e é entendido pelo assistente de IA. Só avisa: o deploy não é reprovado (um worker sem porta é legítimo), e apps saudáveis não mudam nada nem demoram mais.
 - Um app que comprovadamente ignora `PORT` não ganha instâncias extras: o autoscale e o escalonamento recusam com a explicação, em vez de criar units que só poderiam cair.
