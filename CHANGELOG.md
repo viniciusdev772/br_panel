@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.9.0] - 2026-11-06
+
 ### Adicionado
 - **Assistente de IA** na aba nova **IA**: um chat que opera o painel pelos comandos da CLI. Funciona com OpenRouter, OpenAI, Anthropic ou um servidor local (Ollama) e fala os três formatos de API, **Chat Completions**, **Responses** e **Messages**, com a resposta chegando aos poucos. Consultas (estado, logs, bancos) rodam sozinhas; o que altera o servidor aparece como comando e só roda depois da sua aprovação, e fica registrado nos eventos. Variáveis de ambiente, senhas e tokens não são oferecidos ao modelo. Configurado em Configurações (formato, endereço, modelo e chave, guardados no SQLite). Veja `docs/adr/0007-assistente-de-ia-sobre-a-cli.md`.
 
