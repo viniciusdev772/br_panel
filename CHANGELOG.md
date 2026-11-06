@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.6.0] - 2026-11-06
+
 ### Adicionado
 - **Skills para agentes de IA que usam a CLI** (`skills/`): sete skills em `SKILL.md` — `brpanel-cli` (comece aqui: regras, leitura de `OK:`/`ERRO:`/`DICA:`, referência dos 46 comandos, tabela de erros e um `verificar.sh`), `brpanel-deploy`, `brpanel-dados`, `brpanel-site`, `brpanel-templates`, `brpanel-remoto` e `brpanel-diagnostico`. Escritos em passos curtos e com exemplos concretos para funcionarem até com modelos pequenos. Um teste novo (`internal/cli/skills_test.go`) confere que todo comando dos skills é aceito pelo parser da CLI, que o que apaga dados traz `--yes`, que os links existem e que cada comando e opção do catálogo está na referência.
 
