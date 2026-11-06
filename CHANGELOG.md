@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.7.0] - 2026-11-06
+
 ### Adicionado
 - **`brpanel skills install [--dir PASTA]`**: grava os skills para agentes de IA em `~/.claude/skills` (ou na pasta dada), sem precisar clonar o repositório. Os skills passam a ir embutidos nos binários (`skills/embed.go`); rodar o comando de novo atualiza só as pastas `brpanel-*`.
 
