@@ -3,6 +3,7 @@ package sysinfo
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 )
@@ -46,7 +47,7 @@ func TestHostStats(t *testing.T) {
 	ProcRoot = dir
 	defer func() { ProcRoot = old }()
 	h := ReadHost(t.TempDir(), 2)
-	if h.MemTotal != 2048000*1024 || h.MemUsed != 1024000*1024 || h.Load[0] != 0.5 || h.Uptime != 12345 || h.DiskTotal == 0 {
+	if h.MemTotal != 2048000*1024 || h.MemUsed != 1024000*1024 || h.Load[0] != 0.5 || h.Uptime != 12345 || (runtime.GOOS == "linux" && h.DiskTotal == 0) { // the disk is only read on Linux
 		t.Errorf("%+v", h)
 	}
 }

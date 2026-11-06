@@ -80,6 +80,7 @@ func (s *Server) appInfo(a store.App) cli.AppInfo {
 	for _, c := range scan.Apps {
 		info.MonorepoApps = append(info.MonorepoApps, c.Path)
 	}
+	info.PortNote = s.dep.PortNote(a.Name)
 	missing, optional := s.dep.MissingEnv(a)
 	for _, v := range missing {
 		info.MissingEnv = append(info.MissingEnv, v.Name)

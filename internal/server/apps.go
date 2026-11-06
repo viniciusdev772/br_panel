@@ -149,7 +149,7 @@ func (s *Server) appFor(w http.ResponseWriter, r *http.Request) (store.App, bool
 func (s *Server) handleApp(w http.ResponseWriter, r *http.Request) {
 	if a, ok := s.appFor(w, r); ok {
 		missing, optional := s.dep.MissingEnv(a)
-		s.render(w, r, "app", page{Title: a.Name, App: a, EnvMissing: missing, EnvOptional: optional, Mono: s.dep.RepoScan(a.Name), State: systemd.StateUnits(systemd.ReplicaUnits(a.Name, a.Replicas)), Info: systemd.InfoAll(systemd.ReplicaUnits(a.Name, a.Replicas)),
+		s.render(w, r, "app", page{Title: a.Name, App: a, EnvMissing: missing, EnvOptional: optional, PortNote: s.dep.PortNote(a.Name), Mono: s.dep.RepoScan(a.Name), State: systemd.StateUnits(systemd.ReplicaUnits(a.Name, a.Replicas)), Info: systemd.InfoAll(systemd.ReplicaUnits(a.Name, a.Replicas)),
 			SSL: a.Domain != "" && nginx.FromSettings(s.settings()).HasCert(a.Domain), VarGroups: s.varGroups(), Bdg: appBadge(a.Kind),
 			Mounts: s.store.ListMounts(a.Name), VolumeBackups: s.dep.VolumeBackups(a.Name),
 			VolumeSchedule: s.store.VolumeBackup(a.Name), VolumeBusy: s.dep.VolumeBusy(a.Name)})

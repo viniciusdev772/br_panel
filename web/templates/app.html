@@ -39,6 +39,7 @@
   </div>
 
   <section class="panel" id="tab-deploy" data-panel="deploy">
+    {{if .PortNote}}<div class="banner warn"><i class="material-icons">warning</i><div><strong>Porta.</strong> {{.PortNote}} Veja o log do deploy abaixo: ele mostra onde o número aparece no código e como corrigir.</div></div>{{end}}
     {{if .EnvMissing}}<div class="banner warn"><i class="material-icons">warning</i><div><strong>Faltam variáveis de ambiente.</strong> O projeto lê {{range $i, $v := .EnvMissing}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}} e a aplicação não define {{if gt (len .EnvMissing) 1}}nenhuma delas{{else}}essa variável{{end}}. Preencha na aba <strong>Variáveis</strong> e publique de novo; sem isso a aplicação pode falhar ao iniciar.</div></div>{{end}}
     {{if and .Mono.Monorepo (not .App.RootDir)}}<div class="banner"><i class="material-icons">account_tree</i><div><strong>Monorepo.</strong> Este repositório tem mais de um projeto ({{range $i, $c := .Mono.Apps}}{{if $i}}, {{end}}<code>{{$c.Path}}</code>{{end}}). Esta aplicação publica a raiz. Para publicar uma pasta, crie outra aplicação e escolha a <em>Pasta do projeto</em>.</div></div>{{end}}
     <div class="mdc-card"><div class="card-body">

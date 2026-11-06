@@ -329,6 +329,7 @@ type page struct {
 	UsedBy         []string
 	VarGroups      []varGroup
 
+	PortNote    string          // the last deploy's port warning, if any (app page)
 	EnvMissing  []detect.EnvVar // variables the code reads and the app does not set (app page)
 	EnvOptional []detect.EnvVar
 	Mono        deploy.RepoScan // what the last deploy saw in the repository

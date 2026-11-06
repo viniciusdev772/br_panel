@@ -75,6 +75,7 @@ não faça deploy e não apague nada antes de saber a causa.
 | Pede **usuário e senha** sem querer | Senha de site ligada | `brpanel apps show loja` (`usuários com senha`); `brpanel apps auth-remove loja USUARIO`. |
 | **Sem cadeado** (HTTP) | O certificado não foi emitido (DNS não aponta para o servidor) | Corrija o DNS, depois `brpanel apps deploy loja --wait` (tenta de novo). |
 | App cai logo depois de subir | Erro no código, variável faltando, banco fora | Passos 3, 5 e 6. |
+| `aviso de porta` em `apps show`, `AVISO DE PORTA` ao publicar, ou `EADDRINUSE` / `Address already in use` no log | O código fixa a porta (ex.: `const port = 3090`) em vez de ler `$PORT`; duas cópias do mesmo app, ou várias instâncias, brigam pela mesma porta | Leia o log do deploy (`brpanel apps logs loja --kind deploy --lines 40`): ele diz quem usa a porta e em que arquivo e linha ela está escrita. O certo é o código usar `process.env.PORT` (Node), `os.environ["PORT"]` (Python) ou `os.Getenv("PORT")` (Go). Sem mexer no código, com **uma** instância: `brpanel apps set loja --port N` (N = a porta do aviso) e deploy. Várias instâncias só com o código corrigido. |
 | `Killed` / `out of memory` no log | Falta memória | `brpanel apps set loja --memory-mb 1024`, ou menos instâncias; deploy. |
 | Deploy "trava" | Build demorado (ou fila do monorepo) | `brpanel apps wait loja`. Não dispare outro. |
 | Deploy não dispara no push | Auto-deploy desligado ou GitHub App | `brpanel apps show loja` (`deploy automático`); o GitHub App é configurado no painel web. |

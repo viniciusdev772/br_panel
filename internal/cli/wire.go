@@ -29,6 +29,7 @@ type AppInfo struct {
 	MonorepoApps []string `json:"monorepo_apps,omitempty"` // their folders
 	MissingEnv   []string `json:"missing_env,omitempty"`   // variables the code needs and the app does not set
 	OptionalEnv  []string `json:"optional_env,omitempty"`  // read with a default: may be left out
+	PortNote     string   `json:"port_note,omitempty"`     // the last deploy found the app not listening on its PORT
 
 	Domains     []DomainInfo `json:"extra_domains"`
 	AuthUsers   []string     `json:"auth_users"`

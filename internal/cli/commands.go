@@ -232,6 +232,9 @@ func cmdAppsShow(x *call) error {
 	if len(a.OptionalEnv) > 0 {
 		rows = append(rows, []string{"variáveis opcionais:", strings.Join(a.OptionalEnv, ", ")})
 	}
+	if a.PortNote != "" {
+		rows = append(rows, []string{"aviso de porta:", a.PortNote + "  (detalhes no log do último deploy: brpanel apps logs " + a.Name + " --kind deploy)"})
+	}
 	for _, d := range a.Domains {
 		kind := "alias"
 		if d.To != "" {
@@ -400,7 +403,11 @@ func waitDeploy(x *call, name string) error {
 					"DICA: veja o motivo no fim do log: brpanel apps logs "+name+" --kind deploy --lines 80",
 					"DICA: corrija (código, variáveis ou comandos) e rode: brpanel apps deploy "+name+" --wait")
 			}
-			x.ok(fmt.Sprintf("deploy de %s concluído (status %s, estado %s).", name, dash(a.Status), dash(a.State)))
+			msg := fmt.Sprintf("deploy de %s concluído (status %s, estado %s).", name, dash(a.Status), dash(a.State))
+			if a.PortNote != "" { // the deploy worked, but the app does not behave: say so now, not in a log nobody opens
+				msg += " AVISO DE PORTA: " + a.PortNote + ". Detalhes e como corrigir: brpanel apps logs " + name + " --kind deploy --lines 40"
+			}
+			x.ok(msg)
 			return nil
 		}
 		if time.Now().After(deadline) {

@@ -204,6 +204,16 @@ Alguns projetos escrevem `host: "localhost"` (porta 3306) e a própria porta HTT
 - **Porta HTTP fixa** (ex.: `const port = 3090`): em **Editar** a aplicação, informe essa porta em **Porta**; o painel a usa no Nginx e no `PORT`.
 - **Banco em `localhost:3306`** (ou 5432, 27017, 6379): cada banco do painel usa a própria porta (3307, 5433…), então em **Banco de dados > Configurações** use **Ativar repasse**. O painel cria uma unit de socket do systemd que ouve só em `127.0.0.1:<porta padrão>` e repassa (`systemd-socket-proxyd`) para a porta do banco: não muda o código, vale para qualquer linguagem, persiste no boot e liga o banco sob demanda. Se a porta padrão já estiver em uso (outro serviço, outro repasse), o painel recusa e diz por quê. Excluir o banco remove o repasse.
 
+**Verificação de porta no deploy.** Depois de subir as instâncias, o painel confere (`internal/deploy/portcheck.go`) em que porta cada uma realmente escuta, lendo `/proc/net/tcp{,6}` dos processos do cgroup da unit, e se o systemd a reinicia sozinho (`NRestarts`/`auto-restart`). Só escreve **avisos** no log do deploy, nunca reprova o deploy (um worker sem porta é legítimo):
+
+- **escuta só em outra porta:** diz em quais, procura o número no código (arquivos `.js .ts .py .go .rb .php .java…`, sem seguir links nem `node_modules`; linhas com URL ou palavras como `senha`/`token` ficam de fora) e no comando de início, e sugere `apps set --port N` quando a porta está livre;
+- **cai em loop por `EADDRINUSE`/`Address already in use`:** diz quem segura a porta (a unit de outra aplicação, de um banco ou de outra instância do mesmo app). É o que acontece com **duas cópias do mesmo repositório** ou com réplicas de um código que fixa a porta;
+- **cai por outro motivo:** mostra as últimas linhas do log do serviço.
+
+O resultado fica em `apps/<app>/portcheck.json` e aparece em `apps show` (`aviso de porta`), na página do app e na saída de `apps deploy --wait`. Quando provado que o app **ignora `PORT`** (escuta só em outra porta, ou duas instâncias dele brigam), o autoscale e `Scale` recusam criar mais instâncias, em vez de criar unidades que só poderiam cair. A verificação espera até 25 s com domínio (o Nginx depende da porta) e 6 s sem; um app saudável a conclui assim que abre a porta.
+
+Limitação: a porta fixa no código só some de verdade quando o código lê `PORT`. Isolar cada instância em uma rede própria (namespace) resolveria sem mexer no código, mas exige NAT, acesso aos bancos em `127.0.0.1` e testes em um servidor real, e por isso não foi feito.
+
 Crie no banco do painel o mesmo banco, usuário e senha que o código usa, limitados a `127.0.0.1`, `localhost` e `::1` (`CREATE USER 'u'@'127.0.0.1' …`): o painel gera credenciais próprias, e o código usa as dele.
 
 ## CLI e agentes de IA

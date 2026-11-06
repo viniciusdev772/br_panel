@@ -56,6 +56,12 @@ O painel guarda o que já baixou. Na segunda publicação de um projeto, só che
 
 Na tela de Configurações, o cartão Cache de builds mostra quanto espaço esse cache ocupa, com botões para apagar o que ninguém usa há 30 dias ou para esvaziar tudo. Se um projeto se comportar de um jeito estranho depois de uma atualização, o botão Refazer do zero, na página dele, apaga o código baixado e as dependências e reconstrói tudo. Os arquivos guardados em Armazenamento não são apagados.
 
+## Quando o projeto escolhe a própria porta
+
+O painel dá a cada aplicação uma porta (a variável `PORT`), e o projeto precisa usá-la. Muitos projetos escrevem o número no código (por exemplo `const port = 3090`). Funciona com uma cópia só, mas se você publicar **duas cópias do mesmo projeto**, ou tiver **mais de uma instância**, elas brigam pela mesma porta e a segunda cai sem parar.
+
+Depois de cada publicação, o painel confere se a aplicação realmente escuta na porta que ele deu. Se não, ele avisa no log do deploy, em `apps show`, na página da aplicação e na resposta de `apps deploy --wait`: diz qual porta o projeto usa, **quem já está usando essa porta**, e em que arquivo e linha ela está escrita. A correção é o projeto ler a porta da variável `PORT`. Enquanto isso não for feito, o painel não cria instâncias extras desse projeto (nem pelo autoscale), porque elas só poderiam cair.
+
 ## Endereço próprio e cadeado
 
 Ao informar um domínio, o painel liga o endereço ao projeto e pede o certificado de segurança gratuito (Let's Encrypt). Ele renova o certificado sozinho. Se o seu domínio está na Cloudflare, o painel também cria a entrada de DNS por você, para não precisar mexer em outro site.

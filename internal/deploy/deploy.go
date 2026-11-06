@@ -131,12 +131,16 @@ type Deployer struct {
 
 	volMu   sync.Mutex // guards the volume backup/restore running on each app
 	volBusy map[string]string
+
+	probe      portProbe // what the post-deploy port check looks at (portcheck.go)
+	watchTimes portWatch
 }
 
 // New returns a Deployer rooted at dataDir.
 func New(st *store.Store, dataDir string, set func() settings.Settings, gh func() *githubapp.Client) *Deployer {
 	return &Deployer{Store: st, Paths: Paths{Data: dataDir}, DataDir: dataDir, Settings: set, GitHub: gh, Cache: buildcache.New(dataDir),
-		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}, repoSem: map[string]chan struct{}{}}
+		pending: map[string]bool{}, runs: map[string]*run{}, volBusy: map[string]string{}, repoSem: map[string]chan struct{}{},
+		probe: liveProbe{}, watchTimes: defaultWatch}
 }
 
 func (d *Deployer) unitFile(app string, k int) string {
@@ -499,13 +503,19 @@ func (d *Deployer) deploy(ctx context.Context, a store.App, log io.Writer, clean
 		return err
 	}
 
+	var err3 error
 	if a.Domain == "" {
 		if a.Replicas > 1 || a.RateLimit > 0 {
 			fmt.Fprintln(log, "AVISO: sem domínio não há Nginx na frente: o balanceamento entre instâncias, o limite de requisições e a compressão só valem com um domínio.")
 		}
-		return d.nginx().Remove(ctx, log, a.Name)
+		err3 = d.nginx().Remove(ctx, log, a.Name)
+	} else {
+		err3 = d.publishSite(ctx, log, a)
 	}
-	return d.publishSite(ctx, log, a)
+	if err3 == nil {
+		d.verifyPorts(ctx, a, log) // after the site is published: it only adds warnings, never fails the deploy
+	}
+	return err3
 }
 
 // fetchGit clones the repository, or updates the checkout when it already points at it.
@@ -645,6 +655,11 @@ func (d *Deployer) Scale(ctx context.Context, a store.App, n int, log io.Writer)
 	grown.Replicas = n
 	if msg := d.PortConflict(grown); msg != "" {
 		return errors.New(msg)
+	}
+	if n > old && d.IgnoresPort(a.Name) {
+		// More instances of such an app can only crash on the port the first one holds.
+		return errors.New("o app não escuta na porta PORT que o painel dá a cada instância (veja o aviso do último deploy); " +
+			"corrija o código para ler PORT e publique de novo antes de ter mais de uma instância")
 	}
 	if n > old {
 		mounts, err := d.prepareMounts(ctx, grown)
