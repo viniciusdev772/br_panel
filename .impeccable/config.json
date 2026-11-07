@@ -8,6 +8,12 @@
         "value": "rgb(0, 0, 0)",
         "createdAt": "2026-11-07T14:01:23.472Z",
         "reason": "false positive: the detector cannot read app.css through the Go {{asset}} link and assumes the browser default black"
+      },
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-11-07T14:01:53.014Z",
+        "reason": "Roboto is the Material 3 reference typeface and the brief pinned Material 3; Operate surface where a workhorse sans fits. Decided by the agent from the Material 3 request, not a separate user choice about the font"
       }
     ]
   }
