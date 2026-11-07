@@ -221,6 +221,9 @@ Altura 24px, raio 8px: ativo (sucesso), falhou (erro), implantando (atenção, c
 ### Menu e Diálogo
 `md-menu` com foco e setas de teclado (Criar). `md-dialog` confirma toda ação destrutiva.
 
+### Ajuda flutuante (assistente)
+`md-fab` extensível (variante terciária, raio 16px) no canto inferior direito, acima da barra inferior no celular. Abre um painel lateral de 440px (contêiner baixo, raio 28px, elevação 3) ou, abaixo de 600px, uma folha de baixo para cima com alça. Cabeçalho com selo terciário, título e contexto da tela; `md-linear-progress` terciário enquanto o modelo trabalha; sugestões em `md-assist-chip`; mensagem do usuário em contêiner terciário e do assistente em contêiner mais alto; ação que altera o servidor vira um cartão de aprovação (atenção) com `md-text-button` "Recusar" e `md-filled-button` "Aprovar e executar"; campo de texto de 24px de raio com `md-filled-tonal-icon-button` para enviar.
+
 ### Linhas de serviço (assinatura)
 Rotas ortogonais de 3 segmentos entre o cartão de origem e o de destino, com cantos arredondados e uma estação em cada ponta, desenhadas em SVG sob os cartões e redesenhadas ao redimensionar.
 

@@ -4,6 +4,15 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Adicionado
+- **Descobrir com IA** no formulário de nova aplicação (aparece quando a IA está configurada, e como "Tentar com IA" quando o detector comum não reconhece o projeto). O modelo recebe a árvore de arquivos e os arquivos principais do projeto (nunca `.env` nem chaves) e devolve os comandos de preparação e de início, as variáveis de ambiente que o código lê e avisos, num prompt geral que cobre Node, Python, Go, PHP, Ruby, Rust, Java, .NET e sites estáticos. A resposta só preenche o formulário, é limpa (uma linha, tamanho limitado, nomes válidos) e avisa quando o comando não usa `$PORT`.
+- **Ajuda flutuante com IA** em todas as telas: botão extensível (FAB) que abre um painel lateral do Material 3 (no celular, uma folha de baixo para cima) com sugestões por tela em chips, barra de progresso enquanto o assistente trabalha, cartão de aprovação para ações que alteram o servidor e conversa que continua ao navegar.
+- **Prompt de sistema completo** do assistente (como o painel funciona, ferramentas, roteiros de diagnóstico, regras de segurança e formato) e o contexto da tela em que o usuário está.
+- **Seis ferramentas de leitura** para o assistente: `repo_tree` e `repo_read` (código do app, sem segredos), `app_probe` (requisição local ao app), `ports` (portas em uso e quem as segura), `dns_lookup` e `repo_detect` (analisar um repositório antes de criar o app).
+
+### Corrigido
+- Os botões do assistente de nova aplicação ("Continuar", "Voltar", "Descobrir automaticamente") e outros botões de página dentro de formulários enviavam o formulário ao serem clicados, porque os botões do Material Web são do tipo enviar por padrão. Agora só enviam os que pedem. Na 0.12.0 isso podia criar a aplicação no primeiro "Continuar".
+
 ## [0.12.0] - 2026-11-07
 
 ### Alterado

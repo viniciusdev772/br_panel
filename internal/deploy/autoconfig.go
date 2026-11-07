@@ -216,12 +216,25 @@ type RepoDetection struct {
 	// Monorepo is true when the repository holds more than one project, even if the root is one too.
 	Monorepo bool
 	Env      []detect.EnvVar // variables the project reads, to be set once the app exists
+	// Snapshot is a text picture of the project folder (file tree and key files) for the AI assisted
+	// detection; empty unless DetectRepoSnapshot asked for it.
+	Snapshot string
 }
 
 // DetectRepo makes a shallow, temporary clone of repo@branch and reports what detect finds in
 // its folder root ("" = the whole repository; an app of a monorepo otherwise), the programs the
 // suggested commands need that are missing on this server, and the apps a monorepo holds.
 func (d *Deployer) DetectRepo(ctx context.Context, repo, branch, root string) (RepoDetection, error) {
+	return d.detectRepo(ctx, repo, branch, root, false)
+}
+
+// DetectRepoSnapshot is DetectRepo plus a Snapshot of the project folder, taken while the temporary
+// clone still exists, for the AI assisted detection.
+func (d *Deployer) DetectRepoSnapshot(ctx context.Context, repo, branch, root string) (RepoDetection, error) {
+	return d.detectRepo(ctx, repo, branch, root, true)
+}
+
+func (d *Deployer) detectRepo(ctx context.Context, repo, branch, root string, snapshot bool) (RepoDetection, error) {
 	var res RepoDetection
 	detectMu.Lock()
 	defer detectMu.Unlock()
@@ -260,6 +273,9 @@ func (d *Deployer) DetectRepo(ctx context.Context, repo, branch, root string) (R
 	res.Env = detect.Undefined(detect.EnvVars(filepath.Join(src, filepath.FromSlash(root)), src), nil)
 	if res.Det = detect.DetectApp(src, root); res.Det != nil {
 		res.Missing = detect.MissingRequirements(res.Det, exec.LookPath)
+	}
+	if snapshot {
+		res.Snapshot = detect.Snapshot(filepath.Join(src, filepath.FromSlash(root)))
 	}
 	return res, nil
 }

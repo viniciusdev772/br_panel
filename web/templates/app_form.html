@@ -26,6 +26,7 @@
     <p class="step-lead">O painel olha os arquivos do projeto e descobre sozinho como prepará-lo e iniciá-lo. Se ele errar, você corrige à mão.</p>
     <div class="detect-row">
       {{template "btn" dict "kind" "tonal" "id" "detect-btn" "icon" "auto_fix_high" "label" "Descobrir automaticamente"}}
+      {{if .AIReady}}{{template "btn" dict "kind" "outlined" "id" "detect-ai-btn" "icon" "smart_toy" "label" "Descobrir com IA"}}{{end}}
     </div>
     <div class="detect-result" id="detect-result" hidden></div>
     <details class="advanced" id="manual" {{if or .Editing .App.BuildCmd .App.StartCmd .App.PortField}}open{{end}}>

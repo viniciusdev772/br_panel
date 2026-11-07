@@ -605,6 +605,7 @@
       var cur = fields.root_dir ? fields.root_dir.value.trim() : '';
       var add = function (parent, label, root, current, title) {
         var b = document.createElement(current ? 'md-filled-button' : 'md-outlined-button');
+        b.setAttribute('type', 'button'); // Material Web buttons submit the surrounding form by default
         b.textContent = label;
         if (title) { b.title = title; }
         b.addEventListener('click', function () { fields.root_dir.value = root; detect(); });
@@ -635,18 +636,33 @@
         monoBox.appendChild(l2);
       }
     };
-    var detect = function () {
+    var aiBtn = $('#detect-ai-btn');
+    var detect = function (useAI) {
+      useAI = useAI === true;
       var repo = fields.repo.value.trim();
       if (!repo) { fields.repo.reportValidity(); return; }
       detectBtn.disabled = true;
-      box.hidden = false; box.className = 'detect-result'; box.textContent = 'Baixando e analisando o projeto…';
+      if (aiBtn) { aiBtn.disabled = true; }
+      box.hidden = false; box.className = 'detect-result'; box.textContent = useAI ? 'Baixando o projeto e pedindo à IA que o analise… (pode levar um minuto)' : 'Baixando e analisando o projeto…';
       var body = new URLSearchParams({ csrf: csrf, repo: repo, branch: fields.branch.value.trim(), root_dir: fields.root_dir ? fields.root_dir.value.trim() : '' });
+      if (useAI) { body.set('ai', '1'); }
       fetch('/apps/detect', { method: 'POST', credentials: 'same-origin', body: body }).then(function (r) { return r.json(); }).then(function (d) {
         detectBtn.disabled = false;
+        if (aiBtn) { aiBtn.disabled = false; }
         if (d.name && (!fields.name.value || fields.name.value === lastName)) { fields.name.value = d.name; }
         lastName = d.name || lastName;
         showApps(d);
-        if (d.error && !d.kind) { box.className = 'detect-result ' + (d.apps && d.apps.length ? 'warn' : 'bad'); box.textContent = d.error; return; }
+        if (d.error && !d.kind) {
+          box.className = 'detect-result ' + (d.apps && d.apps.length ? 'warn' : 'bad'); box.textContent = d.error;
+          if (aiBtn && !useAI && !(d.apps && d.apps.length)) { // the static detector gave up: the AI may still read the project
+            var retry = document.createElement('md-filled-tonal-button');
+            retry.setAttribute('type', 'button');
+            retry.textContent = 'Tentar com IA';
+            retry.addEventListener('click', function () { detect(true); });
+            box.appendChild(document.createElement('br')); box.appendChild(retry);
+          }
+          return;
+        }
         setField('build_cmd', d.build); setField('start_cmd', d.start);
         var man = $('#manual');
         if (man) { man.open = true; } // show what was filled in
@@ -668,15 +684,16 @@
           html += '<br>Falta instalar no servidor: ' + d.missing.map(esc).join(', ') + '.';
           needsNode = d.missing.some(function (m) { return /^(node|npm|npx|pnpm|yarn) /.test(m); });
           if (needsNode) {
-            html += '<br><md-filled-button id="node-install">Instalar Node.js com nvm</md-filled-button><pre class="detect-log" id="node-log" hidden></pre>';
+            html += '<br><md-filled-button type="button" id="node-install">Instalar Node.js com nvm</md-filled-button><pre class="detect-log" id="node-log" hidden></pre>';
           }
         }
         box.className = 'detect-result' + (warn || !d.start ? ' warn' : '');
         box.innerHTML = html;
         if (needsNode) { wireNodeInstall(); }
-      }).catch(function () { detectBtn.disabled = false; box.className = 'detect-result bad'; box.textContent = 'Não consegui analisar o projeto. Confira o endereço do repositório e tente de novo.'; });
+      }).catch(function () { detectBtn.disabled = false; if (aiBtn) { aiBtn.disabled = false; } box.className = 'detect-result bad'; box.textContent = 'Não consegui analisar o projeto. Confira o endereço do repositório e tente de novo.'; });
     };
-    detectBtn.addEventListener('click', detect);
+    detectBtn.addEventListener('click', function () { detect(false); });
+    if (aiBtn) { aiBtn.addEventListener('click', function () { detect(true); }); }
 
     // Repositories visible to the GitHub App: pick one to fill repository and branch.
     var picker = $('#repo-search');
@@ -715,134 +732,6 @@
     });
     fields.root_dir.addEventListener('change', function () {
       if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
-    });
-  }
-
-  // ---- assistant (aba IA): the browser keeps the conversation, the server streams JSON lines ----
-  var aiBox = $('#ai');
-  if (aiBox) {
-    var aiLog = $('#ai-log'), aiForm = $('#ai-form'), aiSend = $('#ai-send');
-    var aiCsrf = $('input[name=csrf]').value, aiHist = [], aiBusy = false, aiCur = null, aiPend = [], aiOut = {};
-    var mk = function (tag, cls, text) {
-      var e = document.createElement(tag);
-      if (cls) { e.className = cls; }
-      if (text) { e.textContent = text; }
-      return e;
-    };
-    var aiBottom = function () { aiLog.scrollTop = aiLog.scrollHeight; };
-    var aiAdd = function (cls, text) { var d = mk('div', 'ai-msg ' + cls, text); aiLog.appendChild(d); aiBottom(); return d; };
-    // A small, safe markdown: code fences, `code` and **bold**, built as DOM nodes (never innerHTML).
-    var aiRender = function (el, text) {
-      el.textContent = '';
-      var parts = text.split(/```[a-z]*\n?/);
-      parts.forEach(function (part, i) {
-        if (i % 2) { el.appendChild(mk('pre', 'codeblock', part.replace(/\n$/, ''))); return; }
-        // the blank lines around a fence would double the gap the block already has
-        if (i > 0) { part = part.replace(/^\n+/, ''); }
-        if (i < parts.length - 1) { part = part.replace(/\n+$/, ''); }
-        part.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).forEach(function (tok) {
-          if (/^`[^`]+`$/.test(tok)) { el.appendChild(mk('code', '', tok.slice(1, -1))); }
-          else if (/^\*\*[^*]+\*\*$/.test(tok)) { el.appendChild(mk('strong', '', tok.slice(2, -2))); }
-          else if (tok) { el.appendChild(document.createTextNode(tok)); }
-        });
-      });
-    };
-    // Streaming repaints at most once per frame.
-    var aiPaint = function (el) {
-      if (el.painting) { return; }
-      el.painting = true;
-      requestAnimationFrame(function () { el.painting = false; aiRender(el, el.raw); aiBottom(); });
-    };
-    var aiHandle = function (line) {
-      if (!line.trim()) { return; }
-      var e;
-      try { e = JSON.parse(line); } catch (x) { return; }
-      if (e.t === 'text') {
-        if (!aiCur) { aiCur = aiAdd('ai-msg--assistant ai-msg--live', ''); }
-        aiCur.raw = (aiCur.raw || '') + e.text;
-        aiPaint(aiCur);
-      } else if (e.t === 'call') {
-        if (aiCur && !aiCur.raw) { aiCur.remove(); }
-        aiCur = null;
-        var box = mk('details', 'ai-call'), sum = mk('summary', '', e.cmd || e.name), out = mk('pre', 'codeblock', 'executando…');
-        box.appendChild(sum); box.appendChild(out); aiLog.appendChild(box);
-        aiOut[e.id] = { box: box, out: out, sum: sum };
-        aiBottom();
-      } else if (e.t === 'result') {
-        var o = aiOut[e.id];
-        if (o) { o.out.textContent = e.text || '(sem saída)'; o.box.classList.toggle('ai-call--bad', /^(ERRO|RECUSADO)/.test(e.text)); }
-      } else if (e.t === 'confirm') {
-        aiPend.push(e);
-        if (aiOut[e.id]) { aiOut[e.id].out.textContent = 'aguardando a sua aprovação'; }
-      } else if (e.t === 'state') {
-        aiHist = e.messages || aiHist;
-      } else if (e.t === 'error') {
-        aiAdd('ai-msg--error', e.text);
-      }
-    };
-    var aiAsk = function () {
-      var ask = mk('div', 'ai-msg ai-ask');
-      ask.appendChild(mk('p', '', 'O assistente quer executar:'));
-      aiPend.forEach(function (p) { ask.appendChild(mk('pre', 'codeblock', p.cmd)); });
-      var row = mk('div', 'actions actions--start');
-      var answer = function (yes) {
-        var map = {};
-        aiPend.forEach(function (p) { map[p.id] = yes; });
-        ask.remove();
-        aiPost(map);
-      };
-      var no = mk('md-text-button', '', 'Recusar'), yes = mk('md-filled-button', '', 'Aprovar e executar');
-      no.addEventListener('click', function () { answer(false); });
-      yes.addEventListener('click', function () { answer(true); });
-      row.appendChild(no); row.appendChild(yes); ask.appendChild(row);
-      aiLog.appendChild(ask); aiBottom();
-    };
-    var aiPost = function (approve) {
-      aiBusy = true; aiSend.disabled = true; aiPend = [];
-      aiCur = aiAdd('ai-msg--assistant ai-msg--live', ''); // the blinking cursor shows the model is working
-      var body = new URLSearchParams({ csrf: aiCsrf, payload: JSON.stringify({ messages: aiHist, approve: approve || {} }) });
-      return fetch('/ai/chat', { method: 'POST', credentials: 'same-origin', body: body }).then(function (resp) {
-        var type = resp.headers.get('Content-Type') || '';
-        if (type.indexOf('ndjson') < 0) {
-          if (type.indexOf('json') < 0) { throw new Error('Sessão expirada: recarregue a página.'); }
-          return resp.json().then(function (j) { throw new Error(j.error || ('Erro ' + resp.status)); });
-        }
-        var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '';
-        var pump = function () {
-          return reader.read().then(function (r) {
-            if (r.done) { aiHandle(buf); return; }
-            buf += dec.decode(r.value, { stream: true });
-            var lines = buf.split('\n');
-            buf = lines.pop();
-            lines.forEach(aiHandle);
-            return pump();
-          });
-        };
-        return pump();
-      }).catch(function (err) {
-        aiAdd('ai-msg--error', err.message || 'Falha ao falar com o servidor.');
-      }).then(function () {
-        aiBusy = false; aiSend.disabled = false;
-        if (aiCur && !aiCur.raw) { aiCur.remove(); }
-        $$('.ai-msg--live', aiLog).forEach(function (m) { m.classList.remove('ai-msg--live'); });
-        if (aiPend.length) { aiAsk(); }
-      });
-    };
-    aiForm.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var text = (fields.ai_prompt.value || '').trim();
-      if (!text || aiBusy) { return; }
-      fields.ai_prompt.value = '';
-      aiHist.push({ role: 'user', text: text });
-      aiAdd('ai-msg--user', text);
-      aiPost();
-    });
-    fields.ai_prompt.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); aiForm.requestSubmit(); }
-    });
-    $('#ai-clear').addEventListener('click', function () {
-      if (aiBusy) { return; }
-      aiHist = []; aiPend = []; aiOut = {}; aiLog.textContent = '';
     });
   }
 

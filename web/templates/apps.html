@@ -4,7 +4,7 @@
   <md-menu id="create-menu" anchor="create-btn" positioning="fixed" anchor-corner="end-end" menu-corner="start-end" aria-label="Criar">
     <div class="menu-group">Aplicação</div>
     <md-menu-item href="/apps/new"><md-icon slot="start">rocket_launch</md-icon><div slot="headline">Repositório Git</div></md-menu-item>
-    <md-menu-item href="/templates"><md-icon slot="start">widgets</md-icon><div slot="headline">Templates (n8n e outros)</div></md-menu-item>
+    <md-menu-item href="/templates"><md-icon slot="start">apps</md-icon><div slot="headline">Templates (n8n e outros)</div></md-menu-item>
     <md-divider></md-divider>
     <div class="menu-group">Banco de dados</div>
     {{range .Kinds}}
@@ -53,7 +53,7 @@
       <p class="muted">Crie uma aplicação a partir de um repositório Git e adicione bancos de dados. As conexões aparecem aqui como linhas.</p>
       <div class="actions">
         {{template "btn" dict "kind" "filled" "href" "/apps/new" "icon" "rocket_launch" "label" "Nova aplicação"}}
-        {{template "btn" dict "kind" "outlined" "href" "/templates" "icon" "widgets" "label" "Instalar com um clique"}}
+        {{template "btn" dict "kind" "outlined" "href" "/templates" "icon" "apps" "label" "Instalar com um clique"}}
         {{template "btn" dict "kind" "outlined" "href" "/databases/new?kind=postgres" "icon" "storage" "label" "Novo banco de dados"}}
       </div>
     </div>

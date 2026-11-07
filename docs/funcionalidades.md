@@ -129,6 +129,12 @@ As respostas são escritas de forma simples, com dicas do próximo passo, e func
 
 A aba IA é um chat que cuida do servidor por você: "por que o deploy da loja falhou?", "aumenta para 2 instâncias". O assistente usa os mesmos comandos da linha de comando. Consultas (estado, logs, bancos) ele faz sozinho; qualquer coisa que altere o servidor aparece na tela como um comando, e só roda depois que você aprova. Variáveis de ambiente, senhas e tokens não são mostrados a ele.
 
+Além dos comandos, ele tem ferramentas só de leitura para diagnosticar: listar e ler arquivos do código de uma aplicação (sem segredos como `.env` e chaves), testar se o app responde na porta dele, ver quais portas estão em uso e por quem, conferir para onde um domínio aponta e analisar um repositório antes de criar o app. O prompt de sistema traz o que o painel faz e roteiros de diagnóstico (deploy que falha, porta fixa no código, erro 502, SSL que não emite, conexão com banco).
+
+**Ajuda flutuante.** Em qualquer tela há um botão "Ajuda com IA" no canto: abre um painel lateral (no celular, uma folha que sobe de baixo) que sabe em que tela você está e sugere perguntas, como "Por que o deploy falhou?" na página de uma aplicação. A conversa continua enquanto você navega.
+
+**Descobrir com IA.** No formulário de nova aplicação, ao lado de "Descobrir automaticamente", o botão "Descobrir com IA" (só aparece se a IA estiver configurada) manda ao modelo a árvore de arquivos e os arquivos principais do projeto (nunca `.env` nem chaves) e preenche os comandos de preparação e de início, as variáveis que o código lê e avisos. É só uma sugestão: você revisa antes de criar, e nada roda até o deploy. Quando o detector comum não reconhece o projeto, a tela oferece "Tentar com IA".
+
 Em Configurações você escolhe o provedor: OpenRouter (um só acesso a vários modelos), OpenAI, Anthropic ou um servidor local como o Ollama. O painel fala os três formatos de API (Chat Completions, Responses e Messages), então basta informar o formato, o endereço, o modelo e a chave. O modelo precisa suportar chamada de ferramentas. O que você escreve, incluindo trechos de logs que ele leia, vai para o provedor escolhido.
 
 ## No celular

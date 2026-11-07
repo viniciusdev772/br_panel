@@ -388,6 +388,9 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, p p
 		return
 	}
 	p.CSRF, p.Authed = s.auth.Session(r)
+	if p.Authed { // the floating help sheet is on every screen and needs to know if the assistant is set up
+		p.AIReady = s.settings().AIModel != ""
+	}
 	if p.Nav == "" {
 		switch name {
 		case "settings":
