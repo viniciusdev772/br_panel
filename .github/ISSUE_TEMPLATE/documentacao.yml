@@ -1,0 +1,61 @@
+name: "Documentação"
+description: "Algo está errado, confuso ou faltando na documentação"
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Documentação que confunde é um bug. Diga onde você travou e o que esperava encontrar.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: "Onde"
+      options:
+        - "README"
+        - "Funcionalidades (docs/funcionalidades.md)"
+        - "Referência técnica (docs/referencia-tecnica.md)"
+        - "Arquitetura (docs/architecture.md)"
+        - "Segurança (docs/security.md)"
+        - "Desenvolvimento / CONTRIBUTING"
+        - "Skills e guia para agentes de IA"
+        - "Textos do painel e da CLI (--help)"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: input
+    id: link
+    attributes:
+      label: "Link ou nome da seção"
+      placeholder: "https://github.com/viniciusdev772/br_panel/blob/main/docs/funcionalidades.md#..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: "Tipo do problema"
+      options:
+        - "Está errado ou desatualizado"
+        - "Está confuso"
+        - "Falta explicar"
+        - "Erro de português ou de digitação"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: "O que está errado ou faltando"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: "Como você escreveria"
+      description: "Opcional. Uma sugestão de texto acelera a correção."
+    validations:
+      required: false

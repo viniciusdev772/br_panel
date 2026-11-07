@@ -1,0 +1,80 @@
+name: "Funcionalidade"
+description: "Sugerir uma melhoria ou um recurso novo"
+title: "[Ideia] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Boas propostas começam pelo **problema**, não pela solução. Procure antes se a ideia já existe em uma issue, no [CHANGELOG](https://github.com/viniciusdev772/br_panel/blob/main/CHANGELOG.md) ou nas [Funcionalidades](https://github.com/viniciusdev772/br_panel/blob/main/docs/funcionalidades.md).
+
+        **Princípios do projeto** (propostas que os contrariam serão adaptadas ou recusadas):
+        - Os apps rodam como **serviços systemd**, **sem Docker**.
+        - **Sem variáveis de ambiente** para configurar o painel: tudo fica no SQLite e se edita em Configurações. Só existem as flags `-addr` e `-data`.
+        - O que a interface faz, a **CLI** também faz (e vice-versa).
+        - Peso leve: poucas dependências, um binário só.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Área"
+      options:
+        - "Deploy e build"
+        - "Aplicações e instâncias (autoscale, limites)"
+        - "Nginx, domínio e SSL"
+        - "Bancos de dados"
+        - "Monitoramento"
+        - "GitHub e deploy automático"
+        - "CLI e skills para agentes de IA"
+        - "Assistente de IA"
+        - "Programas de um clique"
+        - "Interface"
+        - "Segurança"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problema que você quer resolver"
+      description: "O que você tenta fazer hoje, o que atrapalha e com que frequência acontece."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposta"
+      description: "Como você imagina que funcione, na tela e na CLI. Um rascunho do comando ou da tela já ajuda."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternativas consideradas"
+      description: "O que você faz hoje como contorno e outras soluções que pensou."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: help
+    attributes:
+      label: "Você pode ajudar?"
+      options:
+        - "Só estou sugerindo"
+        - "Posso testar uma versão preliminar"
+        - "Quero abrir o PR (leio o CONTRIBUTING antes)"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Antes de enviar"
+      options:
+        - label: "Procurei por uma ideia igual e não achei."
+          required: true
+        - label: "A proposta não depende de Docker nem de variáveis de ambiente de configuração."
+          required: true

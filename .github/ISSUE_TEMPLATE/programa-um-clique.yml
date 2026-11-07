@@ -1,0 +1,96 @@
+name: "Novo programa de um clique"
+description: "Sugerir um programa para o catálogo de instalação com um clique (como n8n, Uptime Kuma e Gitea)"
+title: "[Template] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Os programas do catálogo viram uma aplicação normal do painel, **sem Docker**. Para entrar, o programa precisa ter um jeito de instalar por binário, `npm`, `pip` ou similar, e ele é **testado em um servidor real** antes de entrar.
+
+        Regras que o catálogo segue: comandos de uma linha (lógica maior vai para scripts de arquivos), e todo binário baixado precisa de **SHA-256 publicado** que o script confere.
+
+  - type: input
+    id: name
+    attributes:
+      label: "Nome do programa"
+      placeholder: "Uptime Kuma"
+    validations:
+      required: true
+
+  - type: input
+    id: site
+    attributes:
+      label: "Site oficial e repositório"
+      description: "O endereço da página oficial e do repositório de código."
+      placeholder: "https://example.com e https://github.com/exemplo/programa"
+    validations:
+      required: true
+
+  - type: input
+    id: license
+    attributes:
+      label: "Licença"
+      description: "Precisa permitir uso em servidor próprio."
+      placeholder: "MIT, AGPL-3.0, ..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: "Como se instala sem Docker"
+      options:
+        - "Binário pronto (Linux amd64 e arm64)"
+        - "npm / Node.js"
+        - "pip / Python"
+        - "Compilar do código-fonte"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Passos de instalação e de início"
+      description: "Os comandos que você usa para instalar e para iniciar, e a versão mínima de Node, Python etc."
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: checksum
+    attributes:
+      label: "Onde está o SHA-256 publicado"
+      description: "Link da página de releases ou do arquivo de somas. Sem isso, binários baixados não entram."
+    validations:
+      required: false
+
+  - type: textarea
+    id: runtime
+    attributes:
+      label: "Porta, dados e banco"
+      description: "Porta padrão e como mudá-la (lê `PORT`?), pastas que precisam sobreviver a uma atualização, e se precisa de banco (qual)."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: users
+    attributes:
+      label: "Por que entraria no catálogo"
+      options:
+        - "Uso e muita gente também usa"
+        - "Instalar à mão é trabalhoso demais"
+        - "Quero manter o template"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Antes de enviar"
+      options:
+        - label: "Procurei no catálogo e em outras issues e o programa não está lá."
+          required: true
+        - label: "Consigo rodar o programa como um serviço comum, sem Docker."
+          required: true

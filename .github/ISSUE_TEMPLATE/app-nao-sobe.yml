@@ -1,0 +1,111 @@
+name: "Meu app não sobe ou o deploy falha"
+description: "O deploy falhou, o site dá 502, o app reinicia sem parar ou o painel mostra um aviso de porta"
+title: "[App] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A maioria dos casos tem causa no próprio projeto e o painel já diz qual. **Confira primeiro:**
+
+        1. **Aviso de porta.** Rode `brpanel apps show NOME` e procure a linha `aviso de porta`. Se o código escreve a porta (por exemplo `const port = 3090`), ele precisa ler a variável `PORT`. O log do deploy mostra o arquivo e a linha. Veja *Quando o projeto escolhe a própria porta* em [Funcionalidades](https://github.com/viniciusdev772/br_panel/blob/main/docs/funcionalidades.md).
+        2. **Log do deploy:** `brpanel apps logs NOME --kind deploy --lines 80` mostra o motivo no fim.
+        3. **Variáveis faltando:** `apps show` lista as que o código lê e o app não define.
+        4. **Porta fixa, banco em `localhost`, monorepo:** estão na [Referência técnica](https://github.com/viniciusdev772/br_panel/blob/main/docs/referencia-tecnica.md).
+
+        Se mesmo assim travar, preencha abaixo. **Este repositório é público:** remova senhas, tokens, chaves, domínios e IPs reais.
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: "O que você está vendo"
+      options:
+        - "O deploy termina com erro (status failed)"
+        - "O deploy conclui, mas o site dá 502 / não abre"
+        - "O app reinicia sem parar (estado activating)"
+        - "O painel mostra um aviso de porta e não entendi como corrigir"
+        - "Duas cópias do mesmo projeto brigam pela porta (EADDRINUSE)"
+        - "O app sobe, mas se comporta diferente de rodar na minha máquina"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stack
+    attributes:
+      label: "Tipo de projeto"
+      options:
+        - "Node.js (npm, pnpm, yarn, bun)"
+        - "Python"
+        - "Go"
+        - "Rust"
+        - "PHP / Laravel"
+        - "Ruby"
+        - "Java / Kotlin"
+        - ".NET"
+        - "Estático / outro"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Versão do painel"
+      description: "Rode `brpanel version`."
+      placeholder: "v0.11.0"
+    validations:
+      required: true
+
+  - type: input
+    id: repo
+    attributes:
+      label: "Repositório (só se for público)"
+      description: "Ajuda a reproduzir. Se for privado, deixe em branco e descreva a estrutura abaixo."
+      placeholder: "https://github.com/exemplo/loja"
+    validations:
+      required: false
+
+  - type: textarea
+    id: config
+    attributes:
+      label: "Configuração da aplicação"
+      description: "Saída de `brpanel apps show NOME` (ela não mostra as variáveis de ambiente). Se o projeto é um monorepo, diga a pasta do app."
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: deploylog
+    attributes:
+      label: "Log do deploy"
+      description: "`brpanel apps logs NOME --kind deploy --lines 80`. **Remova segredos.**"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: servicelog
+    attributes:
+      label: "Log do serviço (se o deploy concluiu)"
+      description: "`brpanel apps logs NOME --kind service --lines 80`. **Remova segredos.**"
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "O que mais ajuda"
+      description: "O projeto roda na sua máquina? Lê a porta de `PORT`? Usa banco em `localhost`? O que mudou desde a última vez que funcionou?"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Antes de enviar"
+      options:
+        - label: "Li o `aviso de porta` (se houver) e o fim do log do deploy."
+          required: true
+        - label: "Removi senhas, tokens, chaves, domínios e IPs reais do texto e dos logs."
+          required: true

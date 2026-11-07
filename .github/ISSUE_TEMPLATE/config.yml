@@ -1,0 +1,16 @@
+# Personaliza a tela "New issue": só formulários (sem issue em branco) e atalhos para o que
+# não deve virar issue pública. https://docs.github.com/pt/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+blank_issues_enabled: false
+contact_links:
+  - name: "Vulnerabilidade de segurança (não abra issue pública)"
+    url: "https://github.com/viniciusdev772/br_panel/security/advisories/new"
+    about: "O painel roda como root. Relate falhas de segurança em privado por aqui; uma issue pública expõe todos os servidores até haver correção. Veja o SECURITY.md."
+  - name: "Dúvida de uso: leia as funcionalidades"
+    url: "https://github.com/viniciusdev772/br_panel/blob/main/docs/funcionalidades.md"
+    about: "Como publicar um projeto, domínio e SSL, bancos, autoscale, assistente de IA e o aviso de porta, explicados passo a passo."
+  - name: "Projeto com porta fixa no código, banco em localhost, monorepo"
+    url: "https://github.com/viniciusdev772/br_panel/blob/main/docs/referencia-tecnica.md"
+    about: "A maioria dos problemas de publicação já tem solução na referência técnica. Confira antes de abrir uma issue."
+  - name: "CLI e agentes de IA (brpanel)"
+    url: "https://github.com/viniciusdev772/br_panel/blob/main/skills/README.md"
+    about: "Todos os comandos da CLI, o guia para agentes de IA e os skills (Claude Code e similares)."

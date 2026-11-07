@@ -1,0 +1,106 @@
+name: "Bug"
+description: "Algo do painel ou da CLI não funciona como esperado"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar. Antes de enviar:
+
+        - **Procure** se já existe uma issue igual (aberta ou fechada).
+        - **Segurança:** se for uma falha que permita atacar um servidor, **não abra issue**. Use o link *Vulnerabilidade de segurança* da tela anterior.
+        - **Seu app não sobe ou o deploy falha?** Use o formulário *Meu app não sobe ou o deploy falha*, que pede o que ajuda a achar a causa.
+        - **Este repositório é público.** Tudo o que você colar fica visível e indexável: remova senhas, tokens, chaves, domínios e IPs reais (use `example.com` e `192.0.2.10`) e nomes de clientes.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Onde acontece"
+      description: "Escolha a parte do painel mais próxima do problema."
+      options:
+        - "Deploy / build"
+        - "Aplicação (iniciar, parar, reiniciar, logs, variáveis)"
+        - "Nginx, domínio ou SSL"
+        - "Bancos de dados e backups"
+        - "Monitoramento e gráficos"
+        - "Autoscale e várias instâncias"
+        - "GitHub App e deploy automático"
+        - "CLI (brpanel)"
+        - "Assistente de IA"
+        - "Programas de um clique (templates)"
+        - "Telas e interface"
+        - "Instalação ou atualização do painel"
+        - "Outro"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Versão do painel"
+      description: "Rode `brpanel version` no servidor (ou use o que a tela CLI mostra)."
+      placeholder: "v0.11.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: "O que aconteceu"
+      description: "Descreva o que você viu, com a mensagem de erro exata se houver. Pode colar imagens."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Como reproduzir"
+      description: "Passos curtos e na ordem. Se usou a CLI, cole os comandos."
+      placeholder: |
+        1. Em Configurações, ...
+        2. Criei a aplicação com ...
+        3. Cliquei em ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "O que você esperava"
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: "Ambiente"
+      description: "Ajuda a reproduzir. Para pegar tudo de uma vez: `uname -m; . /etc/os-release && echo $PRETTY_NAME; systemctl --version | head -1; nginx -v 2>&1; git --version`."
+      render: shell
+      placeholder: |
+        x86_64
+        Ubuntu 24.04
+        systemd 255
+        nginx version: nginx/1.24.0
+        git version 2.43.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      description: "Do painel: `journalctl -u brpanel -n 100 --no-pager`. Do app: `brpanel apps logs NOME --kind deploy --lines 80` (e `--kind service`). **Remova segredos antes de colar.**"
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Antes de enviar"
+      options:
+        - label: "Procurei por uma issue igual e não achei."
+          required: true
+        - label: "Removi senhas, tokens, chaves, domínios e IPs reais do texto e dos logs."
+          required: true
