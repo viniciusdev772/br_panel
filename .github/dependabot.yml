@@ -4,3 +4,19 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    labels: [dependencies, go]
+    commit-message:
+      prefix: "Atualiza"
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "Atualiza"
+    groups:
+      actions:
+        patterns: ["*"]
