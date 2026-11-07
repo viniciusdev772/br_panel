@@ -1,141 +1,125 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-07T12:00:00Z",
+  "generatedAt": "2026-11-07T14:20:00Z",
   "title": "Design System: BR Panel",
   "extensions": {
     "colorMeta": {
-      "accent": { "role": "primary", "displayName": "Violeta de Controle", "canonical": "#8b5cf6", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ede9fe"] },
-      "accent-strong": { "role": "primary", "displayName": "Violeta Firme", "canonical": "#7c3aed", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#ddd6fe"] },
-      "link": { "role": "primary", "displayName": "Violeta de Link", "canonical": "#b79cff", "tonalRamp": ["#3b2a73", "#5b43a8", "#7a5ed1", "#9578ee", "#b79cff", "#c9b4ff", "#dccfff", "#f0e9ff"] },
-      "brand-pink": { "role": "secondary", "displayName": "Rosa da Marca", "canonical": "#ec4899", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#ec4899", "#f472b6", "#f9a8d4", "#fce7f3"] },
-      "bg": { "role": "neutral", "displayName": "Noite Profunda", "canonical": "#0e0d16", "tonalRamp": ["#0b0a12", "#0e0d16", "#121120", "#1a1828", "#222035", "#2e2c44", "#9a97b0", "#f3f2f8"] },
-      "surface": { "role": "neutral", "displayName": "Superfície", "canonical": "#1a1828", "tonalRamp": ["#0b0a12", "#0e0d16", "#121120", "#1a1828", "#222035", "#2e2c44", "#9a97b0", "#f3f2f8"] },
-      "muted": { "role": "neutral", "displayName": "Texto Apagado", "canonical": "#9a97b0", "tonalRamp": ["#2e2c44", "#4a4763", "#6b6885", "#85829e", "#9a97b0", "#b6b4c7", "#d3d2df", "#f3f2f8"] },
-      "ok": { "role": "state", "displayName": "Estado OK", "canonical": "#34d399", "tonalRamp": ["#064e3b", "#065f46", "#047857", "#059669", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"] },
-      "warn": { "role": "state", "displayName": "Atenção", "canonical": "#f5b942", "tonalRamp": ["#452c08", "#6b4510", "#8f5e14", "#b7791f", "#f5b942", "#f8cb6f", "#fbdea0", "#fdf0d2"] },
-      "bad": { "role": "state", "displayName": "Erro", "canonical": "#f87171", "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#f87171", "#fca5a5", "#fecaca", "#fee2e2"] }
+      "primary": { "role": "primary", "displayName": "Azul-petróleo", "canonical": "#00687b", "tonalRamp": ["#001f26", "#003641", "#004e5d", "#00687b", "#1f8399", "#85d2e7", "#aeecff", "#d9f6ff"] },
+      "primary-container": { "role": "primary", "displayName": "Contêiner petróleo", "canonical": "#aeecff", "tonalRamp": ["#001f26", "#003641", "#004e5d", "#00687b", "#4fb1c8", "#85d2e7", "#aeecff", "#e1f7ff"] },
+      "secondary-container": { "role": "secondary", "displayName": "Contêiner secundário", "canonical": "#cee7ef", "tonalRamp": ["#061f25", "#1d343a", "#344a51", "#4b6269", "#7a9299", "#b2cbd3", "#cee7ef", "#e8f5f9"] },
+      "surface": { "role": "neutral", "displayName": "Superfície", "canonical": "#f5fafc", "tonalRamp": ["#090f11", "#0f1416", "#171c1e", "#252b2d", "#3f484b", "#899295", "#dee3e6", "#f5fafc"] },
+      "surface-container-low": { "role": "neutral", "displayName": "Contêiner baixo", "canonical": "#eff4f7", "tonalRamp": ["#090f11", "#0f1416", "#171c1e", "#252b2d", "#3f484b", "#899295", "#dee3e6", "#eff4f7"] },
+      "on-surface-variant": { "role": "neutral", "displayName": "Texto secundário", "canonical": "#3f484b", "tonalRamp": ["#171c1e", "#252b2d", "#3f484b", "#576164", "#70797c", "#899295", "#bfc8cb", "#dbe4e7"] },
+      "success": { "role": "state", "displayName": "Sucesso", "canonical": "#006c53", "tonalRamp": ["#002117", "#00382a", "#00513e", "#006c53", "#2a8a6d", "#63dbb5", "#81f8d0", "#c5ffe9"] },
+      "warning": { "role": "state", "displayName": "Atenção", "canonical": "#715d00", "tonalRamp": ["#221b00", "#3a3000", "#554500", "#715d00", "#9a8100", "#e7c431", "#ffe175", "#fff0b8"] },
+      "error": { "role": "state", "displayName": "Erro", "canonical": "#ba1a1a", "tonalRamp": ["#410002", "#690005", "#93000a", "#ba1a1a", "#de3730", "#ffb4ab", "#ffdad6", "#fff0ee"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Título da folha de recurso." },
-      "headline": { "displayName": "Headline", "purpose": "Título de cada passo do assistente." },
-      "title": { "displayName": "Title", "purpose": "Nome do recurso no cartão." },
-      "body": { "displayName": "Body", "purpose": "Texto corrido, formulários e navegação." },
-      "label": { "displayName": "Label", "purpose": "Títulos de seção em caixa alta, apagados." },
-      "mono": { "displayName": "Mono", "purpose": "Logs, valores copiáveis, comandos e números." }
+      "display": { "displayName": "Display", "purpose": "Título de página e de recurso." },
+      "headline": { "displayName": "Headline", "purpose": "Título de passo do assistente." },
+      "title": { "displayName": "Title", "purpose": "Nome do cartão e rótulos de linha." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido e formulários." },
+      "label": { "displayName": "Label", "purpose": "Rótulos do trilho, indicadores do host e chips." },
+      "mono": { "displayName": "Mono", "purpose": "Logs, valores copiáveis, comandos." }
     },
     "shadows": [
-      { "name": "resposta", "value": "0 12px 32px rgba(0, 0, 0, .38)", "purpose": "Cartão em hover, menu aberto, login." },
-      { "name": "halo-de-foco", "value": "0 0 0 3px color-mix(in srgb, #8b5cf6 35%, transparent)", "purpose": "Foco de teclado em botão." },
-      { "name": "brilho-do-botao", "value": "0 6px 16px -8px rgba(124, 58, 237, .8)", "purpose": "Botão preenchido em repouso." },
-      { "name": "brilho-da-marca", "value": "0 4px 14px -4px rgba(139, 92, 246, .7)", "purpose": "Ícone da marca na barra." }
+      { "name": "resposta", "value": "0 1px 3px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.1)", "purpose": "Cartão em hover." },
+      { "name": "menu", "value": "elevação 2 do Material (menu e diálogo)", "purpose": "Menu e diálogo sobre o conteúdo." }
     ],
     "motion": [
-      { "name": "ease", "value": "cubic-bezier(.2, .7, .2, 1)", "purpose": "Entrada de página, avisos, cartões." },
-      { "name": "hover", "value": "150–200ms", "purpose": "Cor, borda e sombra em resposta ao ponteiro." },
-      { "name": "rise", "value": "280ms, translateY(6px) para 0", "purpose": "A página e as mensagens entram suavemente." },
-      { "name": "pulse", "value": "1.2s ease-in-out infinite", "purpose": "Ponto de estado em implantação." }
+      { "name": "ease", "value": "cubic-bezier(.2, 0, 0, 1)", "purpose": "Transições de estado (200 ms)." },
+      { "name": "ease-out", "value": "cubic-bezier(.05, .7, .1, 1)", "purpose": "Entrada de página e mensagens (250–280 ms)." },
+      { "name": "pulse", "value": "1.2s ease-in-out infinite", "purpose": "Ponto de implantação em andamento." }
     ],
     "breakpoints": [
-      { "name": "narrow", "value": "480px" },
       { "name": "phone", "value": "600px" },
-      { "name": "tablet", "value": "760px" },
-      { "name": "wide", "value": "1100px" }
+      { "name": "service-lines", "value": "760px" },
+      { "name": "rail", "value": "840px" },
+      { "name": "activity-below", "value": "1200px" }
     ]
   },
   "components": [
     {
-      "name": "Botão Primário",
+      "name": "Botão preenchido",
       "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Ação principal da tela: publicar, salvar, criar.",
-      "html": "<button class=\"ds-btn-primary\">Publicar</button>",
-      "css": ".ds-btn-primary { height: 36px; padding: 0 16px; border: 0; border-radius: 8px; background-color: #7c3aed; background-image: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0)); color: #fff; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; box-shadow: 0 6px 16px -8px rgba(124,58,237,.8); transition: transform .12s, box-shadow .2s, filter .15s; } .ds-btn-primary:hover { filter: brightness(1.1); box-shadow: 0 8px 20px -8px rgba(124,58,237,.9); } .ds-btn-primary:active { transform: translateY(1px) scale(.985); } .ds-btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+      "refersTo": "button-filled",
+      "description": "Ação principal: publicar, salvar, criar.",
+      "html": "<button class=\"ds-btn-filled\">Publicar</button>",
+      "css": ".ds-btn-filled { height: 40px; padding: 0 24px; border: 0; border-radius: 999px; background: #00687b; color: #fff; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .1px; cursor: pointer; transition: box-shadow .2s, filter .15s; } .ds-btn-filled:hover { filter: brightness(1.08); box-shadow: 0 1px 3px rgba(0,0,0,.3); } .ds-btn-filled:focus-visible { outline: 2px solid #00687b; outline-offset: 2px; }"
     },
     {
-      "name": "Botão Contornado",
+      "name": "Botão contornado",
       "kind": "button",
       "refersTo": "button-outlined",
       "description": "Ação secundária ao lado da principal.",
-      "html": "<button class=\"ds-btn-outlined\">Cancelar</button>",
-      "css": ".ds-btn-outlined { height: 36px; padding: 0 16px; border: 1px solid #2e2c44; border-radius: 8px; background: transparent; color: #f3f2f8; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; transition: border-color .15s; } .ds-btn-outlined:hover { border-color: #8b5cf6; } .ds-btn-outlined:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+      "html": "<button class=\"ds-btn-outlined\">Reiniciar</button>",
+      "css": ".ds-btn-outlined { height: 40px; padding: 0 24px; border: 1px solid #70797c; border-radius: 999px; background: transparent; color: #00687b; font: 500 14px Roboto, system-ui, sans-serif; cursor: pointer; } .ds-btn-outlined:hover { background: rgba(0,104,123,.08); } .ds-btn-outlined:focus-visible { outline: 2px solid #00687b; outline-offset: 2px; }"
     },
     {
-      "name": "Botão Perigoso",
+      "name": "Botão perigoso",
       "kind": "button",
-      "refersTo": "button-danger",
-      "description": "Excluir, parar, apagar; sempre contornado, nunca preenchido.",
+      "refersTo": "button-outlined",
+      "description": "Excluir e parar: contornado em vermelho, nunca preenchido.",
       "html": "<button class=\"ds-btn-danger\">Excluir</button>",
-      "css": ".ds-btn-danger { height: 36px; padding: 0 16px; border: 1px solid rgba(248,113,113,.5); border-radius: 8px; background: transparent; color: #f87171; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; } .ds-btn-danger:hover { background: rgba(248,113,113,.1); } .ds-btn-danger:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+      "css": ".ds-btn-danger { height: 40px; padding: 0 24px; border: 1px solid rgba(186,26,26,.55); border-radius: 999px; background: transparent; color: #ba1a1a; font: 500 14px Roboto, system-ui, sans-serif; cursor: pointer; } .ds-btn-danger:hover { background: rgba(186,26,26,.08); } .ds-btn-danger:focus-visible { outline: 2px solid #ba1a1a; outline-offset: 2px; }"
     },
     {
-      "name": "Cartão de Recurso",
+      "name": "Cartão de recurso",
       "kind": "card",
       "refersTo": "resource-card",
-      "description": "Aplicação ou banco no canvas da arquitetura, com status e métricas.",
-      "html": "<a class=\"ds-rcard\" href=\"#\"><div class=\"ds-rcard-top\"><span class=\"ds-badge\">JS</span><div class=\"ds-rcard-title\"><strong>loja</strong><span>loja.example.com</span></div></div><div class=\"ds-rcard-status\"><span>No ar</span><time>há 2 min</time></div><div class=\"ds-rcard-metrics\"><span>CPU 4%</span><span>RAM 112 MB</span></div></a>",
-      "css": ".ds-rcard { display: flex; flex-direction: column; gap: 14px; width: 270px; min-height: 132px; padding: 16px 18px; background: #1a1828; border: 1px solid #2e2c44; border-radius: 14px; color: #f3f2f8; text-decoration: none; font-family: Roboto, system-ui, sans-serif; transition: border-color .2s, transform .2s, box-shadow .2s; } .ds-rcard:hover { transform: translateY(-2px); border-color: #6a4bb8; box-shadow: 0 12px 32px rgba(0,0,0,.38); } .ds-rcard:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; } .ds-rcard-top { display: flex; align-items: center; gap: 12px; } .ds-badge { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: #3c873a; color: #fff; font-weight: 700; font-size: 13px; } .ds-rcard-title { display: flex; flex-direction: column; min-width: 0; } .ds-rcard-title strong { font-size: 16px; font-weight: 600; } .ds-rcard-title span { font-size: 12.5px; color: #9a97b0; } .ds-rcard-status { display: flex; align-items: center; gap: 8px; margin-top: auto; font-size: 13px; color: #34d399; } .ds-rcard-status time { margin-left: auto; font-size: 12px; color: #9a97b0; } .ds-rcard-metrics { display: flex; gap: 14px; font-size: 12px; color: #9a97b0; font-variant-numeric: tabular-nums; }"
+      "description": "Aplicação ou banco no canvas: selo, nome, estado, dependências e métricas.",
+      "html": "<a class=\"ds-rcard\" href=\"#\"><div class=\"ds-top\"><span class=\"ds-badge\">JS</span><div class=\"ds-title\"><strong>loja</strong><span>loja.example.com</span></div></div><div class=\"ds-status\">Deploy concluído <time>há 5 min</time></div><div class=\"ds-uses\">usa <b>postgres</b>, <b>cache</b></div><div class=\"ds-metrics\"><span>55%</span><span>422 MB</span></div></a>",
+      "css": ".ds-rcard { display: flex; flex-direction: column; gap: 14px; width: 280px; padding: 16px; background: #eff4f7; border: 1px solid #bfc8cb; border-radius: 16px; color: #171c1e; text-decoration: none; font: 14px/20px Roboto, system-ui, sans-serif; transition: border-color .2s, box-shadow .2s; } .ds-rcard:hover { border-color: #5fa0ae; box-shadow: 0 1px 3px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.1); } .ds-top { display: flex; align-items: center; gap: 12px; } .ds-badge { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: #cfe0cc; color: #2f5d2e; font-weight: 700; font-size: 13px; } .ds-title { display: flex; flex-direction: column; } .ds-title strong { font: 500 16px/24px Roboto, sans-serif; } .ds-title span { font-size: 12px; color: #3f484b; } .ds-status { display: flex; gap: 8px; align-items: center; color: #006c53; font-weight: 500; font-size: 13px; } .ds-status time { margin-left: auto; color: #3f484b; font-weight: 400; font-size: 12px; } .ds-uses { font-size: 12px; color: #3f484b; } .ds-uses b { color: #171c1e; font-weight: 500; } .ds-metrics { display: flex; gap: 8px; } .ds-metrics span { height: 24px; padding: 0 8px; border-radius: 8px; background: #e9eff1; color: #3f484b; font-size: 12px; display: inline-flex; align-items: center; }"
     },
     {
-      "name": "Campo de Texto",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Campo contornado do MDC com dica abaixo.",
-      "html": "<div><input class=\"ds-input\" placeholder=\"Endereço do repositório\"><p class=\"ds-hint\">Cole a URL do GitHub.</p></div>",
-      "css": ".ds-input { width: 100%; height: 56px; padding: 0 16px; border: 1px solid #2e2c44; border-radius: 8px; background: transparent; color: #f3f2f8; font: 16px Roboto, system-ui, sans-serif; caret-color: #8b5cf6; } .ds-input::placeholder { color: #9a97b0; } .ds-input:hover { border-color: #9a97b0; } .ds-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 1px #8b5cf6; } .ds-hint { margin: 4px 16px 0; font: 12px Roboto, system-ui, sans-serif; color: #9a97b0; }"
-    },
-    {
-      "name": "Chips de Status",
+      "name": "Chips de status",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "Estado de uma aplicação ou banco; cor, texto e ponto pulsante em implantação.",
-      "html": "<span class=\"ds-chip ds-chip-ok\">ativo</span> <span class=\"ds-chip ds-chip-warn\">implantando</span> <span class=\"ds-chip ds-chip-bad\">falhou</span> <span class=\"ds-chip\">inativo</span>",
-      "css": ".ds-chip { display: inline-block; padding: 2px 10px; border-radius: 12px; font: 500 12px Roboto, system-ui, sans-serif; background: #222035; color: #9a97b0; border: 1px solid #2e2c44; } .ds-chip-ok { background: rgba(52,211,153,.12); color: #34d399; border-color: rgba(52,211,153,.35); } .ds-chip-warn { background: rgba(245,185,66,.12); color: #f5b942; border-color: rgba(245,185,66,.35); } .ds-chip-warn::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; animation: ds-pulse 1.2s ease-in-out infinite; } .ds-chip-bad { background: rgba(248,113,113,.12); color: #f87171; border-color: rgba(248,113,113,.35); } @keyframes ds-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }"
+      "description": "Estado de uma aplicação ou banco.",
+      "html": "<span class=\"ds-chip ds-ok\">ativo</span> <span class=\"ds-chip ds-warn\">implantando</span> <span class=\"ds-chip ds-bad\">falhou</span> <span class=\"ds-chip\">inativo</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 8px; font: 500 12px/16px Roboto, system-ui, sans-serif; letter-spacing: .4px; background: #dee3e6; color: #3f484b; } .ds-ok { background: #81f8d0; color: #002117; } .ds-warn { background: #ffe175; color: #221b00; } .ds-warn::before { content: ''; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; animation: ds-pulse 1.2s ease-in-out infinite; } .ds-bad { background: #ffdad6; color: #410002; } @keyframes ds-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }"
     },
     {
-      "name": "Navegação Superior",
+      "name": "Item do trilho",
       "kind": "nav",
-      "refersTo": "topbar",
-      "description": "Barra de 56px com marca, seções e ações; item ativo com fundo suave e sublinhado violeta.",
-      "html": "<nav class=\"ds-topnav\"><a class=\"ds-active\" href=\"#\">Arquitetura</a><a href=\"#\">Configurações</a><a href=\"#\">GitHub</a></nav>",
-      "css": ".ds-topnav { display: flex; gap: 4px; height: 56px; align-items: center; padding: 0 20px; background: #1a1828; border-bottom: 1px solid #2e2c44; font-family: Roboto, system-ui, sans-serif; } .ds-topnav a { position: relative; display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: #9a97b0; text-decoration: none; font-size: 14px; transition: color .15s, background-color .15s; } .ds-topnav a:hover { color: #f3f2f8; background: #222035; } .ds-topnav a.ds-active { color: #f3f2f8; background: rgba(139,92,246,.16); } .ds-topnav a.ds-active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -10px; height: 2px; border-radius: 2px; background: #8b5cf6; } .ds-topnav a:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }"
+      "refersTo": "rail",
+      "description": "Destino de navegação com ícone em pílula e rótulo de 12px.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-item ds-active\" href=\"#\"><span class=\"ds-pill\">●</span>Servidor</a><a class=\"ds-item\" href=\"#\"><span class=\"ds-pill\">●</span>GitHub</a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 80px; padding-top: 16px; background: #f5fafc; font: 500 12px/16px Roboto, system-ui, sans-serif; } .ds-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #3f484b; text-decoration: none; letter-spacing: .5px; } .ds-pill { width: 56px; height: 32px; border-radius: 16px; display: grid; place-items: center; } .ds-active { color: #171c1e; } .ds-active .ds-pill { background: #cee7ef; color: #344a51; } .ds-item:focus-visible { outline: 2px solid #00687b; border-radius: 16px; }"
     }
   ],
   "narrative": {
     "northStar": "A Mesa de Controle",
-    "overview": "Uma bancada escura e pontilhada onde cada serviço é um cartão que você enxerga e opera. A tela de arquitetura é um canvas de pontos sutis com cartões de recurso ligados por linhas tracejadas; as demais telas são folhas centradas de 1040px com abas. O painel serve a quem só clica e a quem automatiza: a interface mostra o estado de relance e deixa o detalhe a um clique.\n\nO tom é calmo e técnico. O tema escuro é o padrão, as superfícies são planas com borda fina de 1px e o violeta é o único acento. Cor de estado só aparece para dizer algo sobre o servidor. Material Design 2 (MDC Web 14) é a base de comportamento; a aparência é reescrita por cima com variáveis CSS.",
+    "overview": "O painel é uma mesa de controle para um servidor: um canvas de pontos sutis onde cada aplicação e cada banco é um cartão, e as dependências entre eles são desenhadas como as linhas de um mapa de metrô, com estações nas pontas. É a assinatura do produto.\n\nA base é Material 3 (Material Web 2.x) usado do jeito que o sistema manda. A identidade vem da cor (azul-petróleo, de uma semente única, com tema claro e escuro que segue o sistema), da tipografia Roboto em escala curta e da assinatura do canvas.",
     "keyCharacteristics": [
-      "Escuro por padrão, violeta como único acento, cor de estado só para estado.",
-      "Cartões planos com borda de 1px; sombra e halo só em resposta (hover, foco, menu).",
-      "Canvas pontilhado na tela de arquitetura; folhas de 1040px nas demais.",
-      "Roboto para texto, monoespaçada para logs, valores e comandos; números tabulares.",
-      "MDC Web 14 reescrito por variáveis; sem estilos inline (CSP)."
+      "Material 3 puro nos controles; identidade em cor, canvas e linhas de serviço.",
+      "Tema claro e escuro por papéis de cor gerados; nenhuma cor solta no CSS.",
+      "Cartões em tom com contorno de 1px; sombra só em resposta.",
+      "Trilho de navegação (≥840px) e barra inferior (<840px).",
+      "Tudo servido pelo próprio binário: JS, Roboto, ícones; sem CDN."
     ],
     "rules": [
-      { "name": "A Regra do Acento Raro", "body": "O violeta cobre no máximo uma décima parte da tela. Se tudo é violeta, nada indica o que está ativo.", "section": "colors" },
-      { "name": "A Regra da Cor com Significado", "body": "Verde, âmbar e vermelho existem só para estado do servidor ou da operação. Nunca decoram.", "section": "colors" },
-      { "name": "A Regra das Variáveis", "body": "Toda cor sai de variável CSS. Nenhum valor solto em componente, exceto as cores de marca das linguagens e bancos (selos).", "section": "colors" },
-      { "name": "A Regra do Literal", "body": "Tudo que o usuário pode copiar (comando, URL, variável, log) vai em monoespaçada.", "section": "typography" },
-      { "name": "A Regra do Número Alinhado", "body": "Métricas, contagens e tempos usam font-variant-numeric: tabular-nums.", "section": "typography" },
-      { "name": "A Regra da Folha Estreita", "body": "Fora da arquitetura, nada passa de 1040px. Linhas longas cansam e escondem a ação.", "section": "layout" },
-      { "name": "A Regra do Plano em Repouso", "body": "Cartões e painéis não têm sombra parados. Sombra é reação a hover, foco ou sobreposição.", "section": "elevation" }
+      { "name": "A Regra do Papel", "body": "Toda cor sai de um papel (--md-sys-color-*, --brp-* ou um apelido em app.css). Nenhum hexadecimal solto, exceto as cores de marca dos selos.", "section": "colors" },
+      { "name": "A Regra da Cor com Significado", "body": "Verde, âmbar e vermelho só dizem estado. O acento petróleo só marca ação e seleção.", "section": "colors" },
+      { "name": "A Regra do Literal", "body": "O que o usuário copia vai em monoespaçada.", "section": "typography" },
+      { "name": "A Regra do Número Alinhado", "body": "Números de métrica usam tabular-nums.", "section": "typography" },
+      { "name": "A Regra do Plano em Repouso", "body": "Cartão parado não tem sombra.", "section": "elevation" }
     ],
     "dos": [
-      "Do usar as variáveis (--accent, --surface, --border…) para toda cor e checar os dois temas.",
-      "Do manter cartões planos com borda de 1px e reservar sombra para hover, foco e menus.",
-      "Do dar estado por ícone mais texto mais cor, nunca só por cor.",
-      "Do manter foco de teclado visível e respeitar prefers-reduced-motion.",
-      "Do usar monoespaçada para tudo que o usuário copia, e tabular-nums em números.",
+      "Do usar componentes md-* e os parciais field, area, check, btn.",
+      "Do tirar toda cor de um papel de tokens.css; conferir claro e escuro.",
+      "Do dar estado por ícone, texto e cor; manter foco visível e prefers-reduced-motion.",
+      "Do deixar sombra só para hover, menu e diálogo.",
       "Do escrever em português claro; erros dizem o que houve e o que fazer.",
-      "Do conferir a tela em 360px de largura e sem estilos inline (CSP)."
+      "Do conferir a tela a 360px e com a CSP 'self'."
     ],
     "donts": [
-      "Don't migrar para Material 3 nem adicionar framework de UI; MDC Web 14 é a base.",
-      "Don't usar o violeta como fundo grande nem em mais de uma décima parte da tela.",
-      "Don't usar gradientes decorativos; o degradê violeta-rosa é só da marca.",
-      "Don't usar verde, âmbar ou vermelho como enfeite.",
-      "Don't colocar sombra pesada em elementos parados.",
-      "Don't usar style=, <script> inline ou onclick=; a CSP bloqueia.",
-      "Don't esconder a ação principal atrás de menus ou deixar o avançado fora de alcance para quem automatiza."
+      "Don't carregar nada de CDN nem afrouxar a CSP.",
+      "Don't colocar gradiente decorativo, brilho ou sombra em elementos parados.",
+      "Don't usar verde, âmbar ou vermelho como enfeite, nem o petróleo como fundo grande.",
+      "Don't inventar controles fora do Material 3.",
+      "Don't usar style=, <script> inline ou onclick=.",
+      "Don't esconder a ação principal atrás de menus nem deixar o avançado fora de alcance."
     ]
   }
 }

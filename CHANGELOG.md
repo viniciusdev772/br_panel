@@ -4,6 +4,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+### Alterado
+- **Interface refeita em Material 3** (Material Web), com identidade própria: azul-petróleo como cor-semente, tema claro e escuro que segue o sistema (com botão para escolher), navegação lateral no computador e barra inferior no celular, botões, campos, abas, menus e diálogos do Material 3. A tela inicial agora se chama **Servidor**: o canvas mostra as ligações entre aplicações e bancos como linhas de mapa de metrô, cada cartão lista de quem depende (`usa postgres, redis`, também no celular, onde as linhas somem), e o servidor ganhou barras de uso de memória, carga e disco.
+- A tela do Servidor avisa quando perde a conexão com o painel (em vez de congelar), atualiza ao voltar à aba e recarrega sozinha quando um recurso é criado ou removido por outra via (CLI, outra aba).
+- Confirmações de ações destrutivas abrem um diálogo do próprio painel, e o menu **Criar** passou a ter foco e setas de teclado.
+- **Tudo é servido pelo próprio painel**: o JS do Material Web, as fontes (Roboto) e os ícones (Material Symbols, só os usados) agora ficam embutidos no binário. A política de segurança (CSP) passou a aceitar apenas a própria origem, sem cdnjs nem Google Fonts, e o painel funciona sem acesso à internet. `scripts/vendor/build.sh` reconstrói esses arquivos.
+
 ## [0.11.0] - 2026-11-06
 
 ### Adicionado

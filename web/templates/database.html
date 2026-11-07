@@ -2,12 +2,14 @@
 <form method="post" action="/databases/{{.name}}/{{.action}}" {{if .confirm}}data-confirm="{{.confirm}}"{{end}}>
   <input type="hidden" name="csrf" value="{{.csrf}}">
   {{if .file}}<input type="hidden" name="file" value="{{.file}}">{{end}}
-  <button class="mdc-button {{if .raised}}mdc-button--raised{{else if .danger}}mdc-button--outlined mdc-button--danger{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
+  {{if .raised}}{{template "btn" dict "kind" "filled" "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}
+  {{else if .danger}}{{template "btn" dict "kind" "outlined" "danger" true "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}
+  {{else}}{{template "btn" dict "kind" "outlined" "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}{{end}}
 </form>
 {{end}}
 {{define "content"}}
 <div class="sheet" data-sheet="db" data-name="{{.DB.Name}}" data-status="{{.DB.Status}}">
-  <a class="sheet-back" href="/"><i class="material-icons">arrow_back</i>Arquitetura</a>
+  <a class="sheet-back" href="/"><md-icon>arrow_back</md-icon>Servidor</a>
   <div class="sheet-head">
     <span class="badge badge--lg b-{{.DB.Kind}}">{{.DBSpec.Badge}}</span>
     <div>
@@ -22,29 +24,29 @@
   </div>
 
   {{if eq .DB.Status "provisioning"}}
-  <div class="banner warn" id="prov-banner"><i class="material-icons">autorenew</i><div>Provisionando o banco… isso leva alguns segundos (a primeira inicialização do PostgreSQL e do MariaDB é a mais demorada).</div></div>
+  <div class="banner warn" id="prov-banner"><md-icon>autorenew</md-icon><div>Provisionando o banco… isso leva alguns segundos (a primeira inicialização do PostgreSQL e do MariaDB é a mais demorada).</div></div>
   {{else if eq .DB.Status "failed"}}
-  <div class="banner bad"><i class="material-icons">error</i><div>O provisionamento falhou. Veja a aba <b>Logs → Provisionamento</b>; depois exclua e crie novamente.</div></div>
+  <div class="banner bad"><md-icon>error</md-icon><div>O provisionamento falhou. Veja a aba <b>Logs → Provisionamento</b>; depois exclua e crie novamente.</div></div>
   {{end}}
 
-  <div class="tabs" role="tablist" data-tabs>
-    <button type="button" class="tab-btn is-active" data-tab="conectar" role="tab">Conectar</button>
-    <button type="button" class="tab-btn" data-tab="dados" role="tab">Dados</button>
-    <button type="button" class="tab-btn" data-tab="backups" role="tab">Backups</button>
-    <button type="button" class="tab-btn" data-tab="metricas" role="tab">Métricas</button>
-    <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs</button>
-    <button type="button" class="tab-btn" data-tab="configuracoes" role="tab">Configurações</button>
-  </div>
+  <div class="tabs"><md-tabs data-tabs aria-label="Seções do banco">
+    <md-primary-tab data-tab="conectar" active>Conectar</md-primary-tab>
+    <md-primary-tab data-tab="dados">Dados</md-primary-tab>
+    <md-primary-tab data-tab="backups">Backups</md-primary-tab>
+    <md-primary-tab data-tab="metricas">Métricas</md-primary-tab>
+    <md-primary-tab data-tab="logs">Logs</md-primary-tab>
+    <md-primary-tab data-tab="configuracoes">Configurações</md-primary-tab>
+  </md-tabs></div>
 
   <section class="panel" id="tab-conectar" data-panel="conectar">
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <div class="kv">
         {{range .Conns}}
         <span class="kv-label">{{.Label}}</span>
         <span class="kv-value" data-secret="{{.Secret}}" data-value="{{.Value}}">{{if .Secret}}••••••••••••••••{{else}}{{.Value}}{{end}}</span>
         <span class="kv-actions">
-          {{if .Secret}}<button type="button" class="icon-btn" data-reveal title="Mostrar/ocultar"><i class="material-icons">visibility</i></button>{{end}}
-          <button type="button" class="icon-btn" data-copy title="Copiar"><i class="material-icons">content_copy</i></button>
+          {{if .Secret}}<md-icon-button data-reveal title="Mostrar/ocultar" aria-label="Mostrar ou ocultar"><md-icon>visibility</md-icon></md-icon-button>{{end}}
+          <md-icon-button data-copy title="Copiar" aria-label="Copiar"><md-icon>content_copy</md-icon></md-icon-button>
         </span>
         {{end}}
       </div>
@@ -55,13 +57,13 @@
     </div></div>
 
     <h2 class="panel-title">Linha de comando</h2>
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <div class="kv"><span class="kv-label">Console</span><span class="kv-value" data-secret="true" data-value="{{.Console}}">••••••••••••••••</span>
-        <span class="kv-actions"><button type="button" class="icon-btn" data-reveal title="Mostrar/ocultar"><i class="material-icons">visibility</i></button><button type="button" class="icon-btn" data-copy title="Copiar"><i class="material-icons">content_copy</i></button></span></div>
+        <span class="kv-actions"><md-icon-button data-reveal title="Mostrar/ocultar" aria-label="Mostrar ou ocultar"><md-icon>visibility</md-icon></md-icon-button><md-icon-button data-copy title="Copiar" aria-label="Copiar"><md-icon>content_copy</md-icon></md-icon-button></span></div>
     </div></div>
 
     <h2 class="panel-title">Usar em uma aplicação</h2>
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <p class="muted">Cole em <b>Variáveis</b> da aplicação (clique para copiar). O valor é resolvido no deploy.</p>
       <div class="refs">{{range (index .VarGroups 0).Vars}}<button type="button" class="ref" data-copy-text="{{.Ref}}">{{.Ref}}</button>{{end}}</div>
       {{if .UsedBy}}<p class="muted">Usado por: {{range .UsedBy}}<a href="/apps/{{.}}">{{.}}</a> {{end}}</p>{{end}}
@@ -70,10 +72,10 @@
 
   <section class="panel" id="tab-dados" data-panel="dados" hidden>
     {{if eq .DB.Status "ready"}}
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <details class="advanced">
         <summary>{{if eq .DB.Kind "mongodb"}}Nova coleção{{else if eq .DB.Kind "redis"}}Nova chave{{else}}Nova tabela{{end}}</summary>
-        <form method="post" action="/databases/{{.DB.Name}}/create-item">
+        <form method="post" action="/databases/{{.DB.Name}}/create-item" class="card-body-form">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
           {{if eq .DB.Kind "redis"}}
           {{template "field" dict "name" "item" "label" "Nome da chave" "required" true "autocomplete" "off"}}
@@ -85,7 +87,7 @@
           {{template "field" dict "name" "item" "label" "Nome da tabela" "required" true "autocomplete" "off" "hint" (or (and (eq .DB.Kind "postgres") "Use esquema.tabela ou só o nome (esquema public).") "Letras, números e _.")}}
           {{template "area" dict "name" "value" "label" "Colunas (uma por linha: nome tipo)" "rows" 4 "value" "" "hint" "Tipos: texto, inteiro, decimal, booleano, data, data_hora, json, id (chave primária automática). Em branco cria só a coluna id."}}
           {{end}}
-          <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Criar</span></button></div>
+          <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "icon" "add" "label" "Criar"}}</div>
         </form>
       </details>
     </div></div>
@@ -97,18 +99,16 @@
   </section>
 
   <section class="panel" id="tab-backups" data-panel="backups" hidden>
-    <div class="mdc-card">
+    <div class="card">
       <div class="backups-head">
         <form method="post" action="/databases/{{.DB.Name}}/schedule">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <label class="select-label">Agendamento
-            <select name="schedule">
-              <option value="off" {{if eq .DB.BackupSchedule "off"}}selected{{end}}>Desligado</option>
-              <option value="daily" {{if eq .DB.BackupSchedule "daily"}}selected{{end}}>Diário</option>
-              <option value="weekly" {{if eq .DB.BackupSchedule "weekly"}}selected{{end}}>Semanal</option>
-            </select>
-          </label>
-          <button class="mdc-button" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Salvar</span></button>
+          <md-outlined-select name="schedule" label="Agendamento">
+            <md-select-option value="off" {{if eq .DB.BackupSchedule "off"}}selected{{end}}><div slot="headline">Desligado</div></md-select-option>
+            <md-select-option value="daily" {{if eq .DB.BackupSchedule "daily"}}selected{{end}}><div slot="headline">Diário</div></md-select-option>
+            <md-select-option value="weekly" {{if eq .DB.BackupSchedule "weekly"}}selected{{end}}><div slot="headline">Semanal</div></md-select-option>
+          </md-outlined-select>
+          {{template "btn" dict "kind" "text" "type" "submit" "label" "Salvar"}}
         </form>
         <span class="spacer"></span>
         {{template "dbaction" dict "name" .DB.Name "action" "backup" "csrf" .CSRF "icon" "backup" "label" "Fazer backup agora" "raised" true "disabled" (or (ne .DB.Status "ready") (ne .Busy ""))}}
@@ -117,7 +117,7 @@
       <div class="backup-row">
         <div><strong>{{.Time.Format "02/01/2006 15:04:05"}}</strong> <span class="muted">· {{bytes .Size}} · {{.File}}</span></div>
         <div class="actions">
-          <a class="mdc-button" href="/databases/{{$.DB.Name}}/backups/{{.File}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar</span></a>
+          {{template "btn" dict "kind" "text" "href" (printf "/databases/%s/backups/%s" $.DB.Name .File) "icon" "download" "label" "Baixar"}}
           {{template "dbaction" dict "name" $.DB.Name "action" "restore" "csrf" $.CSRF "icon" "history" "label" "Restaurar" "file" .File "confirm" "Substituir TODOS os dados atuais por este backup?"}}
           {{template "dbaction" dict "name" $.DB.Name "action" "backup-delete" "csrf" $.CSRF "icon" "delete" "label" "Excluir" "file" .File "danger" true "confirm" "Excluir este backup?"}}
         </div>
@@ -132,9 +132,9 @@
     <div class="row-between">
       <h2 class="panel-title">CPU e memória</h2>
       <div class="range-picker" id="range-picker" role="group" aria-label="Período">
-        <button type="button" class="mdc-button range-btn is-active" data-range="1h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">1h</span></button>
-        <button type="button" class="mdc-button range-btn" data-range="6h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">6h</span></button>
-        <button type="button" class="mdc-button range-btn" data-range="24h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">24h</span></button>
+        <md-text-button class="range-btn is-active" data-range="1h">1h</md-text-button>
+        <md-text-button class="range-btn" data-range="6h">6h</md-text-button>
+        <md-text-button class="range-btn" data-range="24h">24h</md-text-button>
       </div>
     </div>
     <div class="stats" id="app-stats" data-metrics="/databases/{{.DB.Name}}/metrics">
@@ -143,7 +143,7 @@
       <div class="stat"><span class="stat-label">No ar há</span><span class="stat-value" id="s-up">—</span></div>
       <div class="stat"><span class="stat-label">Reinícios</span><span class="stat-value" id="s-restarts">{{.Info.Restarts}}</span></div>
     </div>
-    <div class="mdc-card"><div class="card-body charts">
+    <div class="card"><div class="card-body charts">
       <div><div class="chart-title">CPU <span class="muted">(% de um núcleo)</span></div><canvas class="chart" id="chart-cpu" aria-label="Gráfico de CPU"></canvas></div>
       <div><div class="chart-title">Memória RAM</div><canvas class="chart" id="chart-mem" aria-label="Gráfico de memória"></canvas></div>
       <p class="muted chart-empty" id="chart-empty" hidden>Sem amostras neste período — o banco precisa estar rodando.</p>
@@ -155,7 +155,7 @@
   </section>
 
   <section class="panel" id="tab-configuracoes" data-panel="configuracoes" hidden>
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <dl class="meta">
         <dt>Motor</dt><dd>{{.DBSpec.Label}}{{if .DBVersion}} {{.DBVersion}}{{end}}</dd>
         <dt>Porta</dt><dd>{{.DB.Port}}</dd>
@@ -169,16 +169,16 @@
         {{template "dbaction" dict "name" .DB.Name "action" "stop" "csrf" .CSRF "icon" "stop" "label" "Parar" "confirm" "Parar o banco? Apps conectados perdem o acesso."}}
       </div>
     </div></div>
-    <div class="mdc-card"><form method="post" action="/databases/{{.DB.Name}}/public" class="card-body row-between">
+    <div class="card"><form method="post" action="/databases/{{.DB.Name}}/public" class="card-body row-between">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <div><strong>Acesso externo</strong><p>Por padrão o banco só aceita conexões locais (127.0.0.1). Ativar abre a porta {{.DB.Port}} em todas as interfaces: libere-a no firewall só para quem precisa e use uma senha forte.</p></div>
       <div class="actions">
-        <div class="mdc-form-field"><div class="mdc-checkbox"><input type="checkbox" class="mdc-checkbox__native-control" id="public" name="public" {{if .DB.Public}}checked{{end}}><div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div><div class="mdc-checkbox__ripple"></div></div><label for="public">Permitir conexões externas</label></div>
-        <button class="mdc-button mdc-button--outlined" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Aplicar</span></button>
+        {{template "check" dict "name" "public" "label" "Permitir conexões externas" "checked" .DB.Public}}
+        {{template "btn" dict "kind" "outlined" "type" "submit" "label" "Aplicar"}}
       </div>
     </form></div>
     {{if .Fwd.Possible}}
-    <div class="mdc-card"><div class="card-body row-between">
+    <div class="card"><div class="card-body row-between">
       <div><strong>Repasse na porta padrão ({{.Fwd.Port}})</strong>
         <p>Para projetos que fixam <code>localhost:{{.Fwd.Port}}</code> no código: o painel passa a ouvir em <code>127.0.0.1:{{.Fwd.Port}}</code> (só local) e repassa para a porta {{.DB.Port}} deste banco, sem mudar o código. Persiste no boot e liga o banco sob demanda.
         Crie neste banco o mesmo banco, usuário e senha que o código usa, limitados a <code>127.0.0.1</code>.</p>
@@ -190,7 +190,7 @@
       {{end}}
     </div></div>
     {{end}}
-    <div class="mdc-card danger-zone"><div class="card-body row-between">
+    <div class="card danger-zone"><div class="card-body row-between">
       <div><strong>Excluir banco</strong><p>Remove o serviço, os dados e os backups. Não pode ser desfeito.</p></div>
       {{template "dbaction" dict "name" .DB.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "danger" true "confirm" "Excluir o banco, todos os dados e backups?"}}
     </div></div>

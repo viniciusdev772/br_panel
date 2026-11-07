@@ -1,91 +1,78 @@
-{{define "field"}}
-<div class="field">
-<label class="mdc-text-field mdc-text-field--outlined full">
-  <span class="mdc-notched-outline">
-    <span class="mdc-notched-outline__leading"></span>
-    <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-{{.name}}">{{.label}}</span></span>
-    <span class="mdc-notched-outline__trailing"></span>
-  </span>
-  <input class="mdc-text-field__input" type="{{or .type "text"}}" name="{{.name}}" value="{{.value}}" aria-labelledby="lbl-{{.name}}" {{if .autocomplete}}autocomplete="{{.autocomplete}}"{{end}} {{if .required}}required{{end}} {{if .readonly}}readonly{{end}}>
-</label>
-{{if .hint}}<p class="hint">{{.hint}}</p>{{end}}
-</div>
-{{end}}
-{{define "area"}}
-<div class="field">
-<label class="mdc-text-field mdc-text-field--outlined mdc-text-field--textarea full">
-  <span class="mdc-notched-outline">
-    <span class="mdc-notched-outline__leading"></span>
-    <span class="mdc-notched-outline__notch"><span class="mdc-floating-label" id="lbl-{{.name}}">{{.label}}</span></span>
-    <span class="mdc-notched-outline__trailing"></span>
-  </span>
-  <span class="mdc-text-field__resizer"><textarea class="mdc-text-field__input" rows="{{or .rows 5}}" name="{{.name}}" aria-labelledby="lbl-{{.name}}" spellcheck="false" autocomplete="off">{{.value}}</textarea></span>
-</label>
-{{if .hint}}<p class="hint">{{.hint}}</p>{{end}}
-</div>
-{{end}}
+{{define "field"}}<md-outlined-text-field class="full" id="f-{{.name}}" label="{{.label}}" name="{{.name}}" type="{{or .type "text"}}" value="{{.value}}" {{if .hint}}supporting-text="{{.hint}}"{{end}} {{if .autocomplete}}autocomplete="{{.autocomplete}}"{{end}} {{if .required}}required{{end}} {{if .readonly}}readonly{{end}}></md-outlined-text-field>{{end}}
+{{define "area"}}<md-outlined-text-field class="full" id="f-{{.name}}" type="textarea" rows="{{or .rows 5}}" label="{{.label}}" name="{{.name}}" value="{{.value}}" {{if .hint}}supporting-text="{{.hint}}"{{end}} spellcheck="false" autocomplete="off"></md-outlined-text-field>{{end}}
+{{define "check"}}<label class="check-row"><md-checkbox id="{{.name}}" name="{{.name}}" {{if .checked}}checked{{end}}></md-checkbox><span>{{.label}}</span></label>{{end}}
+{{define "btn"}}{{if eq .kind "filled"}}<md-filled-button {{if .id}}id="{{.id}}"{{end}} {{if .href}}href="{{.href}}"{{end}} {{if .type}}type="{{.type}}"{{end}} {{if .name}}name="{{.name}}" value="{{.value}}"{{end}} {{if .copy}}data-copy-text="{{.copy}}"{{end}} {{if .disabled}}disabled{{end}} {{if .hidden}}hidden{{end}}>{{if .icon}}<md-icon slot="icon">{{.icon}}</md-icon>{{end}}{{.label}}</md-filled-button>
+{{else if eq .kind "tonal"}}<md-filled-tonal-button {{if .id}}id="{{.id}}"{{end}} {{if .href}}href="{{.href}}"{{end}} {{if .type}}type="{{.type}}"{{end}} {{if .name}}name="{{.name}}" value="{{.value}}"{{end}} {{if .copy}}data-copy-text="{{.copy}}"{{end}} {{if .disabled}}disabled{{end}} {{if .hidden}}hidden{{end}}>{{if .icon}}<md-icon slot="icon">{{.icon}}</md-icon>{{end}}{{.label}}</md-filled-tonal-button>
+{{else if eq .kind "outlined"}}<md-outlined-button {{if .danger}}class="danger"{{end}} {{if .id}}id="{{.id}}"{{end}} {{if .href}}href="{{.href}}"{{end}} {{if .type}}type="{{.type}}"{{end}} {{if .name}}name="{{.name}}" value="{{.value}}"{{end}} {{if .copy}}data-copy-text="{{.copy}}"{{end}} {{if .disabled}}disabled{{end}} {{if .hidden}}hidden{{end}}>{{if .icon}}<md-icon slot="icon">{{.icon}}</md-icon>{{end}}{{.label}}</md-outlined-button>
+{{else}}<md-text-button {{if .id}}id="{{.id}}"{{end}} {{if .href}}href="{{.href}}"{{end}} {{if .type}}type="{{.type}}"{{end}} {{if .name}}name="{{.name}}" value="{{.value}}"{{end}} {{if .copy}}data-copy-text="{{.copy}}"{{end}} {{if .disabled}}disabled{{end}} {{if .hidden}}hidden{{end}}>{{if .icon}}<md-icon slot="icon">{{.icon}}</md-icon>{{end}}{{.label}}</md-text-button>{{end}}{{end}}
 {{define "logtools"}}
-<div class="mdc-card"><div class="card-body" id="logtools" data-base="{{.base}}">
+<div class="card"><div class="card-body" id="logtools" data-base="{{.base}}">
   <div class="logbar">
-    <div class="sw-tabs" role="tablist">{{range $i, $k := split .kinds ","}}{{$p := split $k ":"}}<button type="button" class="sw-tab {{if eq $i 0}}is-active{{end}}" data-kind="{{index $p 0}}">{{index $p 1}}</button>{{end}}</div>
-    <label class="select-label">Linhas
-      <select id="log-lines"><option>100</option><option selected>300</option><option>1000</option><option>5000</option></select>
-    </label>
-    <label class="select-label">Filtro
-      <input id="log-filter" type="search" placeholder="texto, erro, warn…" autocomplete="off">
-    </label>
-    <label class="select-label check"><input id="log-follow" type="checkbox" checked> Acompanhar</label>
-    <a class="mdc-button" id="log-download" href="#"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar</span></a>
+    <md-tabs id="log-kinds" aria-label="Tipo de log">{{range $i, $k := split .kinds ","}}{{$p := split $k ":"}}<md-secondary-tab data-kind="{{index $p 0}}" {{if eq $i 0}}active{{end}}>{{index $p 1}}</md-secondary-tab>{{end}}</md-tabs>
+    <md-outlined-select id="log-lines" label="Linhas" class="log-lines">
+      <md-select-option value="100"><div slot="headline">100</div></md-select-option>
+      <md-select-option value="300" selected><div slot="headline">300</div></md-select-option>
+      <md-select-option value="1000"><div slot="headline">1000</div></md-select-option>
+      <md-select-option value="5000"><div slot="headline">5000</div></md-select-option>
+    </md-outlined-select>
+    <md-outlined-text-field id="log-filter" type="search" label="Filtro" placeholder="texto, erro, warn…" autocomplete="off" class="log-filter"></md-outlined-text-field>
+    <label class="check-row"><md-checkbox id="log-follow" checked></md-checkbox><span>Acompanhar</span></label>
+    <md-text-button id="log-download" href="#"><md-icon slot="icon">download</md-icon>Baixar</md-text-button>
   </div>
-  <div class="logview" id="logview" role="log" aria-live="off"></div>
+  <div class="logview" id="logview" role="log" aria-live="off" tabindex="0"></div>
   <div class="muted" id="log-status">Carregando…</div>
 </div></div>
 {{end}}
 {{define "layout"}}<!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} · BR Panel</title>
-  <meta name="color-scheme" content="dark light">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="color-scheme" content="light dark">
   <script src="{{asset "theme.js"}}"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Icons&display=block">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+  <link rel="preload" href="/static/vendor/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{asset "tokens.css"}}">
   <link rel="stylesheet" href="{{asset "app.css"}}">
+  <script type="module" src="{{asset "vendor/material-web.js"}}"></script>
+  <script src="{{asset "app.js"}}" defer></script>
 </head>
-<body class="mdc-typography">
-  <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark"><i class="material-icons">dns</i></span><span>BR Panel</span></a>
-    {{if .Authed}}
-    <span class="crumb">/ <b>servidor</b></span>
-    <nav class="topnav" aria-label="Principal">
-      <a href="/" class="{{if eq .Nav "arch"}}active{{end}}"><i class="material-icons">hub</i><span class="label">Arquitetura</span></a>
-      <a href="/settings" class="{{if eq .Nav "settings"}}active{{end}}"><i class="material-icons">settings</i><span class="label">Configurações</span></a>
-      <a href="/github" class="{{if eq .Nav "github"}}active{{end}}"><i class="material-icons">merge_type</i><span class="label">GitHub</span></a>
-      <a href="/ai" class="{{if eq .Nav "ai"}}active{{end}}"><i class="material-icons">smart_toy</i><span class="label">IA</span></a>
-      <a href="/cli" class="{{if eq .Nav "cli"}}active{{end}}"><i class="material-icons">terminal</i><span class="label">CLI</span></a>
-    </nav>
-    {{end}}
-    <div class="topright">
-      <button class="icon-btn" type="button" id="theme-toggle" aria-label="Alternar tema claro/escuro" title="Alternar tema"><i class="material-icons">brightness_6</i></button>
+<body class="{{if .Authed}}has-nav{{end}}">
+  <a class="skip" href="#main">Pular para o conteúdo</a>
+  <header class="appbar">
+    <a class="brand" href="/"><span class="brand-mark"><md-icon aria-hidden="true">dns</md-icon></span><span class="brand-name">BR Panel</span></a>
+    <span class="appbar-title">{{.Title}}</span>
+    <div class="appbar-actions">
+      <md-icon-button id="theme-toggle" aria-label="Alternar tema claro/escuro" title="Alternar tema"><md-icon>contrast</md-icon></md-icon-button>
       {{if .Authed}}
       <form method="post" action="/logout">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <button class="icon-btn" type="submit" aria-label="Sair" title="Sair"><i class="material-icons">logout</i></button>
+        <md-icon-button type="submit" aria-label="Sair" title="Sair"><md-icon>logout</md-icon></md-icon-button>
       </form>
       {{end}}
     </div>
   </header>
-  <main class="content{{if eq .Title "Arquitetura"}} content--wide{{end}}">
+  {{if .Authed}}
+  <nav class="rail" aria-label="Principal">
+    <a href="/" class="rail-item {{if eq .Nav "arch"}}is-active{{end}}" {{if eq .Nav "arch"}}aria-current="page"{{end}}><span class="rail-icon"><md-ripple></md-ripple><md-icon aria-hidden="true">hub</md-icon></span><span class="rail-label">Servidor</span></a>
+    <a href="/github" class="rail-item {{if eq .Nav "github"}}is-active{{end}}" {{if eq .Nav "github"}}aria-current="page"{{end}}><span class="rail-icon"><md-ripple></md-ripple><md-icon aria-hidden="true">merge_type</md-icon></span><span class="rail-label">GitHub</span></a>
+    <a href="/ai" class="rail-item {{if eq .Nav "ai"}}is-active{{end}}" {{if eq .Nav "ai"}}aria-current="page"{{end}}><span class="rail-icon"><md-ripple></md-ripple><md-icon aria-hidden="true">smart_toy</md-icon></span><span class="rail-label">IA</span></a>
+    <a href="/cli" class="rail-item {{if eq .Nav "cli"}}is-active{{end}}" {{if eq .Nav "cli"}}aria-current="page"{{end}}><span class="rail-icon"><md-ripple></md-ripple><md-icon aria-hidden="true">terminal</md-icon></span><span class="rail-label">CLI</span></a>
+    <a href="/settings" class="rail-item {{if eq .Nav "settings"}}is-active{{end}}" {{if eq .Nav "settings"}}aria-current="page"{{end}}><span class="rail-icon"><md-ripple></md-ripple><md-icon aria-hidden="true">settings</md-icon></span><span class="rail-label">Ajustes</span></a>
+  </nav>
+  {{end}}
+  <main id="main" class="content{{if eq .Title "Servidor"}} content--wide{{end}}">
     {{if .Flash}}<div class="notice" role="status">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="notice notice--error" role="alert">{{.Error}}</div>{{end}}
     {{template "content" .}}
   </main>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.js" defer></script>
-  <script src="{{asset "app.js"}}" defer></script>
+  <md-dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <div slot="headline" id="confirm-title">Confirmar</div>
+    <div slot="content" id="confirm-text"></div>
+    <div slot="actions">
+      <md-text-button id="confirm-cancel">Cancelar</md-text-button>
+      <md-filled-button id="confirm-ok">Confirmar</md-filled-button>
+    </div>
+  </md-dialog>
 </body>
 </html>{{end}}

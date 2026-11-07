@@ -5,12 +5,14 @@
   {{if .id}}<input type="hidden" name="id" value="{{.id}}">{{end}}
   {{if .domain}}<input type="hidden" name="domain" value="{{.domain}}">{{end}}
   {{if .user}}<input type="hidden" name="user" value="{{.user}}">{{end}}
-  <button class="mdc-button {{if .raised}}mdc-button--raised{{else if .danger}}mdc-button--outlined mdc-button--danger{{else}}mdc-button--outlined{{end}}" type="submit" {{if .disabled}}disabled{{end}}><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">{{.icon}}</i><span class="mdc-button__label">{{.label}}</span></button>
+  {{if .raised}}{{template "btn" dict "kind" "filled" "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}
+  {{else if .danger}}{{template "btn" dict "kind" "outlined" "danger" true "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}
+  {{else}}{{template "btn" dict "kind" "outlined" "type" "submit" "icon" .icon "label" .label "disabled" .disabled}}{{end}}
 </form>
 {{end}}
 {{define "content"}}
 <div class="sheet" data-sheet="app">
-  <a class="sheet-back" href="/"><i class="material-icons">arrow_back</i>Arquitetura</a>
+  <a class="sheet-back" href="/"><md-icon>arrow_back</md-icon>Servidor</a>
   <div class="sheet-head">
     <span class="badge badge--lg {{.Bdg.Class}}">{{.Bdg.Text}}</span>
     <div>
@@ -28,21 +30,21 @@
     </div>
   </div>
 
-  <div class="tabs" role="tablist" data-tabs>
-    <button type="button" class="tab-btn is-active" data-tab="deploy" role="tab">Deploy</button>
-    <button type="button" class="tab-btn" data-tab="variaveis" role="tab">Variáveis</button>
-    <button type="button" class="tab-btn" data-tab="armazenamento" role="tab">Armazenamento</button>
-    <button type="button" class="tab-btn" data-tab="site" role="tab">Site</button>
-    <button type="button" class="tab-btn" data-tab="metricas" role="tab">Métricas</button>
-    <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs</button>
-    <button type="button" class="tab-btn" data-tab="configuracoes" role="tab">Configurações</button>
-  </div>
+  <div class="tabs"><md-tabs data-tabs aria-label="Seções da aplicação">
+    <md-primary-tab data-tab="deploy" active>Deploy</md-primary-tab>
+    <md-primary-tab data-tab="variaveis">Variáveis</md-primary-tab>
+    <md-primary-tab data-tab="armazenamento">Armazenamento</md-primary-tab>
+    <md-primary-tab data-tab="site">Site</md-primary-tab>
+    <md-primary-tab data-tab="metricas">Métricas</md-primary-tab>
+    <md-primary-tab data-tab="logs">Logs</md-primary-tab>
+    <md-primary-tab data-tab="configuracoes">Configurações</md-primary-tab>
+  </md-tabs></div>
 
   <section class="panel" id="tab-deploy" data-panel="deploy">
-    {{if .PortNote}}<div class="banner warn"><i class="material-icons">warning</i><div><strong>Porta.</strong> {{.PortNote}} Veja o log do deploy abaixo: ele mostra onde o número aparece no código e como corrigir.</div></div>{{end}}
-    {{if .EnvMissing}}<div class="banner warn"><i class="material-icons">warning</i><div><strong>Faltam variáveis de ambiente.</strong> O projeto lê {{range $i, $v := .EnvMissing}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}} e a aplicação não define {{if gt (len .EnvMissing) 1}}nenhuma delas{{else}}essa variável{{end}}. Preencha na aba <strong>Variáveis</strong> e publique de novo; sem isso a aplicação pode falhar ao iniciar.</div></div>{{end}}
-    {{if and .Mono.Monorepo (not .App.RootDir)}}<div class="banner"><i class="material-icons">account_tree</i><div><strong>Monorepo.</strong> Este repositório tem mais de um projeto ({{range $i, $c := .Mono.Apps}}{{if $i}}, {{end}}<code>{{$c.Path}}</code>{{end}}). Esta aplicação publica a raiz. Para publicar uma pasta, crie outra aplicação e escolha a <em>Pasta do projeto</em>.</div></div>{{end}}
-    <div class="mdc-card"><div class="card-body">
+    {{if .PortNote}}<div class="banner warn"><md-icon>warning</md-icon><div><strong>Porta.</strong> {{.PortNote}} Veja o log do deploy abaixo: ele mostra onde o número aparece no código e como corrigir.</div></div>{{end}}
+    {{if .EnvMissing}}<div class="banner warn"><md-icon>warning</md-icon><div><strong>Faltam variáveis de ambiente.</strong> O projeto lê {{range $i, $v := .EnvMissing}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}} e a aplicação não define {{if gt (len .EnvMissing) 1}}nenhuma delas{{else}}essa variável{{end}}. Preencha na aba <strong>Variáveis</strong> e publique de novo; sem isso a aplicação pode falhar ao iniciar.</div></div>{{end}}
+    {{if and .Mono.Monorepo (not .App.RootDir)}}<div class="banner"><md-icon>account_tree</md-icon><div><strong>Monorepo.</strong> Este repositório tem mais de um projeto ({{range $i, $c := .Mono.Apps}}{{if $i}}, {{end}}<code>{{$c.Path}}</code>{{end}}). Esta aplicação publica a raiz. Para publicar uma pasta, crie outra aplicação e escolha a <em>Pasta do projeto</em>.</div></div>{{end}}
+    <div class="card"><div class="card-body">
       <dl class="meta">
         <dt>Repositório</dt><dd>{{.App.Repo}} <span class="muted">({{.App.Branch}})</span></dd>
         {{if .App.RootDir}}<dt>Pasta no repositório</dt><dd><code>{{.App.RootDir}}</code>{{if .App.WatchPaths}} <span class="muted">· também publica por mudanças em {{range $i, $p := .App.WatchLines}}{{if $i}}, {{end}}<code>{{$p}}</code>{{end}}</span>{{end}}</dd>{{end}}
@@ -69,34 +71,34 @@
   </section>
 
   <section class="panel" id="tab-variaveis" data-panel="variaveis" hidden>
-    {{if .EnvMissing}}<div class="banner warn"><i class="material-icons">warning</i><div><strong>Ainda faltam:</strong> {{range $i, $v := .EnvMissing}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}}. Adicione no campo abaixo como <code>CHAVE=valor</code>.</div></div>{{end}}
+    {{if .EnvMissing}}<div class="banner warn"><md-icon>warning</md-icon><div><strong>Ainda faltam:</strong> {{range $i, $v := .EnvMissing}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}}. Adicione no campo abaixo como <code>CHAVE=valor</code>.</div></div>{{end}}
     {{if .EnvOptional}}<p class="muted">O código também lê, com valor padrão (podem ficar de fora): {{range $i, $v := .EnvOptional}}{{if $i}}, {{end}}<code>{{$v.Name}}</code>{{end}}.</p>{{end}}
-    <form method="post" action="/apps/{{.App.Name}}/env" class="mdc-card"><div class="card-body">
+    <form method="post" action="/apps/{{.App.Name}}/env" class="card"><div class="card-body">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <p class="muted">Uma por linha: <code>CHAVE=valor</code>. Referencie um banco com <code>${{"{{"}}nome.VARIAVEL{{"}}"}}</code> — o valor é resolvido no deploy, então trocar a senha do banco não exige editar aqui.</p>
-      <textarea class="code" name="env" id="env-editor" spellcheck="false" rows="10" placeholder="NODE_ENV=production">{{.App.Env}}</textarea>
+      <md-outlined-text-field class="full code" id="env-editor" type="textarea" rows="10" name="env" label="Variáveis de ambiente" placeholder="NODE_ENV=production" value="{{.App.Env}}" spellcheck="false" autocomplete="off"></md-outlined-text-field>
       <div class="actions">
-        <button class="mdc-button" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Salvar</span></button>
-        <button class="mdc-button mdc-button--raised" type="submit" name="deploy" value="1"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">rocket_launch</i><span class="mdc-button__label">Salvar e reimplantar</span></button>
+        {{template "btn" dict "kind" "text" "type" "submit" "label" "Salvar"}}
+        {{template "btn" dict "kind" "filled" "type" "submit" "name" "deploy" "value" "1" "icon" "rocket_launch" "label" "Salvar e reimplantar"}}
       </div>
     </div></form>
     <h2 class="panel-title">Variáveis dos bancos de dados</h2>
     {{if .VarGroups}}
     {{range .VarGroups}}
-    <div class="mdc-card"><div class="card-body">
+    <div class="card"><div class="card-body">
       <div class="row-between"><div class="rcard-top"><span class="badge badge--sm b-{{.Kind}}">{{.Badge}}</span><strong>{{.DB}}</strong></div><span class="muted">clique para inserir no editor</span></div>
       <div class="refs">{{range .Vars}}<button type="button" class="ref" data-insert="{{.Ref}}" title="{{.Name}}">{{.Ref}}</button>{{end}}</div>
     </div></div>
     {{end}}
     {{else}}
-    <div class="mdc-card"><div class="card-body"><p class="muted">Nenhum banco criado ainda. <a href="/databases/new?kind=postgres">Adicionar um banco de dados</a> para usar referências como <code>${{"{{"}}postgres.DATABASE_URL{{"}}"}}</code>.</p></div></div>
+    <div class="card"><div class="card-body"><p class="muted">Nenhum banco criado ainda. <a href="/databases/new?kind=postgres">Adicionar um banco de dados</a> para usar referências como <code>${{"{{"}}postgres.DATABASE_URL{{"}}"}}</code>.</p></div></div>
     {{end}}
   </section>
 
   <section class="panel" id="tab-armazenamento" data-panel="armazenamento" hidden>
-    <div class="banner"><i class="material-icons">info</i><div>Tudo que a aplicação grava aqui continua depois de cada deploy. Com mais de uma instância, todas veem os mesmos arquivos.</div></div>
+    <div class="banner"><md-icon>info</md-icon><div>Tudo que a aplicação grava aqui continua depois de cada deploy. Com mais de uma instância, todas veem os mesmos arquivos.</div></div>
     <h2 class="panel-title">Pastas e arquivos</h2>
-    <div class="mdc-card">
+    <div class="card">
       {{range .Mounts}}
       <div class="backup-row">
         <div>
@@ -115,15 +117,13 @@
 
     <details class="advanced">
       <summary>Adicionar armazenamento</summary>
-      <form method="post" action="/apps/{{.App.Name}}/mount-add" class="mdc-card"><div class="card-body">
+      <form method="post" action="/apps/{{.App.Name}}/mount-add" class="card"><div class="card-body">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
-        <label class="select-label">O que você quer guardar?
-          <select name="mount_kind" id="mount-kind">
-            <option value="volume">Arquivos da aplicação (fotos, uploads…)</option>
-            <option value="bind">Uma pasta que já existe no servidor</option>
-            <option value="file">Um arquivo de configuração</option>
-          </select>
-        </label>
+        <md-outlined-select class="full" name="mount_kind" id="mount-kind" label="O que você quer guardar?">
+          <md-select-option value="volume" selected><div slot="headline">Arquivos da aplicação (fotos, uploads…)</div></md-select-option>
+          <md-select-option value="bind"><div slot="headline">Uma pasta que já existe no servidor</div></md-select-option>
+          <md-select-option value="file"><div slot="headline">Um arquivo de configuração</div></md-select-option>
+        </md-outlined-select>
         {{template "field" dict "name" "mount_name" "label" "Nome" "required" true "autocomplete" "off" "hint" "Só para você identificar. Ex.: uploads"}}
         {{template "field" dict "name" "mount_target" "label" "Onde aparece na aplicação" "required" true "autocomplete" "off" "hint" "Ex.: storage/uploads"}}
         <div id="mount-src-box" hidden>
@@ -132,23 +132,21 @@
         <div id="mount-content-box" hidden>
           {{template "area" dict "name" "mount_content" "label" "Conteúdo do arquivo" "rows" 4 "value" "" "hint" "A aplicação só consegue ler este arquivo."}}
         </div>
-        <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Adicionar</span></button></div>
+        <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "icon" "add" "label" "Adicionar"}}</div>
       </div></form>
     </details>
 
     <h2 class="panel-title">Backups dos volumes{{if .VolumeBusy}} <span class="muted">· {{.VolumeBusy}} em andamento</span>{{end}}</h2>
-    <div class="mdc-card">
+    <div class="card">
       <div class="backups-head">
         <form method="post" action="/apps/{{.App.Name}}/volume-schedule">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <label class="select-label">Agendamento
-            <select name="schedule">
-              <option value="off" {{if eq .VolumeSchedule "off"}}selected{{end}}>Desligado</option>
-              <option value="daily" {{if eq .VolumeSchedule "daily"}}selected{{end}}>Diário</option>
-              <option value="weekly" {{if eq .VolumeSchedule "weekly"}}selected{{end}}>Semanal</option>
-            </select>
-          </label>
-          <button class="mdc-button" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Salvar</span></button>
+          <md-outlined-select name="schedule" label="Agendamento">
+            <md-select-option value="off" {{if eq .VolumeSchedule "off"}}selected{{end}}><div slot="headline">Desligado</div></md-select-option>
+            <md-select-option value="daily" {{if eq .VolumeSchedule "daily"}}selected{{end}}><div slot="headline">Diário</div></md-select-option>
+            <md-select-option value="weekly" {{if eq .VolumeSchedule "weekly"}}selected{{end}}><div slot="headline">Semanal</div></md-select-option>
+          </md-outlined-select>
+          {{template "btn" dict "kind" "text" "type" "submit" "label" "Salvar"}}
         </form>
         <span class="spacer"></span>
         {{template "action" dict "name" .App.Name "action" "volume-backup" "csrf" .CSRF "icon" "backup" "label" "Fazer backup agora" "raised" true "disabled" (ne .VolumeBusy "")}}
@@ -157,7 +155,7 @@
       <div class="backup-row">
         <div><strong>{{.Time.Format "02/01/2006 15:04:05"}}</strong> <span class="muted">· {{bytes .Size}} · {{.File}}</span></div>
         <div class="actions">
-          <a class="mdc-button" href="/apps/{{$.App.Name}}/volume-backups/{{.File}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar</span></a>
+          {{template "btn" dict "kind" "text" "href" (printf "/apps/%s/volume-backups/%s" $.App.Name .File) "icon" "download" "label" "Baixar"}}
           {{template "action" dict "name" $.App.Name "action" "volume-restore" "csrf" $.CSRF "icon" "history" "label" "Restaurar" "file" .File "confirm" "Substituir a pasta do volume pelos arquivos deste backup? A aplicação para e volta."}}
           {{template "action" dict "name" $.App.Name "action" "volume-delete" "csrf" $.CSRF "icon" "delete" "label" "Excluir" "file" .File "danger" true "confirm" "Excluir este backup?"}}
         </div>
@@ -169,10 +167,10 @@
   </section>
 
   <section class="panel" id="tab-site" data-panel="site" hidden>
-    {{if not .App.Domain}}<div class="banner"><i class="material-icons">info</i><div>Esta aplicação ainda não tem um domínio. Defina o domínio principal em Configurações para usar esta aba.</div></div>{{end}}
+    {{if not .App.Domain}}<div class="banner"><md-icon>info</md-icon><div>Esta aplicação ainda não tem um domínio. Defina o domínio principal em Configurações para usar esta aba.</div></div>{{end}}
 
     <h2 class="panel-title">Outros endereços</h2>
-    <div class="mdc-card">
+    <div class="card">
       {{range .App.Web.Domains}}
       <div class="backup-row">
         <div>
@@ -189,35 +187,23 @@
     </div>
     <details class="advanced">
       <summary>Adicionar endereço</summary>
-      <form method="post" action="/apps/{{.App.Name}}/site/domain-add" class="mdc-card"><div class="card-body">
+      <form method="post" action="/apps/{{.App.Name}}/site/domain-add" class="card"><div class="card-body">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         {{template "field" dict "name" "domain" "label" "Endereço" "required" true "autocomplete" "off" "hint" "Ex.: www.meusite.com.br"}}
-        <label class="select-label">O que acontece quando alguém abrir esse endereço?
-          <select name="kind" id="domain-kind">
-            <option value="serve">Abre esta aplicação</option>
-            <option value="redirect">Leva para outro endereço</option>
-          </select>
-        </label>
+        <md-outlined-select class="full" name="kind" id="domain-kind" label="O que acontece quando alguém abrir esse endereço?">
+          <md-select-option value="serve" selected><div slot="headline">Abre esta aplicação</div></md-select-option>
+          <md-select-option value="redirect"><div slot="headline">Leva para outro endereço</div></md-select-option>
+        </md-outlined-select>
         <div id="domain-to-box" hidden>
           {{template "field" dict "name" "to" "label" "Levar para" "autocomplete" "off" "hint" "Ex.: meusite.com.br"}}
-          <div class="mdc-form-field">
-            <div class="mdc-checkbox">
-              <input type="checkbox" class="mdc-checkbox__native-control" id="permanent" name="permanent" checked>
-              <div class="mdc-checkbox__background">
-                <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
-                <div class="mdc-checkbox__mixedmark"></div>
-              </div>
-              <div class="mdc-checkbox__ripple"></div>
-            </div>
-            <label for="permanent">Mudança definitiva (o Google passa a usar o endereço novo)</label>
-          </div>
+          {{template "check" dict "name" "permanent" "label" "Mudança definitiva (o Google passa a usar o endereço novo)" "checked" true}}
         </div>
-        <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">add</i><span class="mdc-button__label">Adicionar</span></button></div>
+        <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "icon" "add" "label" "Adicionar"}}</div>
       </div></form>
     </details>
 
     <h2 class="panel-title">Senha para entrar</h2>
-    <div class="mdc-card">
+    <div class="card">
       {{range .App.Web.Users}}
       <div class="backup-row">
         <div><strong>{{.Name}}</strong></div>
@@ -231,32 +217,32 @@
     </div>
     <details class="advanced">
       <summary>Adicionar usuário</summary>
-      <form method="post" action="/apps/{{.App.Name}}/site/auth-add" class="mdc-card"><div class="card-body">
+      <form method="post" action="/apps/{{.App.Name}}/site/auth-add" class="card"><div class="card-body">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         {{template "field" dict "name" "user" "label" "Usuário" "required" true "autocomplete" "off" "hint" "Se o usuário já existe, a senha dele é trocada."}}
         {{template "field" dict "name" "password" "label" "Senha" "type" "password" "required" true "autocomplete" "new-password" "hint" "De 8 a 72 caracteres. Depois de salva, ela não aparece mais."}}
-        <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">lock</i><span class="mdc-button__label">Salvar usuário</span></button></div>
+        <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "icon" "lock" "label" "Salvar usuário"}}</div>
       </div></form>
     </details>
 
     <h2 class="panel-title">Página de manutenção{{if .App.Web.Maintenance}} <span class="muted">· ligada</span>{{end}}</h2>
-    <form method="post" action="/apps/{{.App.Name}}/site/maintenance" class="mdc-card"><div class="card-body">
+    <form method="post" action="/apps/{{.App.Name}}/site/maintenance" class="card"><div class="card-body">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       {{template "field" dict "name" "title" "label" "Título" "value" .App.Web.MaintTitle "autocomplete" "off" "hint" "Se ficar vazio: Em manutenção"}}
       {{template "area" dict "name" "text" "label" "Mensagem" "rows" 3 "value" .App.Web.MaintText "hint" "Se ficar vazia: Voltamos em instantes."}}
       <p class="hint">Ligada, quem abrir o site vê este aviso e a aplicação continua rodando por trás.</p>
       <div class="actions form-end">
-        <button class="mdc-button" type="submit" name="state" value="off"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Desligar</span></button>
-        <button class="mdc-button mdc-button--raised" type="submit" name="state" value="on"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">construction</i><span class="mdc-button__label">Ligar manutenção</span></button>
+        {{template "btn" dict "kind" "text" "type" "submit" "name" "state" "value" "off" "label" "Desligar"}}
+        {{template "btn" dict "kind" "filled" "type" "submit" "name" "state" "value" "on" "icon" "construction" "label" "Ligar manutenção"}}
       </div>
     </div></form>
 
     <h2 class="panel-title">Limites</h2>
-    <form method="post" action="/apps/{{.App.Name}}/site/limits" class="mdc-card"><div class="card-body">
+    <form method="post" action="/apps/{{.App.Name}}/site/limits" class="card"><div class="card-body">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       {{template "field" dict "name" "upload_mb" "label" "Tamanho máximo de upload (MB)" "type" "number" "value" (or .App.Web.MaxBodyMB "") "hint" "Vazio usa o padrão do Nginx (1 MB). Aumente se a aplicação recebe fotos ou arquivos."}}
       {{template "field" dict "name" "read_timeout" "label" "Tempo de espera pela resposta (segundos)" "type" "number" "value" (or .App.Web.ReadTimeout "") "hint" "Vazio usa 300. De 10 a 3600. Aumente para páginas lentas, como relatórios."}}
-      <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">save</i><span class="mdc-button__label">Salvar</span></button></div>
+      <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "icon" "save" "label" "Salvar"}}</div>
     </div></form>
   </section>
 
@@ -264,9 +250,9 @@
     <div class="row-between">
       <h2 class="panel-title">CPU e memória</h2>
       <div class="range-picker" id="range-picker" role="group" aria-label="Período">
-        <button type="button" class="mdc-button range-btn is-active" data-range="1h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">1h</span></button>
-        <button type="button" class="mdc-button range-btn" data-range="6h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">6h</span></button>
-        <button type="button" class="mdc-button range-btn" data-range="24h"><span class="mdc-button__ripple"></span><span class="mdc-button__label">24h</span></button>
+        <md-text-button class="range-btn is-active" data-range="1h">1h</md-text-button>
+        <md-text-button class="range-btn" data-range="6h">6h</md-text-button>
+        <md-text-button class="range-btn" data-range="24h">24h</md-text-button>
       </div>
     </div>
     <div class="stats" id="app-stats" data-metrics="/apps/{{.App.Name}}/metrics">
@@ -275,7 +261,7 @@
       <div class="stat"><span class="stat-label">No ar há</span><span class="stat-value" id="s-up">{{if .Info.Uptime}}…{{else}}—{{end}}</span></div>
       <div class="stat"><span class="stat-label">Reinícios</span><span class="stat-value" id="s-restarts">{{.Info.Restarts}}</span></div>
     </div>
-    <div class="mdc-card"><div class="card-body charts">
+    <div class="card"><div class="card-body charts">
       <div><div class="chart-title">CPU <span class="muted">(% de um núcleo)</span></div><canvas class="chart" id="chart-cpu" aria-label="Gráfico de CPU"></canvas></div>
       <div><div class="chart-title">Memória RAM</div><canvas class="chart" id="chart-mem" aria-label="Gráfico de memória"></canvas></div>
       <p class="muted chart-empty" id="chart-empty" hidden>Sem amostras neste período — a aplicação precisa estar rodando. As amostras são coletadas a cada 15 s e guardadas por 24 h.</p>
@@ -287,11 +273,11 @@
   </section>
 
   <section class="panel" id="tab-configuracoes" data-panel="configuracoes" hidden>
-    <div class="mdc-card"><div class="card-body row-between">
+    <div class="card"><div class="card-body row-between">
       <div><strong>Configuração da aplicação</strong><p>Repositório, branch, comandos, porta, domínio e deploy automático.</p></div>
-      <a class="mdc-button mdc-button--outlined" href="/apps/{{.App.Name}}/edit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">edit</i><span class="mdc-button__label">Editar</span></a>
+      {{template "btn" dict "kind" "outlined" "href" (printf "/apps/%s/edit" .App.Name) "icon" "edit" "label" "Editar"}}
     </div></div>
-    <div class="mdc-card danger-zone"><div class="card-body row-between">
+    <div class="card danger-zone"><div class="card-body row-between">
       <div><strong>Excluir aplicação</strong><p>Remove o serviço, o domínio no Nginx, os arquivos, os volumes e os backups. Não pode ser desfeito.</p></div>
       {{template "action" dict "name" .App.Name "action" "delete" "csrf" .CSRF "icon" "delete" "label" "Excluir" "danger" true "confirm" "Excluir a aplicação, o serviço, os arquivos, os volumes e os backups?"}}
     </div></div>

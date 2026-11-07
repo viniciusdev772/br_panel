@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "rgb(0, 0, 0)",
+        "createdAt": "2026-11-07T14:01:23.472Z",
+        "reason": "false positive: the detector cannot read app.css through the Go {{asset}} link and assumes the browser default black"
+      }
+    ]
+  }
+}

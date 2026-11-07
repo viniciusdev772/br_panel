@@ -1,58 +1,70 @@
 ---
 name: BR Panel
-description: Painel web escuro e calmo para publicar projetos numa VPS, com cartões planos sobre um canvas pontilhado e um único acento violeta.
+description: Painel de servidor em Material 3 (Material Web), azul-petróleo, com um canvas de serviços ligados como linhas de mapa de metrô.
 colors:
-  bg: "#0e0d16"
-  canvas: "#121120"
-  surface: "#1a1828"
-  surface-2: "#222035"
-  border: "#2e2c44"
-  text: "#f3f2f8"
-  muted: "#9a97b0"
-  accent: "#8b5cf6"
-  accent-strong: "#7c3aed"
-  link: "#b79cff"
-  ok: "#34d399"
-  warn: "#f5b942"
-  bad: "#f87171"
-  code-bg: "#0b0a12"
-  brand-pink: "#ec4899"
+  primary: "#00687b"
+  on-primary: "#ffffff"
+  primary-container: "#aeecff"
+  secondary-container: "#cee7ef"
+  tertiary: "#575c7e"
+  surface: "#f5fafc"
+  surface-container-lowest: "#ffffff"
+  surface-container-low: "#eff4f7"
+  surface-container: "#e9eff1"
+  surface-container-high: "#e4e9eb"
+  surface-container-highest: "#dee3e6"
+  on-surface: "#171c1e"
+  on-surface-variant: "#3f484b"
+  outline: "#70797c"
+  outline-variant: "#bfc8cb"
+  error: "#ba1a1a"
+  error-container: "#ffdad6"
+  success: "#006c53"
+  success-container: "#81f8d0"
+  warning: "#715d00"
+  warning-container: "#ffe175"
+  dark-primary: "#85d2e7"
+  dark-surface: "#0f1416"
+  dark-surface-container-low: "#171c1e"
+  dark-surface-container-high: "#252b2d"
+  dark-on-surface: "#dee3e6"
 typography:
   display:
     fontFamily: "Roboto, system-ui, sans-serif"
-    fontSize: "26px"
-    fontWeight: 600
-    lineHeight: 1.2
+    fontSize: "32px"
+    fontWeight: 400
+    lineHeight: "40px"
   headline:
     fontFamily: "Roboto, system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 500
-    lineHeight: 1.3
+    fontSize: "22px"
+    fontWeight: 400
+    lineHeight: "28px"
   title:
     fontFamily: "Roboto, system-ui, sans-serif"
     fontSize: "16px"
-    fontWeight: 600
-    lineHeight: 1.3
+    fontWeight: 500
+    lineHeight: "24px"
   body:
     fontFamily: "Roboto, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
-    lineHeight: 1.6
+    lineHeight: "20px"
   label:
     fontFamily: "Roboto, system-ui, sans-serif"
-    fontSize: "13px"
+    fontSize: "12px"
     fontWeight: 500
-    letterSpacing: "0.8px"
+    lineHeight: "16px"
+    letterSpacing: "0.5px"
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "13px"
-    lineHeight: 1.55
+    lineHeight: "20px"
 rounded:
-  sm: "4px"
-  md: "8px"
-  lg: "12px"
-  xl: "14px"
-  xxl: "16px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "28px"
+  full: "999px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -60,56 +72,50 @@ spacing:
   lg: "24px"
   xl: "56px"
 components:
-  button-primary:
-    backgroundColor: "{colors.accent-strong}"
-    textColor: "#ffffff"
-    rounded: "{rounded.md}"
-    height: "36px"
-    padding: "0 16px"
+  button-filled:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.full}"
+    height: "40px"
+    padding: "0 24px"
   button-outlined:
     backgroundColor: "transparent"
-    textColor: "{colors.text}"
-    rounded: "{rounded.md}"
-    height: "36px"
-    padding: "0 16px"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.full}"
+    height: "40px"
+    padding: "0 24px"
   button-text:
     backgroundColor: "transparent"
-    textColor: "{colors.link}"
-    rounded: "{rounded.md}"
-    height: "36px"
-    padding: "0 8px"
-  button-danger:
-    backgroundColor: "transparent"
-    textColor: "{colors.bad}"
-    rounded: "{rounded.md}"
-    height: "36px"
-    padding: "0 16px"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.full}"
+    height: "40px"
+    padding: "0 12px"
   card:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
+    backgroundColor: "{colors.surface-container-low}"
+    textColor: "{colors.on-surface}"
+    rounded: "{rounded.lg}"
+    padding: "20px"
+  resource-card:
+    backgroundColor: "{colors.surface-container-low}"
+    textColor: "{colors.on-surface}"
     rounded: "{rounded.lg}"
     padding: "16px"
-  resource-card:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.xl}"
-    padding: "16px 18px"
   input:
     backgroundColor: "transparent"
-    textColor: "{colors.text}"
+    textColor: "{colors.on-surface}"
     rounded: "{rounded.md}"
     height: "56px"
     padding: "0 16px"
   chip:
-    backgroundColor: "{colors.surface-2}"
-    textColor: "{colors.muted}"
-    rounded: "12px"
-    padding: "2px 10px"
-  topbar:
+    backgroundColor: "{colors.surface-container-highest}"
+    textColor: "{colors.on-surface-variant}"
+    rounded: "{rounded.sm}"
+    height: "24px"
+    padding: "0 10px"
+  rail:
     backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
-    height: "56px"
-    padding: "0 20px"
+    textColor: "{colors.on-surface-variant}"
+    width: "80px"
 ---
 
 # Design System: BR Panel
@@ -118,154 +124,120 @@ components:
 
 **Creative North Star: "A Mesa de Controle"**
 
-Uma bancada escura e pontilhada onde cada serviço é um cartão que você enxerga e opera. A tela de arquitetura é um canvas de pontos sutis (22px) com cartões de recurso ligados por linhas tracejadas; as demais telas (aplicação, banco, configurações) são folhas centradas de 1040px com abas. O painel serve a quem só clica e a quem automatiza: a interface mostra o estado de relance e deixa o detalhe a um clique.
+O painel é uma mesa de controle para um servidor: um canvas de pontos sutis onde cada aplicação e cada banco é um cartão, e as dependências entre eles são desenhadas como as linhas de um mapa de metrô, com estações nas pontas. É a assinatura do produto (a mesma ideia aparece na lista "usa postgres, redis" de cada cartão, que sobrevive no celular, onde as linhas somem). As demais telas são folhas de até 1040px com abas. Serve a quem só clica e a quem automatiza: o estado aparece de relance, o detalhe fica a um clique.
 
-O tom é calmo e técnico. O tema escuro é o padrão (há tema claro por chave `data-theme`), as superfícies são planas com borda fina de 1px e o violeta é o único acento. Cor de estado (verde, âmbar, vermelho) só aparece para dizer algo sobre o servidor. Material Design 2 (MDC Web 14) é a base de comportamento; a aparência é reescrita por cima com variáveis CSS.
+A base é Material 3 (Material Web 2.x) usado do jeito que o sistema manda: botões em pílula, campos contornados, abas, menus, diálogos, navegação em trilho no computador e barra inferior no celular. A identidade vem da cor (azul-petróleo, de uma semente única, com tema claro e escuro que segue o sistema), da tipografia Roboto em escala curta e da assinatura do canvas. Cor de estado (verde, âmbar, vermelho) só diz algo sobre o servidor.
 
-Evitar: o visual genérico de "dashboard SaaS", gradientes decorativos além da marca, sombras pesadas em repouso e excesso de cor de status.
+Evitar: gradiente decorativo, brilho e sombra pesada em repouso, ícone colorido por enfeite, e qualquer controle que não seja o do Material 3.
 
 **Key Characteristics:**
-- Escuro por padrão, violeta como único acento, cor de estado só para estado.
-- Cartões planos com borda de 1px; sombra e halo só em resposta (hover, foco, menu).
-- Canvas pontilhado na tela de arquitetura; folhas de 1040px nas demais.
-- Roboto para texto, monoespaçada para logs, valores e comandos; números tabulares.
-- MDC Web 14 reescrito por variáveis; sem estilos inline (CSP).
+- Material 3 puro nos controles; identidade em cor, canvas e linhas de serviço.
+- Tema claro e escuro por papéis de cor gerados (`tokens.css`); nenhuma cor solta no CSS.
+- Cartões em tom (surface-container-low) com contorno de 1px; sombra só em resposta (hover, menu, diálogo).
+- Trilho de navegação (≥840px) e barra inferior (<840px).
+- Tudo servido pelo próprio binário: JS, Roboto, ícones; sem CDN.
 
 ## Colors
 
-Paleta de uma cor com neutros arroxeados: o violeta aparece em menos de uma décima parte de qualquer tela, o resto é tom sobre tom.
+Paleta de uma cor: azul-petróleo como único acento sobre neutros azulados. Os papéis seguem o Material 3 (`--md-sys-color-*`), gerados por `scripts/vendor/theme.mjs` a partir da semente #00677a. Sucesso e atenção são cores personalizadas harmonizadas com a semente.
 
 ### Primary
-- **Violeta de Controle** (#8b5cf6): acento no tema escuro. Item ativo da navegação, borda de foco e hover, barras de uso, ícones de seção, passo atual do assistente. No tema claro vira #7c3aed.
-- **Violeta Firme** (#7c3aed): fundo dos botões preenchidos (primary) com texto branco. No tema claro vira #6d28d9.
-- **Violeta de Link** (#b79cff): links e botões de texto, mais claros para ler sobre fundo escuro. No tema claro vira #6d28d9.
-- **Violeta Suave** (rgba(139, 92, 246, .16)): fundo de seleção, item ativo, mensagem do usuário no chat.
-
-### Secondary
-- **Rosa da Marca** (#ec4899): existe só no degradê do ícone da marca (135°, de violeta a rosa). Não aparece em mais nenhum lugar.
+- **Azul-petróleo** (#00687b claro / #85d2e7 escuro): botão principal, aba e item de navegação ativos, links, foco, barras de uso, linhas de serviço (misturadas com o contorno).
+- **Contêiner petróleo** (#aeecff / #004e5d): ícone de template, resultado da seleção.
+- **Contêiner secundário** (#cee7ef / #344a51): item ativo do trilho, passo concluído, menu selecionado.
 
 ### Neutral
-- **Noite Profunda** (#0e0d16): fundo da página.
-- **Canvas** (#121120): fundo do canvas pontilhado da arquitetura.
-- **Superfície** (#1a1828): cartões, barra superior, painéis, menus.
-- **Superfície Elevada** (#222035): campos, chips, células de código, hover de linha.
-- **Borda Violácea** (#2e2c44): toda borda e divisor de 1px.
-- **Texto** (#f3f2f8): texto principal.
-- **Texto Apagado** (#9a97b0): rótulos, legendas, metadados, ícones inativos.
-- **Fundo de Código** (#0b0a12): logs, blocos de código, editor de texto.
-- **Estado OK** (#34d399), **Atenção** (#f5b942), **Erro** (#f87171): fundo de 12% e borda de 35% da mesma cor para chips e avisos; texto na cor cheia.
+- **Superfície** (#f5fafc / #0f1416): fundo da página e do trilho.
+- **Contêiner mais baixo** (#ffffff / #090f11): fundo do canvas pontilhado e dos logs.
+- **Contêiner baixo** (#eff4f7 / #171c1e): cartões, painel de atividade.
+- **Contêiner** (#e9eff1 / #1b2022): campos de valor, chips de métrica, barra inferior.
+- **Contêiner alto/mais alto** (#e4e9eb, #dee3e6 / #252b2d, #303638): menus, diálogos, chips.
+- **Texto** (#171c1e / #dee3e6) e **Texto secundário** (#3f484b / #bfc8cb).
+- **Contorno** (#70797c / #899295) e **Contorno suave** (#bfc8cb / #3f484b): campos e divisores de 1px.
+
+### Semantic
+- **Sucesso** (#006c53 / #63dbb5), **Atenção** (#715d00 / #e7c431), **Erro** (#ba1a1a / #ffb4ab) e seus contêineres: chips, banners, linhas de log, status dos cartões.
 
 ### Named Rules
-**A Regra do Acento Raro.** O violeta cobre no máximo uma décima parte da tela. Se tudo é violeta, nada indica o que está ativo.
+**A Regra do Papel.** Toda cor sai de um papel (`--md-sys-color-*`, `--brp-*` ou um apelido em `app.css`). Nenhum hexadecimal solto, exceto as cores de marca dos selos de linguagem e banco, sempre misturadas ao neutro.
 
-**A Regra da Cor com Significado.** Verde, âmbar e vermelho existem só para estado do servidor ou da operação. Nunca decoram.
-
-**A Regra das Variáveis.** Toda cor sai de variável CSS (`--bg`, `--surface`, `--accent`…). Nenhum valor solto em componente, exceto as cores de marca das linguagens e bancos (selos).
+**A Regra da Cor com Significado.** Verde, âmbar e vermelho só dizem estado. O acento petróleo só marca ação e seleção.
 
 ## Typography
 
-**Display Font:** Roboto (com system-ui, sans-serif)
-**Body Font:** Roboto
-**Label/Mono Font:** ui-monospace, SFMono-Regular, Menlo
+**Font:** Roboto variável (300–700), com system-ui. **Mono:** ui-monospace para logs, valores copiáveis, comandos e números em código. Ícones: Material Symbols Outlined (subconjunto).
 
-**Character:** Uma sans neutra e legível, sem personalidade própria, que deixa o conteúdo falar. A monoespaçada marca tudo que é literal: comando, caminho, valor, log.
+**Character:** a sans do próprio Material, neutra e legível. Um só par de famílias; a hierarquia vem de tamanho e peso.
 
 ### Hierarchy
-- **Display** (600, 26px, 1.2): título da folha de recurso (nome da aplicação ou do banco).
-- **Headline** (500, 20px, 1.3): título de cada passo do assistente de criação.
-- **Title** (600, 16px): nome do recurso no cartão da arquitetura.
-- **Body** (400, 14–16px, 1.6): texto corrido, formulários, navegação (14px). Linha de leitura até cerca de 70 caracteres.
-- **Label** (500, 11–13px, caixa alta, 0.8–0.9px de espaçamento): títulos de seção e de painel, em Texto Apagado.
-- **Mono** (400, 12–13px, 1.55): logs, valores de conexão, blocos de CLI, números em tabelas com `tabular-nums`.
+- **Display** (400, 32/40): título de página e de recurso.
+- **Headline** (400, 22/28): título de passo do assistente.
+- **Title** (500, 16/24): nome do cartão de recurso, rótulos de linha.
+- **Body** (400, 14/20): texto corrido, formulários.
+- **Label** (500, 12/16, 0.5px): rótulos do trilho, indicadores do host, chips; títulos de seção usam 14px/500 em petróleo.
+- **Mono** (13/20): logs, `code`, valores de conexão.
 
 ### Named Rules
-**A Regra do Literal.** Tudo que o usuário pode copiar (comando, URL, variável, log) vai em monoespaçada.
-
-**A Regra do Número Alinhado.** Métricas, contagens e tempos usam `font-variant-numeric: tabular-nums`.
+**A Regra do Literal.** O que o usuário copia (comando, URL, variável, log) vai em monoespaçada.
+**A Regra do Número Alinhado.** Números de métrica usam `tabular-nums`.
 
 ## Layout
 
-Barra superior fixa de 56px (borda inferior de 1px, fundo translúcido com desfoque). Conteúdo em dois modos: a Arquitetura ocupa a largura toda em duas colunas (canvas à esquerda, atividade recente de 320px à direita), e as demais telas são uma coluna centrada de até 1040px com 16px de respiro lateral.
+Barra superior de 64px com a marca, o título da página e as ações (tema, sair). Trilho de navegação de 80px à esquerda a partir de 840px; abaixo disso, barra inferior de 80px com os mesmos cinco destinos (Servidor, GitHub, IA, CLI, Ajustes). O conteúdo ocupa o resto: a tela Servidor usa a largura toda, em duas colunas (canvas + atividade de 340px, que desce para baixo do canvas abaixo de 1200px); as demais usam uma coluna centrada de até 1040px.
 
-Os cartões do canvas ficam em grade responsiva (`auto-fill`, mínimo 270px) com 56px de espaço vertical e 64px horizontal, para dar lugar às linhas tracejadas de dependência. Dentro das folhas, o ritmo é de 16–18px entre blocos e 24–30px antes de cada título de seção. Formulários usam passos (assistente) quando há JavaScript e ficam inteiros na página sem ele.
-
-Responsivo: abaixo de 1100px a atividade desce para baixo do canvas; abaixo de 760px a barra mostra só ícones, o breadcrumb some e as tabelas escondem colunas; abaixo de 480px o nome da marca some. Largura mínima de 360px.
-
-### Named Rules
-**A Regra da Folha Estreita.** Fora da arquitetura, nada passa de 1040px. Linhas longas cansam e escondem a ação.
+O canvas tem grade de pontos de 24px, cantos superior esquerdo de 28px e cartões em `auto-fill` com mínimo de 280px e folga de 56px por 64px para as linhas passarem. Ritmo interno de 16–20px; 32px antes de cada título de seção. Abaixo de 760px as linhas somem e o cartão passa a ser o único portador da dependência. Largura mínima de 360px.
 
 ## Elevation & Depth
 
-Plano em repouso, tonal em camadas. A profundidade vem da diferença entre Noite Profunda, Superfície e Superfície Elevada, mais a borda de 1px. Sombra existe só como resposta: hover de cartão, menu aberto, cartão de login. O botão preenchido carrega um brilho violeta difuso e um degradê branco de 14% no topo, o único toque de volume em repouso.
-
-### Shadow Vocabulary
-- **Sombra de Resposta** (`box-shadow: 0 12px 32px rgba(0, 0, 0, .38)`; claro: `0 10px 28px rgba(40, 30, 80, .12)`): cartão em hover, menu, login.
-- **Halo de Foco** (`box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent)`): foco de teclado em botão.
-- **Brilho do Botão** (`0 6px 16px -8px rgba(124, 58, 237, .8)`): botão preenchido; sobe para `0 8px 20px -8px rgba(124, 58, 237, .9)` no hover.
-- **Brilho da Marca** (`0 4px 14px -4px rgba(139, 92, 246, .7)`): só o ícone da marca.
+Tonal e plano em repouso: a profundidade vem dos contêineres de superfície e do contorno de 1px, nunca de sombra. Sombra existe como resposta: hover dos cartões (duas camadas suaves), menu e diálogo (contêiner alto). Foco usa o anel do Material (2px).
 
 ### Named Rules
-**A Regra do Plano em Repouso.** Cartões e painéis não têm sombra parados. Sombra é reação a hover, foco ou sobreposição.
+**A Regra do Plano em Repouso.** Cartão parado não tem sombra.
 
 ## Shapes
 
-Cantos arredondados em escala curta: 4px (código inline), 8px (botões, campos, abas, itens de menu), 12px (cartões e painéis), 14px (cartões de recurso), 16px (login e estado vazio), 12px de raio total em chips. Selos de linguagem e banco são quadrados de 36px com cantos de 9px. Bordas são sempre de 1px; o tracejado fica para linhas de dependência no canvas e para o estado vazio. Ícones são Material Icons, 18–20px.
+Escala do Material 3: 8px (chips, botões de ícone em toque), 12px (campos, logs, banners internos), 16px (cartões, banners), 28px (canvas, diálogo, login). Botões e o item ativo do trilho são pílulas. Selos de linguagem e banco são quadrados arredondados de 40px (28px no menu, 56px no cabeçalho). Linhas de serviço têm 2px, cantos arredondados de 14px e uma estação (círculo de 9px) em cada ponta.
 
 ## Components
 
 ### Buttons
-- **Shape:** cantos de 8px (8px), altura de 36px do MDC, rótulo com espaçamento de 0.6px.
-- **Primary (raised/unelevated):** fundo Violeta Firme (#7c3aed), texto branco, brilho violeta difuso; no hover `brightness(1.1)`; ao pressionar, desce 1px e encolhe a 98,5%.
-- **Outlined:** borda de 1px (Borda Violácea), texto em Texto; no hover a borda vira violeta.
-- **Text:** sem fundo, texto em Violeta de Link.
-- **Danger:** contorno e texto em Erro (#f87171, borda a 50%).
-- **Foco:** halo violeta de 3px; nunca remover o indicador.
+Pílula de 40px do Material: **filled** (azul-petróleo) para a ação principal, **tonal** para a ação de apoio, **outlined** para ações secundárias e **text** para cancelar e voltar. Destrutivo é outlined em vermelho (`danger`), nunca preenchido. Ícone à esquerda quando ajuda.
 
 ### Cards / Containers
-- **Corner Style:** 12px; cartões de recurso 14px.
-- **Background:** Superfície (#1a1828).
-- **Shadow Strategy:** nenhuma em repouso; sombra de resposta no hover (ver Elevation).
-- **Border:** 1px Borda Violácea; no hover mistura 22% de violeta (cartão comum) ou 55% (cartão de recurso, que também sobe 2px).
-- **Internal Padding:** 16px; cartões de recurso 16px 18px.
+Contêiner baixo, contorno de 1px (contorno suave), raio 16px, padding 20px. Em painel destrutivo o contorno mistura vermelho.
 
-### Resource Card (cartão de recurso)
-O elemento de assinatura. Selo colorido de 36px (cor da linguagem ou do banco) + nome em 16px/600 + subtítulo apagado em 12,5px; no rodapé, status com ícone de 18px em cor de estado, hora à direita e métricas de CPU/RAM em 12px. Altura mínima de 132px. Fica ligado a outros por linhas tracejadas de 1,4px em Texto Apagado a 70%.
+### Resource Card
+Selo de 40px (cor da marca da linguagem ou banco misturada ao neutro) + nome (16/24 500) + subtítulo; abaixo, status com ícone preenchido e texto na cor do estado, "usa …" em texto secundário, e chips de CPU e RAM. Hover mistura 55% de petróleo no contorno e levanta a sombra; leva ao recurso.
 
 ### Inputs / Fields
-- **Style:** MDC outlined, altura de 56px, contorno de 1px em Borda Violácea, rótulo flutuante em Texto Apagado, cursor violeta.
-- **Focus:** contorno e rótulo viram violeta; dica abaixo em 12px apagada.
-- **Error / Disabled:** erro vai ao aviso do topo, não ao campo; desabilitado a 60% de opacidade.
-- **Campos simples** (filtros, selects, busca): fundo Superfície Elevada, borda de 1px, 8px de raio, 6px 8px de padding.
-
-### Chips (status)
-- **Style:** 12px de raio, 12px/500, 2px 10px; padrão em Superfície Elevada com texto apagado.
-- **State:** `ativo/ok` verde, `falhou` vermelho, `implantando/ativando/provisionando` âmbar com ponto pulsante de 6px, `inativo` neutro. Cada estado: fundo a 12%, borda a 35%, texto na cor cheia.
+`md-outlined-text-field` e `md-outlined-select` de 56px, raio 12px, texto de apoio de 12px. Erro de validação aparece no campo. Caixas de seleção `md-checkbox` dentro de rótulo clicável de 48px.
 
 ### Navigation
-Barra superior de 56px. Itens de 36px com ícone de 18px e rótulo de 14px; padrão em Texto Apagado, hover com fundo Superfície Elevada, ativo com fundo Violeta Suave e sublinhado de 2px violeta na base da barra. Abaixo de 760px só os ícones. Dentro das folhas, abas com borda inferior de 2px violeta na ativa, roláveis em tela estreita. Há um botão de tema (claro/escuro) e um de sair, ambos ícones de 36px.
+Trilho de 80px com ícone dentro de pílula de 56×32 (secundário quando ativo, ícone preenchido) e rótulo de 12px; em telefone, barra inferior de 80px. Abas internas: `md-tabs` primárias, com indicador petróleo; abas de log são secundárias.
 
-### Avisos e bandas
-Aviso: fundo Violeta Suave com borda violeta, 10px de raio; de erro, vermelho a 12%. Banda de atenção: âmbar a 8% com borda a 50%. Confirmações simples saem sozinhas após um tempo.
+### Chips (status)
+Altura 24px, raio 8px: ativo (sucesso), falhou (erro), implantando (atenção, com ponto pulsante), neutro.
 
-### Logs e código
-Fundo de Código, borda de 1px, 10px de raio, monoespaçada 12px; linhas com erro em vermelho claro sobre vermelho a 10%, atenção em âmbar. Barra de ferramentas (linhas, filtro, acompanhar, baixar) acima.
+### Menu e Diálogo
+`md-menu` com foco e setas de teclado (Criar). `md-dialog` confirma toda ação destrutiva.
+
+### Linhas de serviço (assinatura)
+Rotas ortogonais de 3 segmentos entre o cartão de origem e o de destino, com cantos arredondados e uma estação em cada ponta, desenhadas em SVG sob os cartões e redesenhadas ao redimensionar.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** usar as variáveis (`--accent`, `--surface`, `--border`…) para toda cor e checar os dois temas.
-- **Do** manter cartões planos com borda de 1px e reservar sombra para hover, foco e menus.
-- **Do** dar estado por ícone mais texto mais cor, nunca só por cor.
-- **Do** manter foco de teclado visível (contorno de 2px violeta ou halo de 3px) e respeitar `prefers-reduced-motion`.
-- **Do** usar monoespaçada para tudo que o usuário copia, e `tabular-nums` em números.
+- **Do** usar componentes `md-*` e os parciais `field`, `area`, `check`, `btn`.
+- **Do** tirar toda cor de um papel de `tokens.css`; conferir claro e escuro.
+- **Do** dar estado por ícone, texto e cor; manter foco visível e `prefers-reduced-motion`.
+- **Do** deixar sombra só para hover, menu e diálogo.
 - **Do** escrever em português claro; erros dizem o que houve e o que fazer.
-- **Do** conferir a tela em 360px de largura e sem estilos inline (CSP).
+- **Do** conferir a tela a 360px e com a CSP `'self'`.
 
 ### Don't:
-- **Don't** migrar para Material 3 nem adicionar framework de UI; MDC Web 14 é a base.
-- **Don't** usar o violeta como fundo grande nem em mais de uma décima parte da tela.
-- **Don't** usar gradientes decorativos; o degradê violeta-rosa é só da marca.
-- **Don't** usar verde, âmbar ou vermelho como enfeite.
-- **Don't** colocar sombra pesada em elementos parados.
-- **Don't** usar `style=`, `<script>` inline ou `onclick=`; a CSP bloqueia.
-- **Don't** esconder a ação principal atrás de menus ou deixar o avançado fora de alcance para quem automatiza.
+- **Don't** carregar nada de CDN nem afrouxar a CSP.
+- **Don't** colocar gradiente decorativo, brilho ou sombra em elementos parados.
+- **Don't** usar verde, âmbar ou vermelho como enfeite, nem o petróleo como fundo grande.
+- **Don't** inventar controles fora do Material 3.
+- **Don't** usar `style=`, `<script>` inline ou `onclick=`.
+- **Don't** esconder a ação principal atrás de menus nem deixar o avançado fora de alcance.

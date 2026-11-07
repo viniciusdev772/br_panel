@@ -5,7 +5,7 @@ Linux (systemd)** em vez de Docker.
 
 Informe um repositório Git, branch, comando de build e de início: o painel clona, compila, cria uma
 unit `brpanel-<app>.service` e sobe a aplicação. Opcionalmente publica um domínio com Nginx + SSL
-automático e faz deploy a cada push via GitHub App. UI em Material Design 2 (MDC Web 14).
+automático e faz deploy a cada push via GitHub App. UI em Material 3 (Material Web 2.x), com todos os assets embutidos (sem CDN).
 
 ## Instalação e primeiro início
 

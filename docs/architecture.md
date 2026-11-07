@@ -1,6 +1,6 @@
 # Arquitetura
 
-O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações como **serviços systemd** (sem Docker). O estado fica em um banco SQLite; a interface é HTML renderizado no servidor com Material Design 2 (MDC Web 14).
+O BR Panel é um único binário Go (`cmd/brpanel`) que gerencia aplicações como **serviços systemd** (sem Docker). O estado fica em um banco SQLite; a interface é HTML renderizado no servidor com Material 3 (Material Web 2.x), servido do próprio binário: JS, fontes e ícones ficam em `web/static/` e a CSP só aceita a própria origem.
 
 ## Pacotes
 

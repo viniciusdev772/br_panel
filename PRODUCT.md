@@ -33,7 +33,7 @@ O painel roda no próprio servidor do usuário, atrás de Nginx. Primeiro acesso
 ## Capabilities and Constraints
 
 - Interface e mensagens em pt-BR; código e comentários em inglês.
-- Frontend: MDC Web 14 (Material Design 2); a CSP proíbe scripts inline e atributos `style=`. Páginas = `layout.html` + um template; assets embutidos no binário.
+- Frontend: Material Web 2.x (Material 3), servido do próprio binário, sem CDN; a CSP proíbe scripts inline e atributos `style=`. Páginas = `layout.html` + um template; assets embutidos no binário.
 - Gráficos são canvas em `web/static/app.js`.
 - Toda mudança de estado é POST com proteção CSRF; a UI e a CLI compartilham os mesmos handlers.
 - Sem Docker, sem variáveis de ambiente; só as flags `-addr` e `-data`.

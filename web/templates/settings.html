@@ -1,14 +1,14 @@
 {{define "content"}}
-<div class="page-head"><h1 class="mdc-typography--headline5">{{if .Setup}}Bem-vindo ao BR Panel{{else}}Configurações{{end}}</h1></div>
+<div class="page-head"><h1>{{if .Setup}}Bem-vindo ao BR Panel{{else}}Configurações{{end}}</h1></div>
 {{if .Setup}}<p class="intro">Falta só criar o seu acesso. Leva menos de um minuto.</p>
 {{range .Checks}}{{if and (not .OK) (not .Optional)}}
-<div class="mdc-card"><div class="card-body checks"><div class="check"><i class="material-icons bad">cancel</i><span>{{.Name}}</span><span class="muted">— {{.Hint}}</span></div></div></div>
+<div class="card"><div class="card-body checks"><div class="check"><md-icon class="bad">cancel</md-icon><span>{{.Name}}</span><span class="muted">— {{.Hint}}</span></div></div></div>
 {{end}}{{end}}
 {{else}}
-<h2 class="mdc-typography--subtitle1 section-title">Verificação do servidor</h2>
-<div class="mdc-card"><div class="card-body checks">
+<h2 class="section-title">Verificação do servidor</h2>
+<div class="card"><div class="card-body checks">
   {{range .Checks}}
-  <div class="check"><i class="material-icons {{if .OK}}ok{{else if .Optional}}warn{{else}}bad{{end}}">{{if .OK}}check_circle{{else if .Optional}}error_outline{{else}}cancel{{end}}</i>
+  <div class="check"><md-icon class="{{if .OK}}ok{{else if .Optional}}warn{{else}}bad{{end}}">{{if .OK}}check_circle{{else if .Optional}}error_outline{{else}}cancel{{end}}</md-icon>
     <span>{{.Name}}</span>{{if not .OK}}<span class="muted">— {{.Hint}}</span>{{end}}</div>
   {{end}}
 </div></div>
@@ -19,100 +19,71 @@
 
   {{if .Setup}}
   {{if .AppUserDefault}}<input type="hidden" name="app_user" value="{{.AppUserDefault}}">{{end}}
-  <div class="mdc-card"><div class="card-body">
+  <div class="card"><div class="card-body">
     {{if .SetupCode}}<input type="hidden" name="token" value="{{.SetupCode}}">{{else}}{{template "field" dict "name" "token" "label" "Código de instalação" "required" true "autocomplete" "off" "hint" "Aparece na tela do terminal onde você instalou o painel. É só para garantir que foi você mesmo."}}{{end}}
     {{template "field" dict "name" "username" "label" "Seu nome de usuário" "value" .Form.username "required" true "autocomplete" "username"}}
     {{template "field" dict "name" "password" "label" "Crie uma senha" "type" "password" "required" true "autocomplete" "new-password" "hint" "Pelo menos 12 caracteres."}}
     {{template "field" dict "name" "password2" "label" "Repita a senha" "type" "password" "required" true "autocomplete" "new-password"}}
   </div></div>
-  <p class="muted">Domínio, SSL e GitHub você configura depois, só quando precisar.</p>
+  <p class="muted form-end">Domínio, SSL e GitHub você configura depois, só quando precisar.</p>
   {{else}}
-  <h2 class="mdc-typography--subtitle1 section-title">Domínio e SSL do painel</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Domínio e SSL do painel</h2>
+  <div class="card"><div class="card-body">
     {{template "field" dict "name" "panel_domain" "label" "Domínio do painel (opcional)" "value" .Set.PanelDomain "hint" "Ex.: painel.exemplo.com.br. O DNS precisa apontar para este servidor; o painel é publicado via Nginx."}}
     {{template "field" dict "name" "acme_email" "label" "E-mail do Let's Encrypt (opcional)" "value" .Set.AcmeEmail "autocomplete" "email" "hint" "Com e-mail, o SSL é emitido e renovado automaticamente para o painel e para os domínios das aplicações."}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">Execução das aplicações</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Execução das aplicações</h2>
+  <div class="card"><div class="card-body">
     {{template "field" dict "name" "app_user" "label" "Usuário do sistema (recomendado)" "value" .Set.AppUser "hint" "Ex.: brapps. Criado automaticamente se não existir. As aplicações são clonadas, compiladas e executadas com ele, sem privilégios de root."}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">Node.js</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Node.js</h2>
+  <div class="card"><div class="card-body">
     {{template "field" dict "name" "node_version" "label" "Versão do Node.js (nvm)" "value" .Set.NodeVersion "hint" "Padrão 24. Ex.: 22, 20.18.1, lts/* (a mais nova pode quebrar dependências antigas). Ao salvar uma versão diferente com o Node.js já instalado, o painel instala a nova em segundo plano e troca o node/npm do servidor."}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">GitHub App (opcional)</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">GitHub App (opcional)</h2>
+  <div class="card"><div class="card-body">
     <p class="muted">Deploy automático a cada push e clone de repositórios privados. Veja o passo a passo na página <a href="/github">GitHub</a>.</p>
     {{template "field" dict "name" "github_app_id" "label" "App ID" "value" .Set.GitHubAppID}}
     {{template "area" dict "name" "github_key" "label" "Chave privada (.pem)" "value" "" "rows" 6 "hint" (printf "%s" (or (and .HasKey "Chave já configurada — cole outra para substituir.") "Cole o conteúdo completo do arquivo .pem."))}}
     {{template "field" dict "name" "webhook_secret" "label" "Segredo do webhook" "value" .Set.GitHubWebhookSecret "autocomplete" "off" "hint" (or (and .HasSecret "Segredo já configurado — preencha para substituir.") (and .Setup "Valor sugerido: copie para o campo Webhook secret do GitHub App.") "Mínimo de 16 caracteres.")}}
-    {{if and (not .Setup) (or .HasKey .HasSecret)}}
-    <div class="mdc-form-field">
-      <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_github" name="clear_github">
-        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
-        <div class="mdc-checkbox__ripple"></div>
-      </div>
-      <label for="clear_github">Remover a integração com o GitHub</label>
-    </div>
-    {{end}}
+    {{if and (not .Setup) (or .HasKey .HasSecret)}}{{template "check" dict "name" "clear_github" "label" "Remover a integração com o GitHub"}}{{end}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">Cloudflare (opcional)</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Cloudflare (opcional)</h2>
+  <div class="card"><div class="card-body">
     <p class="muted">Ao publicar uma aplicação com domínio, o painel cria (ou corrige) o registro DNS tipo A apontando para este servidor, antes de emitir o SSL. O registro fica sem proxy (nuvem cinza); se já existir e estiver com proxy, o proxy é mantido. O domínio precisa estar numa zona da sua conta.</p>
     {{template "field" dict "name" "cloudflare_email" "label" "E-mail da conta Cloudflare (só para a Global API Key)" "value" .Set.CloudflareEmail "autocomplete" "off" "hint" "Obrigatório com a Global API Key (37 caracteres, letras minúsculas e números). Com um API Token, pode deixar em branco."}}
     {{template "field" dict "name" "cloudflare_token" "label" "Global API Key ou API Token" "type" "password" "autocomplete" "off" "hint" (or (and .HasCF "Credencial já configurada — preencha para substituir.") "Global API Key: Meu perfil > Tokens de API > Chaves de API > Global API Key (acesso total à conta, todos os domínios). API Token restrito: modelo \"Editar DNS da zona\" (Zone:Read e DNS:Edit).")}}
-    {{if .HasCF}}
-    <div class="mdc-form-field">
-      <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_cloudflare" name="clear_cloudflare">
-        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
-        <div class="mdc-checkbox__ripple"></div>
-      </div>
-      <label for="clear_cloudflare">Remover a integração com a Cloudflare</label>
-    </div>
-    {{end}}
+    {{if .HasCF}}{{template "check" dict "name" "clear_cloudflare" "label" "Remover a integração com a Cloudflare"}}{{end}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title" id="ia">Assistente de IA (opcional)</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title" id="ia">Assistente de IA (opcional)</h2>
+  <div class="card"><div class="card-body">
     <p class="muted">Um assistente na aba <a href="/ai">IA</a> que opera o painel pelos mesmos comandos da CLI. Funciona com OpenRouter, OpenAI, Anthropic ou um servidor local (Ollama). Ações que alteram o servidor só rodam depois que você aprova na tela. Os textos da conversa, incluindo trechos de logs, são enviados ao provedor escolhido.</p>
-    <label class="select-label">Formato da API
-      <select name="ai_format">
-        <option value="chat" {{if eq .Set.AIFormat "chat"}}selected{{end}}>Chat Completions (/chat/completions): o mais compatível</option>
-        <option value="responses" {{if eq .Set.AIFormat "responses"}}selected{{end}}>Responses (/responses)</option>
-        <option value="messages" {{if eq .Set.AIFormat "messages"}}selected{{end}}>Messages, formato da Anthropic (/messages)</option>
-      </select>
-    </label>
+    <md-outlined-select class="full" name="ai_format" label="Formato da API">
+      <md-select-option value="chat" {{if eq .Set.AIFormat "chat"}}selected{{end}}><div slot="headline">Chat Completions (/chat/completions): o mais compatível</div></md-select-option>
+      <md-select-option value="responses" {{if eq .Set.AIFormat "responses"}}selected{{end}}><div slot="headline">Responses (/responses)</div></md-select-option>
+      <md-select-option value="messages" {{if eq .Set.AIFormat "messages"}}selected{{end}}><div slot="headline">Messages, formato da Anthropic (/messages)</div></md-select-option>
+    </md-outlined-select>
     {{template "field" dict "name" "ai_base_url" "label" "Endereço da API" "value" .Set.AIBaseURL "autocomplete" "off" "hint" "OpenRouter: https://openrouter.ai/api/v1 · OpenAI: https://api.openai.com/v1 · Anthropic: https://api.anthropic.com/v1 · Ollama: http://localhost:11434/v1"}}
     {{template "field" dict "name" "ai_model" "label" "Modelo" "value" .Set.AIModel "autocomplete" "off" "hint" "Ex.: anthropic/claude-sonnet-4.5 (OpenRouter). Precisa suportar chamada de ferramentas. Vazio mantém o assistente desligado."}}
     {{template "field" dict "name" "ai_key" "label" "Chave da API" "type" "password" "autocomplete" "off" "hint" (or (and .HasAI "Chave já configurada — preencha para substituir.") "Pode ficar em branco para um servidor local.")}}
-    {{if .HasAI}}
-    <div class="mdc-form-field">
-      <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="clear_ai" name="clear_ai">
-        <div class="mdc-checkbox__background"><svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg><div class="mdc-checkbox__mixedmark"></div></div>
-        <div class="mdc-checkbox__ripple"></div>
-      </div>
-      <label for="clear_ai">Remover a chave e desligar o assistente</label>
-    </div>
-    {{end}}
+    {{if .HasAI}}{{template "check" dict "name" "clear_ai" "label" "Remover a chave e desligar o assistente"}}{{end}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">Alterar senha</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Alterar senha</h2>
+  <div class="card"><div class="card-body">
     <p class="muted">Usuário: <b>{{.Form.username}}</b>. Deixe em branco para manter a senha atual. Ao trocar, todas as sessões são encerradas.</p>
     {{template "field" dict "name" "current_password" "label" "Senha atual" "type" "password" "autocomplete" "current-password"}}
     {{template "field" dict "name" "new_password" "label" "Nova senha (mínimo 12 caracteres)" "type" "password" "autocomplete" "new-password"}}
     {{template "field" dict "name" "new_password2" "label" "Repita a nova senha" "type" "password" "autocomplete" "new-password"}}
   </div></div>
 
-  <h2 class="mdc-typography--subtitle1 section-title">Avançado</h2>
-  <div class="mdc-card"><div class="card-body">
+  <h2 class="section-title">Avançado</h2>
+  <div class="card"><div class="card-body">
     <details class="advanced">
       <summary>Caminhos e usuários do sistema</summary>
       <p class="muted">Os padrões já servem para Ubuntu/Debian com Nginx, Certbot e systemd. Só altere se o seu servidor for diferente.</p>
@@ -126,13 +97,13 @@
   {{end}}
 
   <div class="actions form-end">
-    <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Setup}}Começar a usar{{else}}Salvar{{end}}</span></button>
+    {{template "btn" dict "kind" "filled" "type" "submit" "label" (or (and .Setup "Começar a usar") "Salvar")}}
   </div>
 </form>
 
 {{if and (not .Setup) .CacheItems}}
-<h2 class="mdc-typography--subtitle1 section-title" id="cache">Cache de builds</h2>
-<div class="mdc-card"><div class="card-body">
+<h2 class="section-title" id="cache">Cache de builds</h2>
+<div class="card"><div class="card-body">
   <p>Os pacotes baixados pelos builds (npm, pnpm, Yarn, pip, Go, Cargo, Composer) ficam em uma pasta só, compartilhada por todas as aplicações. Cada pacote é baixado uma vez.</p>
   <p><strong>Ocupa {{bytes .CacheTotal}}</strong></p>
   <div class="checks">
@@ -141,11 +112,11 @@
   <div class="actions actions--start">
     <form method="post" action="/cache/prune" data-confirm="Apagar os pacotes que nenhum build usa há mais de 30 dias?">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="days" value="30">
-      <button class="mdc-button mdc-button--outlined" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">cleaning_services</i><span class="mdc-button__label">Limpar itens antigos (30 dias)</span></button>
+      {{template "btn" dict "kind" "outlined" "type" "submit" "icon" "cleaning_services" "label" "Limpar itens antigos (30 dias)"}}
     </form>
     <form method="post" action="/cache/clear" data-confirm="Esvaziar o cache? O próximo build de cada aplicação baixa tudo de novo.">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button class="mdc-button mdc-button--outlined mdc-button--danger" type="submit"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">delete_sweep</i><span class="mdc-button__label">Esvaziar tudo</span></button>
+      {{template "btn" dict "kind" "outlined" "danger" true "type" "submit" "icon" "delete_sweep" "label" "Esvaziar tudo"}}
     </form>
   </div>
 </div></div>

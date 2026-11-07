@@ -1,7 +1,7 @@
 {{define "content"}}
-<div class="page-head"><h1 class="mdc-typography--headline5">CLI do BR Panel</h1></div>
+<div class="page-head"><h1>CLI do BR Panel</h1></div>
 
-<div class="mdc-card"><div class="card-body">
+<div class="card"><div class="card-body">
   <p>Tudo o que o painel faz pode ser feito no terminal do servidor com o comando <code>brpanel</code>: publicar apps, ver logs, mudar variáveis, domínios, bancos de dados e backups. São <b>{{.CLICount}} comandos</b>, com respostas curtas e iguais em todos eles, pensados para pessoas e para agentes de IA.</p>
   <pre class="codeblock">sudo brpanel status
 sudo brpanel apps list
@@ -9,8 +9,8 @@ sudo brpanel apps deploy minha-app --wait</pre>
   <p class="muted">O comando fala com o painel por um socket local (<code>/var/lib/brpanel/brpanel.sock</code>) que só o root abre. Não há senha, token nem variável de ambiente para configurar, e nada fica exposto na rede. Se a pasta de dados não for a padrão, use <code>--data PASTA</code>.</p>
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title" id="acesso-remoto">Acesso remoto (do seu computador)</h2>
-<div class="mdc-card"><div class="card-body">
+<h2 class="section-title" id="acesso-remoto">Acesso remoto (do seu computador)</h2>
+<div class="card"><div class="card-body">
   <p>Controle este servidor de qualquer lugar, no Linux, macOS ou Windows. São três passos: instalar a CLI, criar um token aqui e entrar com o endereço do servidor.</p>
   <p><b>1. Instalar</b> (no seu computador, não no servidor):</p>
   <pre class="codeblock">curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-cli.sh | sh</pre>
@@ -22,22 +22,22 @@ sudo brpanel apps deploy minha-app --wait</pre>
     <p>Token <b>{{.NewTokenName}}</b> criado. <b>Copie agora: ele não será mostrado de novo.</b></p>
     <pre class="codeblock">{{.NewToken}}</pre>
     <div class="actions">
-      <button class="mdc-button mdc-button--raised" type="button" data-copy-text="{{.NewToken}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">content_copy</i><span class="mdc-button__label">Copiar o token</span></button>
-      <button class="mdc-button" type="button" data-copy-text="printf '%s' '{{.NewToken}}' | brpanel login {{.PanelHost}} --token-stdin"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">terminal</i><span class="mdc-button__label">Copiar o comando de login</span></button>
+      {{template "btn" dict "kind" "filled" "icon" "content_copy" "copy" .NewToken "label" "Copiar o token"}}
+      {{template "btn" dict "kind" "tonal" "icon" "terminal" "copy" (printf "printf '%%s' '%s' | brpanel login %s --token-stdin" .NewToken .PanelHost) "label" "Copiar o comando de login"}}
     </div>
   </div>
   {{end}}
-  <form method="post" action="/cli/tokens" class="inline-form">
+  <form method="post" action="/cli/tokens" class="inline-form card-body-form">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     {{template "field" dict "name" "name" "label" "Nome do token" "required" true "autocomplete" "off" "hint" "Letras minúsculas, números e hífen. Ex.: notebook, agente-ia, ci."}}
-    <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Criar token</span></button></div>
+    <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "label" "Criar token"}}</div>
   </form>
   {{if .Tokens}}
   <table class="tokens-table">
-    <thead><tr><th>Nome</th><th>Criado</th><th>Último uso</th><th></th></tr></thead>
+    <thead><tr><th>Nome</th><th>Criado</th><th>Último uso</th><th><span class="sr-only">Ações</span></th></tr></thead>
     <tbody>{{range .Tokens}}
       <tr><td>{{.Name}}</td><td>{{.Created.Format "02/01/2006 15:04"}}</td><td>{{if .LastUsed.IsZero}}nunca{{else}}{{.LastUsed.Format "02/01/2006 15:04"}}{{end}}</td>
-        <td><form method="post" action="/cli/tokens/{{.ID}}/revoke" data-confirm="Revogar o token {{.Name}}? Quem o usa perde o acesso na hora."><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="icon-btn" type="submit" aria-label="Revogar o token {{.Name}}" title="Revogar"><i class="material-icons">delete</i></button></form></td></tr>
+        <td><form method="post" action="/cli/tokens/{{.ID}}/revoke" data-confirm="Revogar o token {{.Name}}? Quem o usa perde o acesso na hora."><input type="hidden" name="csrf" value="{{$.CSRF}}"><md-icon-button type="submit" aria-label="Revogar o token {{.Name}}" title="Revogar"><md-icon>delete</md-icon></md-icon-button></form></td></tr>
     {{end}}</tbody>
   </table>
   {{else}}<p class="muted">Nenhum token ainda.</p>{{end}}
@@ -48,20 +48,20 @@ brpanel status</pre>
   <p class="muted">Um token dá o mesmo poder que esta tela (publicar e apagar aplicações e bancos): trate como senha, um por computador ou agente, e revogue o que não usa mais.</p>
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title">Para agentes de IA</h2>
-<div class="mdc-card"><div class="card-body">
+<h2 class="section-title">Para agentes de IA</h2>
+<div class="card"><div class="card-body">
   <p>Cole este bloco no prompt do sistema de qualquer agente. Ele funciona até com modelos pequenos (4B): são poucas regras, e cada resposta do comando começa com <code>OK:</code> ou <code>ERRO:</code> e traz linhas <code>DICA:</code> com o próximo passo. Erros de digitação sugerem o comando certo (<i>você quis dizer…</i>).</p>
   <pre class="codeblock">{{.CLIPrompt}}</pre>
   <div class="actions">
-    <button class="mdc-button mdc-button--raised" type="button" data-copy-text="{{.CLIPrompt}}"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">content_copy</i><span class="mdc-button__label">Copiar o prompt</span></button>
-    <a class="mdc-button" href="/cli/guide.txt" target="_blank" rel="noopener"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">article</i><span class="mdc-button__label">Ver o guia completo</span></a>
-    <a class="mdc-button" href="/cli/guide.txt?download=1"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">download</i><span class="mdc-button__label">Baixar o guia (.txt)</span></a>
+    {{template "btn" dict "kind" "filled" "icon" "content_copy" "copy" .CLIPrompt "label" "Copiar o prompt"}}
+    <md-text-button href="/cli/guide.txt" target="_blank"><md-icon slot="icon">article</md-icon>Ver o guia completo</md-text-button>
+    {{template "btn" dict "kind" "text" "href" "/cli/guide.txt?download=1" "icon" "download" "label" "Baixar o guia (.txt)"}}
   </div>
   <p class="muted">O guia completo (<code>brpanel guide</code>) traz receitas passo a passo e uma tabela de erros. Para um agente que lê arquivos, salve-o como <code>AGENTS.md</code> ou <code>CLAUDE.md</code> do projeto.</p>
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title">Como as respostas funcionam</h2>
-<div class="mdc-card"><div class="card-body">
+<h2 class="section-title">Como as respostas funcionam</h2>
+<div class="card"><div class="card-body">
   <dl class="meta">
     <dt><code>OK: …</code></dt><dd>deu certo (código de saída 0)</dd>
     <dt><code>ERRO: …</code></dt><dd>falhou: código 1 se o painel recusou, 2 se o comando foi escrito errado</dd>
@@ -73,10 +73,10 @@ brpanel status</pre>
 </div></div>
 
 {{range .CLIGroups}}
-<h2 class="mdc-typography--subtitle1 section-title">{{.Name}}</h2>
+<h2 class="section-title">{{.Name}}</h2>
 {{range .Cmds}}
-<div class="mdc-card"><div class="card-body cli-cmd">
-  <div class="cli-head"><code class="cli-usage">{{.Usage}}</code><button class="icon-btn" type="button" data-copy-text="{{index .Examples 0}}" aria-label="Copiar o exemplo" title="Copiar o exemplo"><i class="material-icons">content_copy</i></button></div>
+<div class="card"><div class="card-body cli-cmd">
+  <div class="cli-head"><code class="cli-usage">{{.Usage}}</code><md-icon-button data-copy-text="{{index .Examples 0}}" aria-label="Copiar o exemplo" title="Copiar o exemplo"><md-icon>content_copy</md-icon></md-icon-button></div>
   <p>{{.Summary}}{{if .Danger}} <span class="chip">pede --yes</span>{{end}}</p>
   {{if .Aliases}}<p class="muted">Também funciona: {{range $i, $a := .Aliases}}{{if $i}}, {{end}}<code>brpanel {{$a}}</code>{{end}}</p>{{end}}
   {{if .Flags}}<dl class="meta">{{range .Flags}}<dt><code>--{{.Name}}{{if .Value}} {{.Value}}{{end}}</code></dt><dd>{{.Desc}}</dd>{{end}}</dl>{{end}}

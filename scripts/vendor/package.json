@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "description": "Build-time only: bundles Material Web and generates the Material 3 color tokens. Nothing here ships or runs at deploy time.",
+  "dependencies": {
+    "@material/material-color-utilities": "0.4.0",
+    "@material/web": "2.5.0",
+    "esbuild": "0.28.2"
+  }
+}

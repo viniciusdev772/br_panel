@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 const { PANEL_URL: B, WORK, OUT, SEED, SEED_DATA } = process.env;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PASSWORD = 'senha-muito-longa-123';
-const SUBMIT = 'main form button[type=submit]'; // the top bar also has a (logout) submit button
+const SUBMIT = 'main form md-filled-button[type=submit]'; // the top bar also has a (logout) submit button
 
 const T0 = Date.now();
 (async () => {
@@ -26,7 +26,7 @@ const T0 = Date.now();
   // Fields can sit in collapsed sections or other wizard steps: set them straight in the DOM.
   const setv = (n, v) => page.evaluate(([n, v]) => { const e = document.querySelector('[name=' + n + ']'); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, [n, v]);
   const send = () => page.evaluate(() => document.querySelector('main form').requestSubmit());
-  const tab = async (name) => { await page.click(`.tab-btn[data-tab="${name}"]`); await sleep(200); };
+  const tab = async (name) => { await page.click(`md-primary-tab[data-tab="${name}"]`); await sleep(200); };
 
   // ---- first run ----
   const token = fs.readFileSync(`${WORK}/data/setup_token`, 'utf8').trim();
@@ -120,13 +120,13 @@ const T0 = Date.now();
   await page.click('#dblist button >> nth=0'); await sleep(400);
   await shot('13-banco-dados');
   await tab('backups');
-  await page.click('#tab-backups form[action$="/backup"] button'); await idle(); await sleep(1500);
+  await page.click('#tab-backups form[action$="/backup"] md-filled-button'); await idle(); await sleep(1500);
   await page.goto(B + '/databases/postgres#backups'); await idle();
   await shot('14-banco-backups');
   await tab('metricas'); await sleep(400);
   await shot('15-banco-metricas');
   await tab('logs'); await sleep(300);
-  await page.click('.sw-tab[data-kind="setup"]'); await sleep(300);
+  await page.click('md-secondary-tab[data-kind="setup"]'); await sleep(300);
   await shot('16-banco-logs-provisionamento');
   await tab('configuracoes');
   await shot('17-banco-configuracoes');

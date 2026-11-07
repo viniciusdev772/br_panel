@@ -1,11 +1,11 @@
 {{define "content"}}
-<div class="mdc-card login-card">
+<div class="card login-card">
   <form method="post" action="/login" class="card-body">
-    <h1 class="mdc-typography--headline6">Entrar no painel</h1>
+    <h1>Entrar no painel</h1>
     {{template "field" dict "name" "username" "label" "Usuário" "autocomplete" "username" "required" true}}
     {{template "field" dict "name" "password" "label" "Senha" "type" "password" "autocomplete" "current-password" "required" true}}
     <div class="actions">
-      <button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Entrar</span></button>
+      {{template "btn" dict "kind" "filled" "type" "submit" "label" "Entrar"}}
     </div>
   </form>
 </div>

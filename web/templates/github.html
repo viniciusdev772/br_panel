@@ -1,6 +1,6 @@
 {{define "content"}}
-<div class="page-head"><h1 class="mdc-typography--headline5">Integração com GitHub</h1></div>
-<div class="mdc-card"><div class="card-body">
+<div class="page-head"><h1>Integração com GitHub</h1></div>
+<div class="card"><div class="card-body">
   <dl class="meta">
     <dt>Webhook (deploy automático)</dt><dd><span class="chip {{if .GH.WebhookEnabled}}chip--active{{end}}">{{if .GH.WebhookEnabled}}ativo{{else}}desativado{{end}}</span></dd>
     <dt>GitHub App (repositórios privados)</dt><dd><span class="chip {{if .GH.AppEnabled}}chip--active{{end}}">{{if .GH.AppEnabled}}configurado{{else}}não configurado{{end}}</span></dd>
@@ -8,20 +8,20 @@
   </dl>
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title">Criar o GitHub App automaticamente</h2>
-<div class="mdc-card"><div class="card-body">
+<h2 class="section-title">Criar o GitHub App automaticamente</h2>
+<div class="card"><div class="card-body">
 {{if .GH.AppEnabled}}
   <p>O GitHub App já está configurado.{{if .GH.InstallURL}} Falta instalá-lo nos repositórios que terão deploy automático.{{end}}</p>
-  {{if .GH.InstallURL}}<div class="actions"><a class="mdc-button mdc-button--raised" href="{{.GH.InstallURL}}" rel="noopener"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Instalar nos repositórios</span></a></div>{{end}}
+  {{if .GH.InstallURL}}<div class="actions">{{template "btn" dict "kind" "filled" "href" .GH.InstallURL "label" "Instalar nos repositórios"}}</div>{{end}}
 {{else if not .GH.PanelDomain}}
   <p>O GitHub só entrega pushes a um endereço HTTPS público, então o painel precisa de um domínio próprio antes de criar o App.</p>
   {{if .GH.HasCloudflare}}
   <p class="muted">Como a Cloudflare está configurada, o painel cria o registro DNS por você, publica o painel com Nginx e emite o SSL. Escolha um domínio de uma zona da sua conta.</p>
-  <form method="post" action="/github/domain">
+  <form method="post" action="/github/domain" class="card-body-form">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     {{template "field" dict "name" "domain" "label" "Domínio do painel" "required" true "autocomplete" "off" "hint" "Ex.: painel.exemplo.com.br. O registro A será criado apontando para este servidor."}}
     {{if .GH.NeedEmail}}{{template "field" dict "name" "acme_email" "label" "E-mail do Let's Encrypt" "required" true "autocomplete" "email"}}{{end}}
-    <div class="actions form-end"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Criar registro DNS e publicar o painel</span></button></div>
+    <div class="actions form-end">{{template "btn" dict "kind" "filled" "type" "submit" "label" "Criar registro DNS e publicar o painel"}}</div>
   </form>
   {{else}}
   <p class="muted">Defina o domínio do painel em <a href="/settings">Configurações</a> (com o DNS já apontando para este servidor) ou configure a Cloudflare lá para o painel criar o registro DNS por você. Depois volte aqui.</p>
@@ -32,24 +32,25 @@
   <p class="muted">{{.GH.PublishErr}}</p>
   <form method="post" action="/github/publish">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <div class="actions"><button class="mdc-button mdc-button--raised" type="submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Tentar de novo</span></button></div>
+    <div class="actions">{{template "btn" dict "kind" "filled" "type" "submit" "label" "Tentar de novo"}}</div>
   </form>
   <p class="muted">Confira se o DNS de {{.GH.PanelDomain}} aponta para este servidor e se o e-mail do Let's Encrypt está salvo em <a href="/settings">Configurações</a>. O Let's Encrypt limita a 5 falhas por hora para o mesmo domínio.</p>
   {{else}}
   <div data-refresh="5"></div>
   <p>Publicando <b>{{.GH.PanelDomain}}</b> e emitindo o SSL. O painel espera o DNS propagar e tenta o certificado até 3 vezes, então pode levar alguns minutos. Esta página atualiza sozinha.</p>
+  <md-linear-progress indeterminate aria-label="Emitindo o certificado"></md-linear-progress>
   {{end}}
 {{else if not .GH.OnPanelDomain}}
   <p>O painel já está em <b>https://{{.GH.PanelDomain}}</b>. Continue por lá (será preciso entrar de novo), porque o GitHub devolve você a esse endereço.</p>
-  <div class="actions"><a class="mdc-button mdc-button--raised" href="https://{{.GH.PanelDomain}}/github"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Abrir em https://{{.GH.PanelDomain}}</span></a></div>
+  <div class="actions">{{template "btn" dict "kind" "filled" "href" (printf "https://%s/github" .GH.PanelDomain) "label" (printf "Abrir em https://%s" .GH.PanelDomain)}}</div>
 {{else}}
   <p>Tudo pronto: o painel responde em <b>https://{{.GH.PanelDomain}}</b>. O painel monta o App com webhook de push e permissão somente leitura de conteúdo; você só confirma no GitHub.</p>
-  <div class="actions"><a class="mdc-button mdc-button--raised" href="/github/app/new"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Criar GitHub App</span></a></div>
+  <div class="actions">{{template "btn" dict "kind" "filled" "href" "/github/app/new" "label" "Criar GitHub App"}}</div>
 {{end}}
 </div></div>
 
-<h2 class="mdc-typography--subtitle1 section-title">Configuração manual</h2>
-<div class="mdc-card"><div class="card-body steps">
+<h2 class="section-title">Configuração manual</h2>
+<div class="card"><div class="card-body steps">
   <ol>
     <li>No GitHub: <b>Settings → Developer settings → GitHub Apps → New GitHub App</b>.</li>
     <li><b>Webhook URL:</b> <code>{{.GH.WebhookURL}}</code> (precisa ser HTTPS público; informe um domínio para o painel em <a href="/settings">Configurações</a> para ele ganhar Nginx + SSL). <b>Content type:</b> <code>application/json</code>.</li>

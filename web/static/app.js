@@ -5,51 +5,48 @@
   // The panel polls every few seconds: its timers sleep while the tab is hidden, so a page nobody sees makes no requests.
   var setInterval = function (fn, ms) { return window.setInterval(function () { if (!document.hidden) { fn(); } }, ms); };
 
-  // ---- Material components ----
-  var fields = {}, allFields = [];
-  // A label measured while its field was hidden (another tab, a collapsed box) needs measuring again.
-  var relayout = function () { allFields.forEach(function (tf) { tf.layout(); }); };
-  $$('.mdc-text-field').forEach(function (el) {
-    var tf = new mdc.textField.MDCTextField(el);
-    allFields.push(tf);
-    var input = $('input, textarea', el);
-    if (input && input.name) { fields[input.name] = tf; }
-  });
-  $$('.mdc-button').forEach(function (el) { new mdc.ripple.MDCRipple(el); });
-  $$('.mdc-form-field').forEach(function (el) {
-    var cb = $('.mdc-checkbox', el);
-    if (!cb) { return; }
-    var ff = new mdc.formField.MDCFormField(el);
-    ff.input = new mdc.checkbox.MDCCheckbox(cb);
-  });
-  $$('form[data-confirm]').forEach(function (f) {
-    f.addEventListener('submit', function (e) {
-      if (!window.confirm(f.getAttribute('data-confirm'))) { e.preventDefault(); }
-    });
-  });
+  // ---- Material Web components ----
+  // Text fields are looked up by their form name (fields.repo, fields.branch…); the elements keep .value/.reportValidity().
+  var fields = {};
+  $$('md-outlined-text-field[name]').forEach(function (el) { fields[el.getAttribute('name')] = el; });
+  var icon = function (name) { return '<md-icon>' + name + '</md-icon>'; };
 
-  // ---- theme ----
+  // A destructive form asks first, in a dialog instead of window.confirm.
+  var dlg = $('#confirm-dialog'), pendingForm = null;
+  if (dlg) {
+    $$('form[data-confirm]').forEach(function (f) {
+      f.addEventListener('submit', function (e) {
+        if (f.dataset.confirmed) { return; }
+        e.preventDefault();
+        pendingForm = f;
+        $('#confirm-text').textContent = f.getAttribute('data-confirm');
+        dlg.show();
+      });
+    });
+    $('#confirm-cancel').addEventListener('click', function () { pendingForm = null; dlg.close(); });
+    $('#confirm-ok').addEventListener('click', function () {
+      var f = pendingForm;
+      pendingForm = null; dlg.close();
+      if (f) { f.dataset.confirmed = '1'; f.requestSubmit(); }
+    });
+  }
+
+  // ---- theme: follows the system until the user picks one ----
   var themeBtn = $('#theme-toggle');
   if (themeBtn) {
     themeBtn.addEventListener('click', function () {
-      var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      var cur = document.documentElement.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var next = cur === 'light' ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', next);
       try { localStorage.setItem('brpanel-theme', next); } catch (e) { /* storage blocked */ }
       window.dispatchEvent(new Event('resize')); // charts and edges pick up the new colors
     });
   }
 
-  // ---- create menu ----
+  // ---- create menu (md-menu handles focus, arrows and Esc) ----
   var createBtn = $('#create-btn'), createMenu = $('#create-menu');
   if (createBtn && createMenu) {
-    var closeMenu = function () { createMenu.classList.remove('open'); createBtn.setAttribute('aria-expanded', 'false'); };
-    createBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var open = createMenu.classList.toggle('open');
-      createBtn.setAttribute('aria-expanded', String(open));
-    });
-    document.addEventListener('click', function (e) { if (!createMenu.contains(e.target)) { closeMenu(); } });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeMenu(); } });
+    createBtn.addEventListener('click', function () { createMenu.open = !createMenu.open; });
   }
 
   // ---- formatting ----
@@ -94,50 +91,80 @@
 
   // ---- tabs (resource sheets) ----
   var tabsEl = $('[data-tabs]');
+  var tabNames = tabsEl ? $$('[data-tab]', tabsEl).map(function (t) { return t.dataset.tab; }) : [];
   function showTab(name, updateHash) {
-    var found = false;
-    $$('[data-panel]').forEach(function (p) { var on = p.dataset.panel === name; p.hidden = !on; found = found || on; });
-    if (!found) { return; }
-    $$('.tab-btn', tabsEl).forEach(function (b) { b.classList.toggle('is-active', b.dataset.tab === name); });
+    var idx = tabNames.indexOf(name);
+    if (idx < 0) { return; }
+    $$('[data-panel]').forEach(function (p) { p.hidden = p.dataset.panel !== name; });
+    tabsEl.activeTabIndex = idx;
     if (updateHash) { try { history.replaceState(null, '', '#' + name); } catch (e) { /* ignore */ } }
-    relayout();
     window.dispatchEvent(new CustomEvent('tabshown', { detail: name }));
   }
   if (tabsEl) {
-    $$('.tab-btn', tabsEl).forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab, true); }); });
+    tabsEl.addEventListener('change', function () { showTab(tabNames[tabsEl.activeTabIndex], true); });
     window.addEventListener('hashchange', function () { showTab(location.hash.slice(1), false); });
   }
 
   // ---- architecture canvas ----
   var canvas = $('#canvas');
   if (canvas) {
-    var edgesSvg = $('#edges');
+    var edgesSvg = $('#edges'), SVGNS = 'http://www.w3.org/2000/svg';
+    var edgePairs = (canvas.dataset.edges || '').split(';').filter(Boolean).map(function (p) { return p.split('>'); });
+    // "usa: postgres, redis": the dependency list lives on the card too (the lines hide on a phone).
+    $$('.rcard').forEach(function (card) {
+      var uses = edgePairs.filter(function (p) { return p[0] === card.dataset.res; }).map(function (p) { return p[1]; });
+      var el = $('.rcard-uses', card);
+      if (!el || !uses.length) { return; }
+      el.textContent = 'usa ';
+      uses.forEach(function (u, i) {
+        if (i) { el.appendChild(document.createTextNode(', ')); }
+        var b = document.createElement('b'); b.textContent = u; el.appendChild(b);
+      });
+    });
+    // A route is a list of right-angle segments with rounded corners, like a line on a transit map.
+    var routePath = function (pts, r) {
+      var d = 'M' + pts[0][0] + ',' + pts[0][1];
+      for (var i = 1; i < pts.length - 1; i++) {
+        var p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+        var l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        if (!l1 || !l2) { d += ' L' + p1[0] + ',' + p1[1]; continue; }
+        var rr = Math.min(r, l1 / 2, l2 / 2);
+        d += ' L' + (p1[0] + (p0[0] - p1[0]) * rr / l1) + ',' + (p1[1] + (p0[1] - p1[1]) * rr / l1) +
+          ' Q' + p1[0] + ',' + p1[1] + ' ' + (p1[0] + (p2[0] - p1[0]) * rr / l2) + ',' + (p1[1] + (p2[1] - p1[1]) * rr / l2);
+      }
+      return d + ' L' + pts[pts.length - 1][0] + ',' + pts[pts.length - 1][1];
+    };
     var drawEdges = function () {
-      if (!edgesSvg) { return; }
-      $$('path.edge', edgesSvg).forEach(function (p) { p.remove(); });
-      var base = canvas.getBoundingClientRect();
-      (canvas.dataset.edges || '').split(';').filter(Boolean).forEach(function (pair) {
-        var ft = pair.split('>'), a = $('[data-res="' + ft[0] + '"]'), b = $('[data-res="' + ft[1] + '"]');
+      if (!edgesSvg || !edgesSvg.getClientRects().length) { return; }
+      $$('.edge, .station', edgesSvg).forEach(function (p) { p.remove(); });
+      var base = canvas.getBoundingClientRect(), ox = base.left, oy = base.top;
+      var add = function (tag, attrs) {
+        var n = document.createElementNS(SVGNS, tag);
+        Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+        edgesSvg.appendChild(n);
+      };
+      edgePairs.forEach(function (ft) {
+        var a = $('[data-res="' + ft[0] + '"]'), b = $('[data-res="' + ft[1] + '"]');
         if (!a || !b) { return; }
-        var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), d;
-        var ox = base.left, oy = base.top;
+        var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), pts;
         if (rb.left >= ra.right - 10 || ra.left >= rb.right - 10) { // side by side: right edge -> left edge
           var left = ra.left < rb.left, x1 = (left ? ra.right : ra.left) - ox, y1 = ra.top + ra.height / 2 - oy,
-              x2 = (left ? rb.left : rb.right) - ox, y2 = rb.top + rb.height / 2 - oy, dx = (x2 - x1) / 2;
-          d = 'M' + x1 + ',' + y1 + ' C' + (x1 + dx) + ',' + y1 + ' ' + (x2 - dx) + ',' + y2 + ' ' + x2 + ',' + y2;
+              x2 = (left ? rb.left : rb.right) - ox, y2 = rb.top + rb.height / 2 - oy, mx = (x1 + x2) / 2;
+          pts = [[x1, y1], [mx, y1], [mx, y2], [x2, y2]];
         } else { // stacked: bottom -> top
           var down = ra.top < rb.top, sx = ra.left + ra.width / 2 - ox, sy = (down ? ra.bottom : ra.top) - oy,
-              ex = rb.left + rb.width / 2 - ox, ey = (down ? rb.top : rb.bottom) - oy, dy = (ey - sy) / 2;
-          d = 'M' + sx + ',' + sy + ' C' + sx + ',' + (sy + dy) + ' ' + ex + ',' + (ey - dy) + ' ' + ex + ',' + ey;
+              ex = rb.left + rb.width / 2 - ox, ey = (down ? rb.top : rb.bottom) - oy, my = (sy + ey) / 2;
+          pts = [[sx, sy], [sx, my], [ex, my], [ex, ey]];
         }
-        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('class', 'edge'); path.setAttribute('d', d); path.setAttribute('marker-end', 'url(#arrow)');
-        edgesSvg.appendChild(path);
+        add('path', { 'class': 'edge', d: routePath(pts, 14) });
+        add('circle', { 'class': 'station', cx: pts[0][0], cy: pts[0][1], r: 4.5 });
+        add('circle', { 'class': 'station', cx: pts[3][0], cy: pts[3][1], r: 4.5 });
       });
     };
     drawEdges();
     window.addEventListener('resize', drawEdges);
     window.addEventListener('load', drawEdges);
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(drawEdges); }
 
     var STATUS_ICON = { ok: 'check_circle', bad: 'error', warn: 'autorenew', muted: 'schedule' };
     var describe = function (r) {
@@ -152,6 +179,21 @@
       return ['Aguardando deploy', 'muted'];
     };
     var EV_ICON = { deploy: 'rocket_launch', database: 'storage', backup: 'backup', app: 'add_circle', cache: 'cleaning_services' };
+    var setHostBar = function (id, ratio) {
+      var el = document.getElementById(id);
+      if (!el) { return; }
+      el.style.width = Math.max(0, Math.min(1, ratio || 0)) * 100 + '%';
+      el.className = ratio > 0.9 ? 'bad' : ratio > 0.75 ? 'warn' : '';
+    };
+    // The page says when its picture of the server is stale instead of freezing in silence.
+    var syncEl = $('#sync'), lastOK = 0;
+    var setSync = function (ok) {
+      if (!syncEl) { return; }
+      if (ok) { lastOK = Date.now(); }
+      syncEl.classList.toggle('is-bad', !ok);
+      $('.sync-text', syncEl).textContent = ok ? 'Ao vivo' : 'Sem conexão com o painel' + (lastOK ? ' · última leitura ' + ago(new Date(lastOK).toISOString()) : '');
+    };
+    var known = $$('.rcard').map(function (c) { return c.dataset.res; }).sort().join(','), reloaded = false;
     var overview = function () {
       getJSON('/api/overview').then(function (o) {
         var h = o.host;
@@ -159,29 +201,36 @@
         setText('h-load', h.load[0].toFixed(2) + ' (' + h.cpus + ' CPU)');
         setText('h-disk', fmtBytes(h.disk_used) + ' / ' + fmtBytes(h.disk_total));
         setText('h-up', fmtDur(h.uptime));
+        setHostBar('h-mem-bar', h.mem_used / h.mem_total);
+        setHostBar('h-load-bar', h.load[0] / h.cpus);
+        setHostBar('h-disk-bar', h.disk_used / h.disk_total);
+        // something was created or removed elsewhere (CLI, another tab): the card list is stale, so load it again
+        if (!reloaded && Object.keys(o.res).sort().join(',') !== known) { reloaded = true; location.reload(); return; }
         Object.keys(o.res).forEach(function (name) {
           var r = o.res[name], card = $('[data-res="' + name + '"]');
           if (!card) { return; }
           var d = describe(r), st = $('.rcard-status', card);
           st.className = 'rcard-status ' + d[1];
           $('.st-text', st).textContent = d[0];
-          $('.material-icons', st).textContent = STATUS_ICON[d[1]];
+          $('md-icon', st).textContent = STATUS_ICON[d[1]];
           $('[data-cpu]', card).textContent = fmtPct(r.cpu);
           $('[data-mem]', card).textContent = fmtBytes(r.mem);
         });
         var box = $('#events');
         if (box && o.events) {
           box.innerHTML = o.events.length ? o.events.map(function (e) {
-            return '<div class="event ev-' + esc(e.kind) + '"><i class="material-icons">' + (EV_ICON[e.kind] || 'add_circle') + '</i><div><strong>' + esc(e.resource) +
+            return '<div class="event ev-' + esc(e.kind) + '">' + icon(EV_ICON[e.kind] || 'add_circle') + '<div><strong>' + esc(e.resource) +
               '</strong><span>' + esc(e.message) + '</span><time data-ts="' + esc(e.ts) + '"></time></div></div>';
           }).join('') : '<p class="event-empty">Nenhuma atividade ainda.</p>';
           refreshTimes();
         }
+        setSync(true);
         drawEdges();
-      }).catch(function () {});
+      }).catch(function () { setSync(false); });
     };
     overview();
     setInterval(overview, 5000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { overview(); } });
   }
 
   // ---- app page: charts ----
@@ -201,7 +250,7 @@
     var y = function (v) { return T + ph - v / max * ph; };
 
     var css = getComputedStyle(document.documentElement);
-    var muted = css.getPropertyValue('--muted').trim() || '#888', grid = css.getPropertyValue('--border').trim() || '#ddd', ink = css.getPropertyValue('--text').trim() || '#000';
+    var muted = css.getPropertyValue('--md-sys-color-on-surface-variant').trim() || '#888', grid = css.getPropertyValue('--md-sys-color-outline-variant').trim() || '#ddd', ink = css.getPropertyValue('--md-sys-color-on-surface').trim() || '#000';
     c.font = '11px Roboto, sans-serif';
     c.fillStyle = muted; c.strokeStyle = grid; c.lineWidth = 1;
     c.textAlign = 'right'; c.textBaseline = 'middle';
@@ -243,7 +292,7 @@
       var label = fmt(p[key]) + '  ' + ('0' + d2.getHours()).slice(-2) + ':' + ('0' + d2.getMinutes()).slice(-2) + ':' + ('0' + d2.getSeconds()).slice(-2);
       var tw = c.measureText(label).width + 12, tx = Math.min(Math.max(px - tw / 2, L), w - R - tw);
       c.fillStyle = ink; c.fillRect(tx, T + 2, tw, 18);
-      c.fillStyle = css.getPropertyValue('--surface').trim() || '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(label, tx + 6, T + 11);
+      c.fillStyle = css.getPropertyValue('--md-sys-color-surface').trim() || '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(label, tx + 6, T + 11);
     }
   }
 
@@ -255,8 +304,9 @@
     var cpuC = $('#chart-cpu'), memC = $('#chart-mem');
     var render = function (hover) {
       if (!last) { return; }
-      drawChart(cpuC, last.points, 'cpu', function (v) { return v.toFixed(0) + '%'; }, '#8b5cf6', last.from, last.to, hover);
-      drawChart(memC, last.points, 'mem', fmtBytes, '#34d399', last.from, last.to, hover);
+      var css = getComputedStyle(document.documentElement);
+      drawChart(cpuC, last.points, 'cpu', function (v) { return v.toFixed(0) + '%'; }, css.getPropertyValue('--md-sys-color-primary').trim() || '#00687b', last.from, last.to, hover);
+      drawChart(memC, last.points, 'mem', fmtBytes, css.getPropertyValue('--md-sys-color-tertiary').trim() || '#575c7e', last.from, last.to, hover);
     };
     var load = function () {
       getJSON(metricsURL + '?range=' + range).then(function (m) {
@@ -320,7 +370,7 @@
   // ---- full logs (tab on apps and databases) ----
   var tools = $('#logtools');
   if (tools) {
-    var lbase = tools.dataset.base, kind = $('.sw-tab', tools).dataset.kind, timer = null, raw = '';
+    var lbase = tools.dataset.base, kindTabs = $('#log-kinds'), kind = $('md-secondary-tab', tools).dataset.kind, timer = null, raw = '';
     var view = $('#logview'), filter = $('#log-filter'), follow = $('#log-follow'), linesSel = $('#log-lines');
     var errRe = /\b(error|erro|fatal|panic|exception|failed|falhou|traceback)\b/i, warnRe = /\b(warn|warning|aviso)\b/i;
     var url = function (extra) { return lbase + '/log?kind=' + kind + '&lines=' + linesSel.value + (extra || ''); };
@@ -344,11 +394,8 @@
         .then(function (t) { raw = t; paint(); }).catch(function () { setText('log-status', 'Falha ao carregar.'); });
     };
     var schedule = function () { clearInterval(timer); if (follow.checked && !$('#tab-logs').hidden) { timer = setInterval(fetchLogs, 3000); } };
-    $$('.sw-tab', tools).forEach(function (b) {
-      b.addEventListener('click', function () {
-        $$('.sw-tab', tools).forEach(function (o) { o.classList.toggle('is-active', o === b); });
-        kind = b.dataset.kind; fetchLogs();
-      });
+    kindTabs.addEventListener('change', function () {
+      kind = $$('md-secondary-tab', kindTabs)[kindTabs.activeTabIndex].dataset.kind; fetchLogs();
     });
     linesSel.addEventListener('change', fetchLogs);
     filter.addEventListener('input', paint);
@@ -372,7 +419,7 @@
       var v = b.closest('.kv-actions').previousElementSibling, on = v.dataset.shown === '1';
       v.dataset.shown = on ? '0' : '1';
       v.textContent = on ? '••••••••••••••••' : v.dataset.value;
-      $('.material-icons', b).textContent = on ? 'visibility' : 'visibility_off';
+      $('md-icon', b).textContent = on ? 'visibility' : 'visibility_off';
     });
   });
   $$('[data-copy-text]').forEach(function (b) { b.addEventListener('click', function () { copy(b.dataset.copyText, b); }); });
@@ -401,7 +448,7 @@
         d.items.forEach(function (it) {
           var b = document.createElement('button');
           b.type = 'button';
-          b.innerHTML = '<i class="material-icons">' + (browser.dataset.kind === 'redis' ? 'vpn_key' : browser.dataset.kind === 'mongodb' ? 'folder' : 'table_chart') + '</i>';
+          b.innerHTML = '<span class="ms">' + (browser.dataset.kind === 'redis' ? 'vpn_key' : browser.dataset.kind === 'mongodb' ? 'folder' : 'table_chart') + '</span>';
           b.appendChild(document.createTextNode(it));
           b.addEventListener('click', function () {
             if (active) { active.classList.remove('is-active'); }
@@ -462,12 +509,11 @@
       backBtn.hidden = i === 0;
       nextBtn.hidden = i === last;
       submitBtn.hidden = !editing && i !== last; // creating: only the final step can submit
-      Object.keys(fields).forEach(function (k) { fields[k].layout(); }); // labels of fields shown just now need their notch measured
     };
     // Going forward stops at the first step with an empty required field and points at it.
     var go = function (i) {
       for (var j = cur; j < i; j++) {
-        var bad = $$('input[required], textarea[required]', steps[j]).filter(function (el) { return !el.checkValidity(); })[0];
+        var bad = $$('md-outlined-text-field[required]', steps[j]).filter(function (el) { return !el.checkValidity(); })[0];
         if (bad) { show(j); bad.reportValidity(); return; }
       }
       show(i);
@@ -483,7 +529,7 @@
     backBtn.addEventListener('click', function () { go(cur - 1); });
     nextBtn.addEventListener('click', function () { go(cur + 1); });
     wiz.addEventListener('keydown', function (e) { // Enter in a text box moves on instead of submitting half a form
-      if (e.key === 'Enter' && !editing && cur !== last && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') { e.preventDefault(); go(cur + 1); }
+      if (e.key === 'Enter' && !editing && cur !== last && e.target.tagName === 'MD-OUTLINED-TEXT-FIELD' && e.target.type !== 'textarea') { e.preventDefault(); go(cur + 1); }
     });
     show(0);
 
@@ -503,7 +549,6 @@
     var syncMount = function () {
       srcBox.hidden = mountKind.value !== 'bind';
       contentBox.hidden = mountKind.value !== 'file';
-      relayout();
     };
     mountKind.addEventListener('change', syncMount);
     syncMount();
@@ -513,7 +558,7 @@
   var domainKind = $('#domain-kind');
   if (domainKind) {
     var toBox = $('#domain-to-box');
-    var syncDomain = function () { toBox.hidden = domainKind.value !== 'redirect'; relayout(); };
+    var syncDomain = function () { toBox.hidden = domainKind.value !== 'redirect'; };
     domainKind.addEventListener('change', syncDomain);
     syncDomain();
   }
@@ -559,9 +604,7 @@
       if (!apps.length) { return; }
       var cur = fields.root_dir ? fields.root_dir.value.trim() : '';
       var add = function (parent, label, root, current, title) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'mdc-button ' + (current ? 'mdc-button--raised' : 'mdc-button--outlined');
+        var b = document.createElement(current ? 'md-filled-button' : 'md-outlined-button');
         b.textContent = label;
         if (title) { b.title = title; }
         b.addEventListener('click', function () { fields.root_dir.value = root; detect(); });
@@ -594,7 +637,7 @@
     };
     var detect = function () {
       var repo = fields.repo.value.trim();
-      if (!repo) { fields.repo.valid = false; return; }
+      if (!repo) { fields.repo.reportValidity(); return; }
       detectBtn.disabled = true;
       box.hidden = false; box.className = 'detect-result'; box.textContent = 'Baixando e analisando o projeto…';
       var body = new URLSearchParams({ csrf: csrf, repo: repo, branch: fields.branch.value.trim(), root_dir: fields.root_dir ? fields.root_dir.value.trim() : '' });
@@ -625,7 +668,7 @@
           html += '<br>Falta instalar no servidor: ' + d.missing.map(esc).join(', ') + '.';
           needsNode = d.missing.some(function (m) { return /^(node|npm|npx|pnpm|yarn) /.test(m); });
           if (needsNode) {
-            html += '<br><button type="button" class="mdc-button mdc-button--raised" id="node-install">Instalar Node.js com nvm</button><pre class="detect-log" id="node-log" hidden></pre>';
+            html += '<br><md-filled-button id="node-install">Instalar Node.js com nvm</md-filled-button><pre class="detect-log" id="node-log" hidden></pre>';
           }
         }
         box.className = 'detect-result' + (warn || !d.start ? ' warn' : '');
@@ -662,15 +705,15 @@
         picked = r.full_name;
         fields.repo.value = r.clone_url;
         fields.branch.value = r.default_branch || 'main';
-        $('input[name=repo]').dispatchEvent(new Event('change')); // detects the project when the commands are empty
+        fields.repo.dispatchEvent(new Event('change')); // detects the project when the commands are empty
       };
       picker.addEventListener('input', pick);
       picker.addEventListener('change', pick);
     }
-    $('input[name=repo]').addEventListener('change', function () {
+    fields.repo.addEventListener('change', function () {
       if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
     });
-    $('input[name=root_dir]').addEventListener('change', function () {
+    fields.root_dir.addEventListener('change', function () {
       if (!fields.start_cmd.value && !fields.build_cmd.value) { detect(); }
     });
   }
@@ -748,8 +791,7 @@
         ask.remove();
         aiPost(map);
       };
-      var no = mk('button', 'mdc-button', 'Recusar'), yes = mk('button', 'mdc-button mdc-button--raised', 'Aprovar e executar');
-      no.type = yes.type = 'button';
+      var no = mk('md-text-button', '', 'Recusar'), yes = mk('md-filled-button', '', 'Aprovar e executar');
       no.addEventListener('click', function () { answer(false); });
       yes.addEventListener('click', function () { answer(true); });
       row.appendChild(no); row.appendChild(yes); ask.appendChild(row);
@@ -795,7 +837,7 @@
       aiAdd('ai-msg--user', text);
       aiPost();
     });
-    $('textarea', aiForm).addEventListener('keydown', function (ev) {
+    fields.ai_prompt.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); aiForm.requestSubmit(); }
     });
     $('#ai-clear').addEventListener('click', function () {
@@ -806,7 +848,7 @@
 
   // ---- a plain confirmation fades away on its own (errors, tokens and anything with a button stay) ----
   var flash = $('.notice[role=status]');
-  if (flash && !$('pre, button, a', flash)) {
+  if (flash && !$('pre, button, a, md-filled-button, md-text-button', flash)) {
     setTimeout(function () {
       flash.classList.add('is-leaving');
       setTimeout(function () { flash.remove(); }, 400);
@@ -819,7 +861,7 @@
 
   // ---- initial tab (after all 'tabshown' listeners exist) ----
   if (tabsEl) {
-    if (location.hash.length > 1) { showTab(location.hash.slice(1), false); }
-    else { window.dispatchEvent(new CustomEvent('tabshown', { detail: $('.tab-btn.is-active', tabsEl).dataset.tab })); }
+    if (location.hash.length > 1 && tabNames.indexOf(location.hash.slice(1)) >= 0) { showTab(location.hash.slice(1), false); }
+    else { window.dispatchEvent(new CustomEvent('tabshown', { detail: tabNames[0] })); }
   }
 })();

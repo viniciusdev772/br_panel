@@ -21,7 +21,7 @@ import (
 
 func (s *Server) handleApps(w http.ResponseWriter, r *http.Request) {
 	cards, edges := s.canvas()
-	s.render(w, r, "apps", page{Title: "Arquitetura", Cards: cards, Edges: edges, Events: s.store.Events(30), Kinds: s.dbm.Kinds()})
+	s.render(w, r, "apps", page{Title: "Servidor", Cards: cards, Edges: edges, Events: s.store.Events(30), Kinds: s.dbm.Kinds()})
 }
 
 func (s *Server) handleNewForm(w http.ResponseWriter, r *http.Request) {

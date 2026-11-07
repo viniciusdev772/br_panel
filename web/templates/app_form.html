@@ -1,6 +1,6 @@
 {{define "content"}}
-<div class="page-head"><h1 class="mdc-typography--headline5">{{.Title}}</h1></div>
-<div class="mdc-card"><form method="post" class="card-body" id="app-wizard" data-editing="{{.Editing}}" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
+<div class="page-head"><h1>{{.Title}}</h1></div>
+<div class="card"><form method="post" class="card-body" id="app-wizard" data-editing="{{.Editing}}" action="{{if .Editing}}/apps/{{.App.Name}}/edit{{else}}/apps{{end}}">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <ol class="stepper" id="stepper" aria-label="Etapas" hidden></ol>
 
@@ -25,14 +25,16 @@
     <h2 class="step-title">Como o projeto roda?</h2>
     <p class="step-lead">O painel olha os arquivos do projeto e descobre sozinho como prepará-lo e iniciá-lo. Se ele errar, você corrige à mão.</p>
     <div class="detect-row">
-      <button class="mdc-button mdc-button--outlined" type="button" id="detect-btn"><span class="mdc-button__ripple"></span><i class="material-icons mdc-button__icon">auto_fix_high</i><span class="mdc-button__label">Descobrir automaticamente</span></button>
+      {{template "btn" dict "kind" "tonal" "id" "detect-btn" "icon" "auto_fix_high" "label" "Descobrir automaticamente"}}
     </div>
     <div class="detect-result" id="detect-result" hidden></div>
     <details class="advanced" id="manual" {{if or .Editing .App.BuildCmd .App.StartCmd .App.PortField}}open{{end}}>
       <summary>Ajustar à mão</summary>
-      {{template "field" dict "name" "build_cmd" "label" "Comando de preparação (build)" "value" .App.BuildCmd "hint" "Roda uma vez antes de iniciar, por exemplo npm ci && npm run build. Em branco, o painel escolhe."}}
-      {{template "field" dict "name" "start_cmd" "label" "Comando para iniciar" "value" .App.StartCmd "hint" "Use $PORT para a porta, por exemplo node server.js. Em branco, o painel descobre no primeiro deploy."}}
-      {{template "field" dict "name" "port" "label" "Porta" "value" .App.PortField "type" "number" "hint" "Em branco, o painel escolhe uma porta livre. A aplicação a recebe na variável $PORT."}}
+      <div class="step-group">
+        {{template "field" dict "name" "build_cmd" "label" "Comando de preparação (build)" "value" .App.BuildCmd "hint" "Roda uma vez antes de iniciar, por exemplo npm ci && npm run build. Em branco, o painel escolhe."}}
+        {{template "field" dict "name" "start_cmd" "label" "Comando para iniciar" "value" .App.StartCmd "hint" "Use $PORT para a porta, por exemplo node server.js. Em branco, o painel descobre no primeiro deploy."}}
+        {{template "field" dict "name" "port" "label" "Porta" "value" .App.PortField "type" "number" "hint" "Em branco, o painel escolhe uma porta livre. A aplicação a recebe na variável $PORT."}}
+      </div>
     </details>
   </section>
 
@@ -46,17 +48,7 @@
     <h2 class="step-title">Quanto tráfego o projeto recebe?</h2>
     <p class="step-lead">Se um processo só dá conta, deixe como está.</p>
     {{template "field" dict "name" "replicas" "label" "Instâncias" "value" (or .App.Replicas 1) "type" "number" "hint" "Cópias do projeto, de 1 a 16. O Nginx divide as visitas entre elas (só com domínio)."}}
-    <div class="mdc-form-field">
-      <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="autoscale" name="autoscale" {{if .App.AutoScale.Enabled}}checked{{end}}>
-        <div class="mdc-checkbox__background">
-          <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
-          <div class="mdc-checkbox__mixedmark"></div>
-        </div>
-        <div class="mdc-checkbox__ripple"></div>
-      </div>
-      <label for="autoscale">Ajustar o número de instâncias sozinho, pelo uso de CPU</label>
-    </div>
+    {{template "check" dict "name" "autoscale" "label" "Ajustar o número de instâncias sozinho, pelo uso de CPU" "checked" .App.AutoScale.Enabled}}
     <div id="as-fields" class="step-group">
       {{template "field" dict "name" "scale_min" "label" "Mínimo" "value" (or .App.AutoScale.Min 1) "type" "number"}}
       {{template "field" dict "name" "scale_max" "label" "Máximo" "value" (or .App.AutoScale.Max 4) "type" "number" "hint" "No máximo 16."}}
@@ -64,12 +56,14 @@
     </div>
     <details class="advanced">
       <summary>Mais opções</summary>
-      {{template "field" dict "name" "memory_mb" "label" "Memória máxima por instância (MB)" "value" (or .App.MemoryMB "") "type" "number" "hint" "Em branco, sem limite."}}
-      {{template "field" dict "name" "cpu_percent" "label" "CPU máxima por instância (%)" "value" (or .App.CPUPercent "") "type" "number" "hint" "100 é um núcleo. Em branco, sem limite."}}
-      {{template "field" dict "name" "rate_limit" "label" "Requisições por visitante (por segundo)" "value" (or .App.RateLimit "") "type" "number" "hint" "Em branco, sem limite. Acima dele o visitante recebe o erro 429. Só com domínio."}}
-      {{template "field" dict "name" "scale_mem" "label" "Meta de memória (%)" "value" (or .App.AutoScale.TargetMem "") "type" "number" "hint" "Opcional. Precisa do limite de memória acima."}}
-      {{template "field" dict "name" "scale_out_cd" "label" "Esperar para aumentar de novo (segundos)" "value" (or .App.AutoScale.OutCooldown "") "type" "number" "hint" "Em branco, 60."}}
-      {{template "field" dict "name" "scale_in_cd" "label" "Esperar para reduzir (segundos)" "value" (or .App.AutoScale.InCooldown "") "type" "number" "hint" "Em branco, 300."}}
+      <div class="step-group">
+        {{template "field" dict "name" "memory_mb" "label" "Memória máxima por instância (MB)" "value" (or .App.MemoryMB "") "type" "number" "hint" "Em branco, sem limite."}}
+        {{template "field" dict "name" "cpu_percent" "label" "CPU máxima por instância (%)" "value" (or .App.CPUPercent "") "type" "number" "hint" "100 é um núcleo. Em branco, sem limite."}}
+        {{template "field" dict "name" "rate_limit" "label" "Requisições por visitante (por segundo)" "value" (or .App.RateLimit "") "type" "number" "hint" "Em branco, sem limite. Acima dele o visitante recebe o erro 429. Só com domínio."}}
+        {{template "field" dict "name" "scale_mem" "label" "Meta de memória (%)" "value" (or .App.AutoScale.TargetMem "") "type" "number" "hint" "Opcional. Precisa do limite de memória acima."}}
+        {{template "field" dict "name" "scale_out_cd" "label" "Esperar para aumentar de novo (segundos)" "value" (or .App.AutoScale.OutCooldown "") "type" "number" "hint" "Em branco, 60."}}
+        {{template "field" dict "name" "scale_in_cd" "label" "Esperar para reduzir (segundos)" "value" (or .App.AutoScale.InCooldown "") "type" "number" "hint" "Em branco, 300."}}
+      </div>
     </details>
   </section>
 
@@ -78,25 +72,15 @@
     <p class="step-lead">Tudo aqui é opcional e pode ser mudado depois.</p>
     {{template "area" dict "name" "watch_paths" "label" "Outras pastas que também publicam esta aplicação (monorepo)" "value" .App.WatchPaths "rows" 3 "hint" "Uma por linha, como packages/ui/**. Comece com ! para ignorar, por exemplo !**/*.md. Em branco, só mudanças na pasta do projeto e nos arquivos de configuração da raiz (como pnpm-lock.yaml) publicam esta aplicação."}}
     {{template "area" dict "name" "env" "label" "Variáveis de ambiente" "value" .App.Env "rows" 6 "hint" "Uma por linha, no formato CHAVE=valor. Para usar um banco criado no painel, escreva ${{nome-do-banco.DATABASE_URL}}."}}
-    <div class="mdc-form-field">
-      <div class="mdc-checkbox">
-        <input type="checkbox" class="mdc-checkbox__native-control" id="auto_deploy" name="auto_deploy" {{if .App.AutoDeploy}}checked{{end}}>
-        <div class="mdc-checkbox__background">
-          <svg class="mdc-checkbox__checkmark" viewBox="0 0 24 24"><path class="mdc-checkbox__checkmark-path" fill="none" d="M1.73,12.91 8.1,19.28 22.79,4.59"/></svg>
-          <div class="mdc-checkbox__mixedmark"></div>
-        </div>
-        <div class="mdc-checkbox__ripple"></div>
-      </div>
-      <label for="auto_deploy">Publicar de novo a cada push nesta branch</label>
-    </div>
+    {{template "check" dict "name" "auto_deploy" "label" "Publicar de novo a cada push nesta branch" "checked" .App.AutoDeploy}}
     <p class="hint">Precisa do GitHub App configurado, para o painel receber o aviso de cada push.</p>
   </section>
 
   <div class="actions wizard-nav">
-    <a class="mdc-button" href="{{if .Editing}}/apps/{{.App.Name}}{{else}}/{{end}}"><span class="mdc-button__ripple"></span><span class="mdc-button__label">Cancelar</span></a>
-    <button class="mdc-button" type="button" id="wz-back" hidden><span class="mdc-button__ripple"></span><span class="mdc-button__label">Voltar</span></button>
-    <button class="mdc-button mdc-button--raised" type="button" id="wz-next" hidden><span class="mdc-button__ripple"></span><span class="mdc-button__label">Continuar</span></button>
-    <button class="mdc-button mdc-button--raised" type="submit" id="wz-submit"><span class="mdc-button__ripple"></span><span class="mdc-button__label">{{if .Editing}}Salvar{{else}}Criar e fazer deploy{{end}}</span></button>
+    {{template "btn" dict "kind" "text" "href" (or (and .Editing (printf "/apps/%s" .App.Name)) "/") "label" "Cancelar"}}
+    {{template "btn" dict "kind" "text" "id" "wz-back" "hidden" true "label" "Voltar"}}
+    {{template "btn" dict "kind" "filled" "id" "wz-next" "hidden" true "label" "Continuar"}}
+    {{template "btn" dict "kind" "filled" "type" "submit" "id" "wz-submit" "label" (or (and .Editing "Salvar") "Criar e fazer deploy")}}
   </div>
 </form></div>
 {{end}}
