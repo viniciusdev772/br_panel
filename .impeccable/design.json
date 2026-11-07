@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T12:00:00Z",
+  "title": "Design System: BR Panel",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Violeta de Controle", "canonical": "#8b5cf6", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ede9fe"] },
+      "accent-strong": { "role": "primary", "displayName": "Violeta Firme", "canonical": "#7c3aed", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#ddd6fe"] },
+      "link": { "role": "primary", "displayName": "Violeta de Link", "canonical": "#b79cff", "tonalRamp": ["#3b2a73", "#5b43a8", "#7a5ed1", "#9578ee", "#b79cff", "#c9b4ff", "#dccfff", "#f0e9ff"] },
+      "brand-pink": { "role": "secondary", "displayName": "Rosa da Marca", "canonical": "#ec4899", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#ec4899", "#f472b6", "#f9a8d4", "#fce7f3"] },
+      "bg": { "role": "neutral", "displayName": "Noite Profunda", "canonical": "#0e0d16", "tonalRamp": ["#0b0a12", "#0e0d16", "#121120", "#1a1828", "#222035", "#2e2c44", "#9a97b0", "#f3f2f8"] },
+      "surface": { "role": "neutral", "displayName": "Superfície", "canonical": "#1a1828", "tonalRamp": ["#0b0a12", "#0e0d16", "#121120", "#1a1828", "#222035", "#2e2c44", "#9a97b0", "#f3f2f8"] },
+      "muted": { "role": "neutral", "displayName": "Texto Apagado", "canonical": "#9a97b0", "tonalRamp": ["#2e2c44", "#4a4763", "#6b6885", "#85829e", "#9a97b0", "#b6b4c7", "#d3d2df", "#f3f2f8"] },
+      "ok": { "role": "state", "displayName": "Estado OK", "canonical": "#34d399", "tonalRamp": ["#064e3b", "#065f46", "#047857", "#059669", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5"] },
+      "warn": { "role": "state", "displayName": "Atenção", "canonical": "#f5b942", "tonalRamp": ["#452c08", "#6b4510", "#8f5e14", "#b7791f", "#f5b942", "#f8cb6f", "#fbdea0", "#fdf0d2"] },
+      "bad": { "role": "state", "displayName": "Erro", "canonical": "#f87171", "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#f87171", "#fca5a5", "#fecaca", "#fee2e2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Título da folha de recurso." },
+      "headline": { "displayName": "Headline", "purpose": "Título de cada passo do assistente." },
+      "title": { "displayName": "Title", "purpose": "Nome do recurso no cartão." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido, formulários e navegação." },
+      "label": { "displayName": "Label", "purpose": "Títulos de seção em caixa alta, apagados." },
+      "mono": { "displayName": "Mono", "purpose": "Logs, valores copiáveis, comandos e números." }
+    },
+    "shadows": [
+      { "name": "resposta", "value": "0 12px 32px rgba(0, 0, 0, .38)", "purpose": "Cartão em hover, menu aberto, login." },
+      { "name": "halo-de-foco", "value": "0 0 0 3px color-mix(in srgb, #8b5cf6 35%, transparent)", "purpose": "Foco de teclado em botão." },
+      { "name": "brilho-do-botao", "value": "0 6px 16px -8px rgba(124, 58, 237, .8)", "purpose": "Botão preenchido em repouso." },
+      { "name": "brilho-da-marca", "value": "0 4px 14px -4px rgba(139, 92, 246, .7)", "purpose": "Ícone da marca na barra." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(.2, .7, .2, 1)", "purpose": "Entrada de página, avisos, cartões." },
+      { "name": "hover", "value": "150–200ms", "purpose": "Cor, borda e sombra em resposta ao ponteiro." },
+      { "name": "rise", "value": "280ms, translateY(6px) para 0", "purpose": "A página e as mensagens entram suavemente." },
+      { "name": "pulse", "value": "1.2s ease-in-out infinite", "purpose": "Ponto de estado em implantação." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "480px" },
+      { "name": "phone", "value": "600px" },
+      { "name": "tablet", "value": "760px" },
+      { "name": "wide", "value": "1100px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão Primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela: publicar, salvar, criar.",
+      "html": "<button class=\"ds-btn-primary\">Publicar</button>",
+      "css": ".ds-btn-primary { height: 36px; padding: 0 16px; border: 0; border-radius: 8px; background-color: #7c3aed; background-image: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0)); color: #fff; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; box-shadow: 0 6px 16px -8px rgba(124,58,237,.8); transition: transform .12s, box-shadow .2s, filter .15s; } .ds-btn-primary:hover { filter: brightness(1.1); box-shadow: 0 8px 20px -8px rgba(124,58,237,.9); } .ds-btn-primary:active { transform: translateY(1px) scale(.985); } .ds-btn-primary:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+    },
+    {
+      "name": "Botão Contornado",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Ação secundária ao lado da principal.",
+      "html": "<button class=\"ds-btn-outlined\">Cancelar</button>",
+      "css": ".ds-btn-outlined { height: 36px; padding: 0 16px; border: 1px solid #2e2c44; border-radius: 8px; background: transparent; color: #f3f2f8; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; transition: border-color .15s; } .ds-btn-outlined:hover { border-color: #8b5cf6; } .ds-btn-outlined:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+    },
+    {
+      "name": "Botão Perigoso",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Excluir, parar, apagar; sempre contornado, nunca preenchido.",
+      "html": "<button class=\"ds-btn-danger\">Excluir</button>",
+      "css": ".ds-btn-danger { height: 36px; padding: 0 16px; border: 1px solid rgba(248,113,113,.5); border-radius: 8px; background: transparent; color: #f87171; font: 500 14px Roboto, system-ui, sans-serif; letter-spacing: .6px; cursor: pointer; } .ds-btn-danger:hover { background: rgba(248,113,113,.1); } .ds-btn-danger:focus-visible { outline: 0; box-shadow: 0 0 0 3px rgba(139,92,246,.35); }"
+    },
+    {
+      "name": "Cartão de Recurso",
+      "kind": "card",
+      "refersTo": "resource-card",
+      "description": "Aplicação ou banco no canvas da arquitetura, com status e métricas.",
+      "html": "<a class=\"ds-rcard\" href=\"#\"><div class=\"ds-rcard-top\"><span class=\"ds-badge\">JS</span><div class=\"ds-rcard-title\"><strong>loja</strong><span>loja.example.com</span></div></div><div class=\"ds-rcard-status\"><span>No ar</span><time>há 2 min</time></div><div class=\"ds-rcard-metrics\"><span>CPU 4%</span><span>RAM 112 MB</span></div></a>",
+      "css": ".ds-rcard { display: flex; flex-direction: column; gap: 14px; width: 270px; min-height: 132px; padding: 16px 18px; background: #1a1828; border: 1px solid #2e2c44; border-radius: 14px; color: #f3f2f8; text-decoration: none; font-family: Roboto, system-ui, sans-serif; transition: border-color .2s, transform .2s, box-shadow .2s; } .ds-rcard:hover { transform: translateY(-2px); border-color: #6a4bb8; box-shadow: 0 12px 32px rgba(0,0,0,.38); } .ds-rcard:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; } .ds-rcard-top { display: flex; align-items: center; gap: 12px; } .ds-badge { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: #3c873a; color: #fff; font-weight: 700; font-size: 13px; } .ds-rcard-title { display: flex; flex-direction: column; min-width: 0; } .ds-rcard-title strong { font-size: 16px; font-weight: 600; } .ds-rcard-title span { font-size: 12.5px; color: #9a97b0; } .ds-rcard-status { display: flex; align-items: center; gap: 8px; margin-top: auto; font-size: 13px; color: #34d399; } .ds-rcard-status time { margin-left: auto; font-size: 12px; color: #9a97b0; } .ds-rcard-metrics { display: flex; gap: 14px; font-size: 12px; color: #9a97b0; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Campo de Texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo contornado do MDC com dica abaixo.",
+      "html": "<div><input class=\"ds-input\" placeholder=\"Endereço do repositório\"><p class=\"ds-hint\">Cole a URL do GitHub.</p></div>",
+      "css": ".ds-input { width: 100%; height: 56px; padding: 0 16px; border: 1px solid #2e2c44; border-radius: 8px; background: transparent; color: #f3f2f8; font: 16px Roboto, system-ui, sans-serif; caret-color: #8b5cf6; } .ds-input::placeholder { color: #9a97b0; } .ds-input:hover { border-color: #9a97b0; } .ds-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 1px #8b5cf6; } .ds-hint { margin: 4px 16px 0; font: 12px Roboto, system-ui, sans-serif; color: #9a97b0; }"
+    },
+    {
+      "name": "Chips de Status",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Estado de uma aplicação ou banco; cor, texto e ponto pulsante em implantação.",
+      "html": "<span class=\"ds-chip ds-chip-ok\">ativo</span> <span class=\"ds-chip ds-chip-warn\">implantando</span> <span class=\"ds-chip ds-chip-bad\">falhou</span> <span class=\"ds-chip\">inativo</span>",
+      "css": ".ds-chip { display: inline-block; padding: 2px 10px; border-radius: 12px; font: 500 12px Roboto, system-ui, sans-serif; background: #222035; color: #9a97b0; border: 1px solid #2e2c44; } .ds-chip-ok { background: rgba(52,211,153,.12); color: #34d399; border-color: rgba(52,211,153,.35); } .ds-chip-warn { background: rgba(245,185,66,.12); color: #f5b942; border-color: rgba(245,185,66,.35); } .ds-chip-warn::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; animation: ds-pulse 1.2s ease-in-out infinite; } .ds-chip-bad { background: rgba(248,113,113,.12); color: #f87171; border-color: rgba(248,113,113,.35); } @keyframes ds-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }"
+    },
+    {
+      "name": "Navegação Superior",
+      "kind": "nav",
+      "refersTo": "topbar",
+      "description": "Barra de 56px com marca, seções e ações; item ativo com fundo suave e sublinhado violeta.",
+      "html": "<nav class=\"ds-topnav\"><a class=\"ds-active\" href=\"#\">Arquitetura</a><a href=\"#\">Configurações</a><a href=\"#\">GitHub</a></nav>",
+      "css": ".ds-topnav { display: flex; gap: 4px; height: 56px; align-items: center; padding: 0 20px; background: #1a1828; border-bottom: 1px solid #2e2c44; font-family: Roboto, system-ui, sans-serif; } .ds-topnav a { position: relative; display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 8px; color: #9a97b0; text-decoration: none; font-size: 14px; transition: color .15s, background-color .15s; } .ds-topnav a:hover { color: #f3f2f8; background: #222035; } .ds-topnav a.ds-active { color: #f3f2f8; background: rgba(139,92,246,.16); } .ds-topnav a.ds-active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -10px; height: 2px; border-radius: 2px; background: #8b5cf6; } .ds-topnav a:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Mesa de Controle",
+    "overview": "Uma bancada escura e pontilhada onde cada serviço é um cartão que você enxerga e opera. A tela de arquitetura é um canvas de pontos sutis com cartões de recurso ligados por linhas tracejadas; as demais telas são folhas centradas de 1040px com abas. O painel serve a quem só clica e a quem automatiza: a interface mostra o estado de relance e deixa o detalhe a um clique.\n\nO tom é calmo e técnico. O tema escuro é o padrão, as superfícies são planas com borda fina de 1px e o violeta é o único acento. Cor de estado só aparece para dizer algo sobre o servidor. Material Design 2 (MDC Web 14) é a base de comportamento; a aparência é reescrita por cima com variáveis CSS.",
+    "keyCharacteristics": [
+      "Escuro por padrão, violeta como único acento, cor de estado só para estado.",
+      "Cartões planos com borda de 1px; sombra e halo só em resposta (hover, foco, menu).",
+      "Canvas pontilhado na tela de arquitetura; folhas de 1040px nas demais.",
+      "Roboto para texto, monoespaçada para logs, valores e comandos; números tabulares.",
+      "MDC Web 14 reescrito por variáveis; sem estilos inline (CSP)."
+    ],
+    "rules": [
+      { "name": "A Regra do Acento Raro", "body": "O violeta cobre no máximo uma décima parte da tela. Se tudo é violeta, nada indica o que está ativo.", "section": "colors" },
+      { "name": "A Regra da Cor com Significado", "body": "Verde, âmbar e vermelho existem só para estado do servidor ou da operação. Nunca decoram.", "section": "colors" },
+      { "name": "A Regra das Variáveis", "body": "Toda cor sai de variável CSS. Nenhum valor solto em componente, exceto as cores de marca das linguagens e bancos (selos).", "section": "colors" },
+      { "name": "A Regra do Literal", "body": "Tudo que o usuário pode copiar (comando, URL, variável, log) vai em monoespaçada.", "section": "typography" },
+      { "name": "A Regra do Número Alinhado", "body": "Métricas, contagens e tempos usam font-variant-numeric: tabular-nums.", "section": "typography" },
+      { "name": "A Regra da Folha Estreita", "body": "Fora da arquitetura, nada passa de 1040px. Linhas longas cansam e escondem a ação.", "section": "layout" },
+      { "name": "A Regra do Plano em Repouso", "body": "Cartões e painéis não têm sombra parados. Sombra é reação a hover, foco ou sobreposição.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar as variáveis (--accent, --surface, --border…) para toda cor e checar os dois temas.",
+      "Do manter cartões planos com borda de 1px e reservar sombra para hover, foco e menus.",
+      "Do dar estado por ícone mais texto mais cor, nunca só por cor.",
+      "Do manter foco de teclado visível e respeitar prefers-reduced-motion.",
+      "Do usar monoespaçada para tudo que o usuário copia, e tabular-nums em números.",
+      "Do escrever em português claro; erros dizem o que houve e o que fazer.",
+      "Do conferir a tela em 360px de largura e sem estilos inline (CSP)."
+    ],
+    "donts": [
+      "Don't migrar para Material 3 nem adicionar framework de UI; MDC Web 14 é a base.",
+      "Don't usar o violeta como fundo grande nem em mais de uma décima parte da tela.",
+      "Don't usar gradientes decorativos; o degradê violeta-rosa é só da marca.",
+      "Don't usar verde, âmbar ou vermelho como enfeite.",
+      "Don't colocar sombra pesada em elementos parados.",
+      "Don't usar style=, <script> inline ou onclick=; a CSP bloqueia.",
+      "Don't esconder a ação principal atrás de menus ou deixar o avançado fora de alcance para quem automatiza."
+    ]
+  }
+}
