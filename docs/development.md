@@ -10,7 +10,7 @@
 |---|---|
 | `make build` | Compila para `bin/brpanel` (sempre com `-o`) |
 | `make run` | Compila e executa (`DATA=./data ADDR=127.0.0.1:8080`) |
-| `make check` | Formatação + vet + testes com `-race` (é o que o CI roda) |
+| `make check` | Formatação + vet + testes com `-race` (o mesmo que o CI) |
 | `make test` / `make race` | Testes |
 | `make cover` | Cobertura dos pacotes de `internal/` |
 | `make vuln` | `govulncheck` |

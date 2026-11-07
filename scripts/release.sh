@@ -1,5 +1,5 @@
 #!/bin/sh
-# Publica uma release à mão: compila os 9 binários, gera os .sha256 e cria a release.
+# Publica uma release à mão (sem GitHub Actions): compila os 9 binários, gera os .sha256 e cria a release.
 #
 #   scripts/release.sh v0.3.1
 #

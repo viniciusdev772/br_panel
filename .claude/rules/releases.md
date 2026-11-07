@@ -31,7 +31,7 @@ paths:
 ## Como liberar
 
 1. `make check` verde, `CHANGELOG.md` ajustado, commit e push na `main`.
-2. A release continua manual (o CI só verifica): rode `scripts/release.sh vX.Y.Z` na `main` (compila, gera os `.sha256`, cria a tag e publica com `gh`).
+2. Não há GitHub Actions: rode `scripts/release.sh vX.Y.Z` na `main` (compila, gera os `.sha256`, cria a tag e publica com `gh`).
 3. Confira a release: 18 assets, tamanhos plausíveis e `sha256sum -c` passando.
 4. Teste o `scripts/install.sh` a partir da URL pública num servidor com o painel já instalado (caminho de atualização) antes de dizer que está pronta.
 

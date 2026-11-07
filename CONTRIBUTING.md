@@ -1,6 +1,6 @@
 # Contribuindo
 
-Obrigado por querer ajudar! O GitHub Actions roda o mesmo `make check` em cada PR (mais compilação multiplataforma, `govulncheck` e revisão de dependências), mas rode-o você antes de abrir o PR: PR vermelho não é revisado.
+Obrigado por querer ajudar! O projeto não usa GitHub Actions: **não existe CI automático**, então a verificação é feita por você, na sua máquina, antes de abrir o PR.
 
 1. Faça um fork e crie um branch a partir de `main`.
 2. Leia `docs/architecture.md` e as regras em `.claude/rules/` (valem para pessoas e para o Claude Code).

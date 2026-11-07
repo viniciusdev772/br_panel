@@ -7,7 +7,7 @@ BR Panel: a lightweight Go web panel that deploys Git repositories as **systemd 
 ## Commands
 
 ```sh
-make check                       # gofmt check + go vet + go test -race (run before every commit/PR; GitHub Actions runs the same on every PR)
+make check                       # gofmt check + go vet + go test -race (run before every commit/PR; there is no CI)
 make build                       # -> bin/brpanel (always `-o`: a bare `go build` once committed a 12 MB binary)
 make run                         # build + run with ./data on 127.0.0.1:8080; first run prints the setup token
 go test -run TestDetectNode ./internal/detect   # single test
