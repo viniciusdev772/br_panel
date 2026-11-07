@@ -9,7 +9,7 @@ Obrigado por querer ajudar! O projeto não usa GitHub Actions: **não existe CI 
 5. Toda mudança de comportamento traz testes (inclua entradas maliciosas quando houver dado externo) e atualiza README/docs/`CHANGELOG.md`.
 6. Abra o PR preenchendo o modelo em `.github/PULL_REQUEST_TEMPLATE.md`. Uma mudança por PR, commits curtos em português.
 
-Bugs e ideias: abra uma issue usando um dos modelos em `.github/ISSUE_TEMPLATE/`.
+Bugs e ideias: abra uma issue escolhendo um dos formulários em `.github/ISSUE_TEMPLATE/` (bug, app que não sobe, funcionalidade, programa de um clique, documentação). A issue em branco está desligada em `config.yml`, que também leva vulnerabilidades ao relato privado e dúvidas de uso à documentação. Ao mudar um formulário, valide o YAML: o GitHub ignora o formulário inteiro se houver erro de sintaxe.
 
 Padrões: interface e mensagens em português (pt-BR), código e comentários em inglês, bibliotecas padrão sempre que possível, nada de variáveis de ambiente novas (configuração vai para o SQLite).
 

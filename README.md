@@ -72,5 +72,5 @@ O acesso é protegido por usuário e senha, e o painel bloqueia quem erra a senh
 ## Precisa de ajuda ou quer contribuir?
 
 - Encontrou uma falha de segurança? Leia o [`SECURITY.md`](SECURITY.md) antes de contar a alguém.
-- Dúvidas e ideias: abra uma conversa na aba Issues do GitHub.
+- Dúvidas de uso: comece por [Funcionalidades](docs/funcionalidades.md) e pela [Referência técnica](docs/referencia-tecnica.md). Bugs, ideias, projetos que não sobem e sugestões de programas de um clique: abra uma issue na aba Issues e escolha o formulário que combina com o caso (lembre de remover senhas, domínios e IPs reais: o repositório é público).
 - Quem programa e quer mexer no painel encontra tudo em [Documentação técnica](docs/README.md) e em [`CONTRIBUTING.md`](CONTRIBUTING.md). Não há verificação automática: rode `make check` antes de abrir o PR.
