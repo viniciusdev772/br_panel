@@ -4,6 +4,8 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 
 ## [Não lançado]
 
+## [0.12.0] - 2026-11-07
+
 ### Alterado
 - **Interface refeita em Material 3** (Material Web), com identidade própria: azul-petróleo como cor-semente, tema claro e escuro que segue o sistema (com botão para escolher), navegação lateral no computador e barra inferior no celular, botões, campos, abas, menus e diálogos do Material 3. A tela inicial agora se chama **Servidor**: o canvas mostra as ligações entre aplicações e bancos como linhas de mapa de metrô, cada cartão lista de quem depende (`usa postgres, redis`, também no celular, onde as linhas somem), e o servidor ganhou barras de uso de memória, carga e disco.
 - A tela do Servidor avisa quando perde a conexão com o painel (em vez de congelar), atualiza ao voltar à aba e recarrega sozinha quando um recurso é criado ou removido por outra via (CLI, outra aba).
