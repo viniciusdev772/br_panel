@@ -5,6 +5,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/). 
 ## [Não lançado]
 
 ### Adicionado
+- Regras no repositório contra force-push na `main` e contra apagar ou mover tags `v*`; squash como único método de merge, com apagar branch ao mergear e auto-merge liberados; Dependabot agrupa as atualizações de Go e usa as labels `dependencies`/`go`.
+
+### Adicionado
 - CI no GitHub Actions (`make check`, compilação para Linux/Windows/macOS/Android, `govulncheck` e revisão de dependências nos PRs), CodeQL para Go e Dependabot também para as actions. Regras no repositório contra force-push na `main` e contra apagar ou mover tags `v*`; squash como único método de merge, com apagar branch ao mergear e auto-merge liberados.
 
 ## [0.12.1] - 2026-11-07
