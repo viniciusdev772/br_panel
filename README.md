@@ -43,6 +43,16 @@ No final, ele mostra um link. Abra esse link no navegador, crie o seu usuário e
 
 Quer ler o comando antes de executar? Ele está em [`scripts/install.sh`](scripts/install.sh).
 
+### Para os deploys funcionarem de primeira
+
+Um servidor novo não tem compilador, `pip`, Go, PHP nem Ruby, e projetos assim falham no primeiro build. Este comando instala o que os projetos mais comuns precisam: ferramentas de compilação e bibliotecas, Python (`pip`, `venv`, `uv`, `poetry`, `pipenv`), Go, Rust, PHP com Composer, Ruby com Bundler, Java com Maven e Bun. O Node.js o painel já instala sozinho.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/viniciusdev772/br_panel/main/scripts/install-toolchains.sh | sudo sh
+```
+
+Ele não reinicia nem altera os projetos e bancos que já rodam, e confere o SHA-256 de tudo o que baixa. Pode rodar de novo quando quiser. Veja o que ele faz em [`scripts/install-toolchains.sh`](scripts/install-toolchains.sh).
+
 ## Vários projetos no mesmo repositório
 
 Se o seu repositório guarda um site, uma API e outras partes em pastas separadas, crie uma aplicação para cada parte e escolha a pasta dela. O painel mostra as pastas que parecem aplicações e já sugere nome e configuração. Quando você envia uma mudança ao GitHub, só as aplicações que mudaram são atualizadas.

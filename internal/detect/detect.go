@@ -29,13 +29,13 @@ var requireHints = map[string]string{
 	"npm":      "instale com o nvm pelo botão abaixo",
 	"pnpm":     "vem junto com o Node.js do nvm; use o botão abaixo",
 	"yarn":     "vem junto com o Node.js do nvm; use o botão abaixo",
-	"bun":      "https://bun.sh",
-	"python3":  "apt install python3 python3-venv python3-pip",
-	"go":       "apt install golang-go",
-	"cargo":    "https://rustup.rs",
-	"bundle":   "apt install ruby-bundler",
-	"composer": "apt install composer",
-	"php":      "apt install php-cli",
+	"bun":      "rode scripts/install-toolchains.sh do repositório do painel, ou veja https://bun.sh",
+	"python3":  "apt install python3 python3-venv python3-pip, ou rode scripts/install-toolchains.sh",
+	"go":       "rode scripts/install-toolchains.sh (instala o Go mais novo), ou apt install golang-go",
+	"cargo":    "rode scripts/install-toolchains.sh, ou veja https://rustup.rs",
+	"bundle":   "apt install ruby-bundler, ou rode scripts/install-toolchains.sh",
+	"composer": "apt install composer, ou rode scripts/install-toolchains.sh",
+	"php":      "apt install php-cli, ou rode scripts/install-toolchains.sh",
 }
 
 var safeRelRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
